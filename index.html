@@ -20,18 +20,19 @@
   }
   *{box-sizing:border-box}
   html,body{margin:0;padding:0}
-  body{
-    background:var(--paper); color:var(--ink); font-family:var(--sans);
-    -webkit-font-smoothing:antialiased; min-height:100vh;
-    padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
-  }
+  body{background:var(--paper);color:var(--ink);font-family:var(--sans);
+    -webkit-font-smoothing:antialiased;min-height:100vh;
+    padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
   .wrap{max-width:620px;margin:0 auto;padding:20px 16px 48px}
   .eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
   h1{font-size:32px;font-weight:800;letter-spacing:-.035em;line-height:1;margin:3px 0 0}
   button{font:inherit;cursor:pointer}
-  button:focus-visible,input:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
-  input{font:inherit;color:var(--ink);background:#FAFBFC;border:1px solid var(--rule);padding:9px 10px}
-  input[type=date]{-webkit-appearance:none;appearance:none}
+  button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+  input,select{font:inherit;color:var(--ink);background:#FAFBFC;border:1px solid var(--rule);padding:9px 10px;
+    border-radius:0;-webkit-appearance:none;appearance:none}
+  select{background-image:linear-gradient(45deg,transparent 50%,var(--ink) 50%),linear-gradient(135deg,var(--ink) 50%,transparent 50%);
+    background-position:calc(100% - 15px) 18px,calc(100% - 10px) 18px;background-size:5px 5px,5px 5px;
+    background-repeat:no-repeat;padding-right:28px}
 
   .top{display:flex;align-items:flex-start;justify-content:space-between}
   .iconbtn{width:40px;height:40px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;
@@ -42,12 +43,26 @@
   .horizon div{flex:1}
 
   .panel{background:var(--card);padding:14px;margin-top:18px;border-top:3px solid var(--mark)}
+  .field{flex:1;min-width:0}
+  .flabel{font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--muted);display:block;margin-bottom:4px}
   .row{display:flex;gap:8px}
-  .row input{flex:1;min-width:0}
-  .primary{width:100%;margin-top:10px;padding:11px 0;border:none;background:var(--ink);color:#fff;
+  .row input,.row select{width:100%}
+  .primary{width:100%;margin-top:12px;padding:11px 0;border:none;background:var(--ink);color:#fff;
     font-family:var(--mono);font-size:12px;letter-spacing:.1em}
 
-  .tabs{display:flex;gap:18px;margin:22px 0 12px;border-bottom:1px solid var(--rule)}
+  .swatches{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  .sw{width:26px;height:26px;border:2px solid transparent;padding:0}
+  .sw.on{border-color:var(--ink)}
+
+  .chips{display:flex;gap:6px;overflow-x:auto;margin-top:18px;padding-bottom:4px;-webkit-overflow-scrolling:touch}
+  .chip{flex:0 0 auto;display:flex;align-items:center;gap:6px;padding:6px 10px;background:var(--card);
+    border:1px solid var(--rule);font-family:var(--mono);font-size:10px;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--muted);white-space:nowrap}
+  .chip.on{border-color:var(--ink);color:var(--ink);background:var(--card);box-shadow:inset 0 -2px 0 var(--mark)}
+  .dot{width:8px;height:8px;flex:0 0 auto;border-radius:50%}
+
+  .tabs{display:flex;gap:18px;margin:16px 0 12px;border-bottom:1px solid var(--rule)}
   .tab{background:none;border:none;padding:0 0 8px;margin-bottom:-1px;font-family:var(--mono);
     font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);border-bottom:2px solid transparent}
   .tab.on{color:var(--ink);border-bottom-color:var(--ink)}
@@ -56,9 +71,11 @@
   .card{background:var(--card);border-left:6px solid var(--ink);box-shadow:0 1px 0 rgba(22,32,46,.10)}
   .card.done{opacity:.62}
   .head{width:100%;text-align:left;background:none;border:none;padding:13px 14px;display:block}
-  .headtop{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+  .headtop{display:flex;justify-content:space-between;gap:10px;align-items:center}
+  .subj{display:flex;align-items:center;gap:6px;min-width:0}
+  .subj span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .count{font-family:var(--mono);font-size:11px;letter-spacing:.06em;font-weight:600;white-space:nowrap}
-  .title{font-size:17px;font-weight:700;letter-spacing:-.015em;line-height:1.25;margin-top:4px}
+  .title{font-size:17px;font-weight:700;letter-spacing:-.015em;line-height:1.25;margin-top:5px}
   .card.done .title{text-decoration:line-through}
   .bar{display:flex;align-items:center;gap:9px;margin-top:10px}
   .track{flex:1;height:3px;background:var(--rule)}
@@ -70,7 +87,6 @@
   .box{width:19px;height:19px;flex:0 0 auto;border:1.5px solid var(--rule);background:transparent;
     display:flex;align-items:center;justify-content:center;padding:0}
   .box.on{border-color:var(--ink);background:var(--mark)}
-  .box svg{display:block}
   .ttext{flex:1;font-size:14px;line-height:1.3}
   .ttext.on{color:var(--muted);text-decoration:line-through}
   .x{background:none;border:none;padding:3px;color:var(--rule);font-size:15px;line-height:1}
@@ -78,19 +94,24 @@
   .addtask input{flex:1;min-width:0;font-size:14px;padding:7px 9px}
   .addtask button{background:var(--ink);color:#fff;border:none;padding:0 12px;font-family:var(--mono);font-size:11px}
 
-  .actions{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:13px;flex-wrap:wrap}
+  .actions{display:flex;align-items:center;gap:8px;margin-top:13px;flex-wrap:wrap}
   .ghost{font-family:var(--mono);font-size:11px;letter-spacing:.08em;padding:7px 11px;
     border:1.5px solid var(--ink);background:transparent;color:var(--ink)}
   .ghost.fill{background:var(--mark)}
-  .del{background:none;border:none;color:var(--muted);padding:6px;font-size:15px}
+  .del{background:none;border:none;color:var(--muted);padding:6px;font-size:15px;margin-left:auto}
 
   .empty{background:var(--card);padding:26px 16px;text-align:center}
   .empty b{display:block;font-size:15px;font-weight:600}
   .empty span{display:block;font-size:13px;color:var(--muted);margin-top:5px}
 
-  .foot{margin-top:30px;text-align:center}
+  .manage{background:var(--card);padding:14px;margin-top:14px;border-top:3px solid var(--ink)}
+  .srow{display:flex;align-items:center;gap:9px;padding:6px 0}
+  .srow input{flex:1;min-width:0;font-size:14px;padding:6px 8px;background:transparent;border:1px solid transparent}
+  .srow input:focus{background:#FAFBFC;border-color:var(--rule)}
+  .cyc{width:22px;height:22px;flex:0 0 auto;border:1.5px solid var(--ink);padding:0}
+
+  .foot{margin-top:26px;display:flex;justify-content:center;gap:20px;flex-wrap:wrap}
   .foot button{background:none;border:none}
-  @media (prefers-reduced-motion:no-preference){.card{transition:opacity .15s}}
 </style>
 </head>
 <body>
@@ -115,13 +136,27 @@
 
   <div class="panel" id="panel" hidden>
     <div class="eyebrow" style="margin-bottom:10px">New assignment</div>
-    <input id="fTitle" placeholder="Title — e.g. Comparative essay" style="width:100%;margin-bottom:8px;font-size:15px">
-    <div class="row">
-      <input id="fModule" placeholder="Module" style="font-family:var(--mono);font-size:13px;text-transform:uppercase">
-      <input id="fDue" type="date" style="font-family:var(--mono);font-size:13px">
+    <label class="flabel" for="fTitle">Assignment</label>
+    <input id="fTitle" placeholder="e.g. Comparative essay" style="width:100%;font-size:15px">
+    <div class="row" style="margin-top:10px">
+      <div class="field">
+        <label class="flabel" for="fSubject">Subject</label>
+        <select id="fSubject"></select>
+      </div>
+      <div class="field">
+        <label class="flabel" for="fDue">Due date</label>
+        <input id="fDue" type="date" style="font-family:var(--mono);font-size:13px">
+      </div>
+    </div>
+    <div id="newSubject" hidden style="margin-top:10px">
+      <label class="flabel" for="fSubName">Name the subject</label>
+      <input id="fSubName" placeholder="e.g. Organic Chemistry" style="width:100%;font-size:15px">
+      <div class="swatches" id="swatches"></div>
     </div>
     <button class="primary" id="createBtn">TRACK IT</button>
   </div>
+
+  <div class="chips" id="chips"></div>
 
   <div class="tabs">
     <button class="tab on" data-tab="active" id="tabActive"></button>
@@ -131,8 +166,15 @@
   <div id="list" class="list"></div>
   <div class="eyebrow" id="warn" style="color:var(--red);margin-top:16px" hidden></div>
 
-  <div class="foot" id="foot" hidden>
-    <button class="eyebrow" id="resetBtn">Clear all data</button>
+  <div class="manage" id="manage" hidden>
+    <div class="eyebrow" style="margin-bottom:6px">Subjects</div>
+    <div id="subjectList"></div>
+    <div class="eyebrow" id="mgHint" style="margin-top:10px;text-transform:none;letter-spacing:.04em"></div>
+  </div>
+
+  <div class="foot">
+    <button class="eyebrow" id="manageBtn">Manage subjects</button>
+    <button class="eyebrow" id="resetBtn" hidden>Clear all data</button>
   </div>
 </div>
 
@@ -140,26 +182,47 @@
 (function(){
   "use strict";
 
-  /* ---------- storage: localStorage, in-memory fallback ---------- */
-  var KEY = "coursework:v1", mem = null, warned = false;
+  var KEY = "coursework:v2", OLD = "coursework:v1";
+  var PALETTE = ["#0E7C7B","#2F5FA8","#7B3F61","#C08A2E","#4A7A3A","#B4502A","#A32E76","#4A5568"];
+
+  var state = {subjects:[], items:[]};
+  var tab = "active", openId = null, filter = "all", picked = PALETTE[0], showManage = false, warned = false;
+
+  function uid(){ return Math.random().toString(36).slice(2,10); }
+
+  /* ---------- storage ---------- */
   function load(){
-    try { var s = localStorage.getItem(KEY); return s ? JSON.parse(s) : []; }
-    catch(e){ return mem || []; }
+    try {
+      var s = localStorage.getItem(KEY);
+      if(s){ var p = JSON.parse(s); return {subjects:p.subjects||[], items:p.items||[]}; }
+      var old = localStorage.getItem(OLD);
+      if(old){ return migrate(JSON.parse(old)); }
+    } catch(e){}
+    return {subjects:[], items:[]};
+  }
+  function migrate(arr){
+    var subjects = [], items = [];
+    (arr||[]).forEach(function(a){
+      var sid = null, name = (a.module||"").trim();
+      if(name){
+        var found = subjects.filter(function(s){ return s.name.toUpperCase() === name.toUpperCase(); })[0];
+        if(!found){ found = {id:uid(), name:name, color:PALETTE[subjects.length % PALETTE.length]}; subjects.push(found); }
+        sid = found.id;
+      }
+      items.push({id:a.id, title:a.title, subjectId:sid, due:a.due, tasks:a.tasks||[], done:!!a.done});
+    });
+    return {subjects:subjects, items:items};
   }
   function save(){
-    try { localStorage.setItem(KEY, JSON.stringify(items)); }
+    try { localStorage.setItem(KEY, JSON.stringify(state)); }
     catch(e){
-      mem = items;
       if(!warned){ warned = true;
         var w = document.getElementById("warn");
         w.hidden = false;
-        w.textContent = "Storage is blocked here, so changes won't survive a reload. Host this file or allow site data to keep them.";
+        w.textContent = "Storage is blocked here, so changes won't survive a reload.";
       }
     }
   }
-
-  var items = load();
-  var tab = "active", openId = null;
 
   /* ---------- dates ---------- */
   function midnight(){ var d = new Date(); return new Date(d.getFullYear(),d.getMonth(),d.getDate()).getTime(); }
@@ -177,10 +240,10 @@
     return n+" DAYS";
   }
   function urgency(n){
-    if(n === null) return "var(--muted)";
-    if(n <= 2) return "var(--red)";
-    if(n <= 6) return "var(--ink)";
-    return "var(--muted)";
+    if(n === null) return "#6B7A8C";
+    if(n <= 2) return "#FF3B1F";
+    if(n <= 6) return "#16202E";
+    return "#6B7A8C";
   }
   function longDate(iso){
     if(!iso) return "No deadline set";
@@ -188,18 +251,19 @@
     return new Date(p[0],p[1]-1,p[2]).toLocaleDateString(undefined,
       {weekday:"short",day:"numeric",month:"short",year:"numeric"});
   }
-  function uid(){ return Math.random().toString(36).slice(2,10); }
-  function esc(s){ return String(s).replace(/[&<>"]/g, function(c){
-    return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
+  function subjectOf(a){
+    return state.subjects.filter(function(s){ return s.id === a.subjectId; })[0] || null;
+  }
 
   /* ---------- calendar export ---------- */
   function icsEscape(s){ return String(s).replace(/([,;\\])/g,"\\$1").replace(/\n/g,"\\n"); }
   function downloadIcs(a){
     if(!a.due){ alert("Add a due date first and this will make a calendar reminder."); return; }
+    var subj = subjectOf(a), tag = subj ? subj.name : "";
     var d = a.due.replace(/-/g,"");
     var stamp = new Date().toISOString().replace(/[-:]/g,"").split(".")[0]+"Z";
     var pending = a.tasks.filter(function(t){ return !t.done; }).map(function(t){ return "- "+t.text; });
-    var desc = (a.module ? a.module+" — " : "") + "due "+longDate(a.due)
+    var desc = (tag ? tag+" — " : "") + "due "+longDate(a.due)
              + (pending.length ? "\nOutstanding:\n"+pending.join("\n") : "");
     var lines = [
       "BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Coursework Tracker//EN","CALSCALE:GREGORIAN",
@@ -208,7 +272,7 @@
       "DTSTAMP:"+stamp,
       "DTSTART:"+d+"T090000",
       "DTEND:"+d+"T093000",
-      "SUMMARY:"+icsEscape("Due: "+a.title+(a.module ? " ("+a.module+")" : "")),
+      "SUMMARY:"+icsEscape("Due: "+a.title+(tag ? " ("+tag+")" : "")),
       "DESCRIPTION:"+icsEscape(desc),
       "BEGIN:VALARM","TRIGGER:-P7D","ACTION:DISPLAY","DESCRIPTION:"+icsEscape("One week until: "+a.title),"END:VALARM",
       "BEGIN:VALARM","TRIGGER:-P2D","ACTION:DISPLAY","DESCRIPTION:"+icsEscape("Two days until: "+a.title),"END:VALARM",
@@ -224,17 +288,41 @@
     setTimeout(function(){ URL.revokeObjectURL(url); }, 2000);
   }
 
+  /* ---------- subject picker ---------- */
+  function fillSubjectSelect(){
+    var sel = document.getElementById("fSubject"), keep = sel.value;
+    sel.innerHTML = "";
+    var none = new Option("Unfiled","");
+    sel.appendChild(none);
+    state.subjects.forEach(function(s){ sel.appendChild(new Option(s.name, s.id)); });
+    sel.appendChild(new Option("+ New subject…","__new"));
+    if(keep) sel.value = keep;
+  }
+  function fillSwatches(){
+    var box = document.getElementById("swatches");
+    box.innerHTML = "";
+    PALETTE.forEach(function(c){
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "sw" + (c === picked ? " on" : "");
+      b.style.background = c;
+      b.setAttribute("aria-label","Use this colour");
+      b.onclick = function(){ picked = c; fillSwatches(); };
+      box.appendChild(b);
+    });
+  }
+
   /* ---------- render ---------- */
   var listEl = document.getElementById("list");
 
-  function sorted(){
-    return items.filter(function(a){ return !a.done; }).sort(function(x,y){
+  function activeItems(){
+    return state.items.filter(function(a){ return !a.done; }).sort(function(x,y){
       return (x.due||"9999-99-99").localeCompare(y.due||"9999-99-99"); });
   }
 
   function render(){
-    var active = sorted();
-    var done = items.filter(function(a){ return a.done; });
+    var active = activeItems();
+    var done = state.items.filter(function(a){ return a.done; });
 
     var over = active.filter(function(a){ var n=daysUntil(a.due); return n!==null && n<0; }).length;
     var week = active.filter(function(a){ var n=daysUntil(a.due); return n!==null && n>=0 && n<=7; }).length;
@@ -242,7 +330,7 @@
     st.textContent = (over ? over+" overdue · " : "") + week + " due within 7 days · " + active.length + " open";
     st.style.color = over ? "var(--red)" : "var(--muted)";
 
-    /* horizon */
+    /* horizon — coloured by urgency, always shows all subjects */
     var h = document.getElementById("horizon");
     h.innerHTML = "";
     for(var i=0;i<14;i++){
@@ -262,28 +350,59 @@
       h.appendChild(cell);
     }
 
+    /* subject filter chips */
+    var chips = document.getElementById("chips");
+    chips.innerHTML = "";
+    chips.hidden = state.subjects.length === 0;
+    function chip(label, key, color, n){
+      var b = document.createElement("button");
+      b.className = "chip" + (filter === key ? " on" : "");
+      if(color){
+        var d = document.createElement("span");
+        d.className = "dot"; d.style.background = color;
+        b.appendChild(d);
+      }
+      var t = document.createElement("span");
+      t.textContent = label + (n !== null ? " "+n : "");
+      b.appendChild(t);
+      b.onclick = function(){ filter = key; openId = null; render(); };
+      chips.appendChild(b);
+    }
+    chip("All", "all", null, active.length);
+    state.subjects.forEach(function(s){
+      chip(s.name, s.id, s.color, active.filter(function(a){ return a.subjectId === s.id; }).length);
+    });
+    var unfiled = active.filter(function(a){ return !a.subjectId; }).length;
+    if(unfiled) chip("Unfiled", "none", null, unfiled);
+
     document.getElementById("tabActive").textContent = "Open ("+active.length+")";
     document.getElementById("tabDone").textContent = "Submitted ("+done.length+")";
     document.getElementById("tabActive").className = "tab" + (tab==="active" ? " on" : "");
     document.getElementById("tabDone").className = "tab" + (tab==="done" ? " on" : "");
-    document.getElementById("foot").hidden = items.length === 0;
+    document.getElementById("resetBtn").hidden = state.items.length === 0;
 
-    var show = tab === "active" ? active : done;
+    var show = (tab === "active" ? active : done).filter(function(a){
+      if(filter === "all") return true;
+      if(filter === "none") return !a.subjectId;
+      return a.subjectId === filter;
+    });
+
     listEl.innerHTML = "";
-
     if(!show.length){
       var e = document.createElement("div");
       e.className = "empty";
-      e.innerHTML = tab === "active"
-        ? "<b>Nothing tracked yet</b><span>Add an assignment and the 14-day strip above will start filling in.</span>"
-        : "<b>Nothing submitted yet</b><span>Finished work shows up here once you mark it submitted.</span>";
+      e.innerHTML = filter !== "all"
+        ? "<b>Nothing here</b><span>No assignments in this subject yet. Tap All to see everything.</span>"
+        : (tab === "active"
+            ? "<b>Nothing tracked yet</b><span>Add an assignment and the 14-day strip above will start filling in.</span>"
+            : "<b>Nothing submitted yet</b><span>Finished work shows up here once you mark it submitted.</span>");
       listEl.appendChild(e);
-      return;
     }
 
     show.forEach(function(a){
       var n = daysUntil(a.due);
       var col = a.done ? "var(--green)" : urgency(n);
+      var subj = subjectOf(a);
       var total = a.tasks.length, fin = a.tasks.filter(function(t){ return t.done; }).length;
 
       var card = document.createElement("div");
@@ -293,13 +412,36 @@
       var head = document.createElement("button");
       head.className = "head";
       head.setAttribute("aria-expanded", openId === a.id ? "true" : "false");
-      head.innerHTML =
-        '<div class="headtop"><span class="eyebrow">'+esc(a.module || "UNFILED")+'</span>'+
-        '<span class="count" style="color:'+col+'">'+(a.done ? "SUBMITTED" : countdown(n))+'</span></div>'+
-        '<div class="title">'+esc(a.title)+'</div>'+
-        '<div class="bar"><div class="track"><div class="fill" style="width:'+
-          (total ? (fin/total*100) : 0)+'%;background:'+col+'"></div></div>'+
-        '<span class="frac">'+(total ? fin+"/"+total : "no tasks")+'</span></div>';
+
+      var top = document.createElement("div");
+      top.className = "headtop";
+      var left = document.createElement("div");
+      left.className = "subj eyebrow";
+      if(subj){
+        var dot = document.createElement("span");
+        dot.className = "dot"; dot.style.background = subj.color;
+        left.appendChild(dot);
+      }
+      var nm = document.createElement("span");
+      nm.textContent = subj ? subj.name : "Unfiled";
+      left.appendChild(nm);
+      var cnt = document.createElement("span");
+      cnt.className = "count"; cnt.style.color = col;
+      cnt.textContent = a.done ? "SUBMITTED" : countdown(n);
+      top.appendChild(left); top.appendChild(cnt);
+      head.appendChild(top);
+
+      var ttl = document.createElement("div");
+      ttl.className = "title"; ttl.textContent = a.title;
+      head.appendChild(ttl);
+
+      var bar = document.createElement("div");
+      bar.className = "bar";
+      bar.innerHTML = '<div class="track"><div class="fill" style="width:'+
+        (total ? (fin/total*100) : 0)+'%;background:'+col+'"></div></div>'+
+        '<span class="frac">'+(total ? fin+"/"+total : "no tasks")+'</span>';
+      head.appendChild(bar);
+
       head.onclick = function(){ openId = openId === a.id ? null : a.id; render(); };
       card.appendChild(head);
 
@@ -313,10 +455,21 @@
         when.textContent = longDate(a.due);
         body.appendChild(when);
 
+        /* reassign subject inline */
+        var move = document.createElement("select");
+        move.style.width = "100%";
+        move.style.fontSize = "13px";
+        move.style.marginBottom = "10px";
+        move.appendChild(new Option("Unfiled",""));
+        state.subjects.forEach(function(s){ move.appendChild(new Option(s.name, s.id)); });
+        move.value = a.subjectId || "";
+        move.setAttribute("aria-label","Change subject");
+        move.onchange = function(){ a.subjectId = move.value || null; save(); render(); };
+        body.appendChild(move);
+
         a.tasks.forEach(function(t){
           var row = document.createElement("div");
           row.className = "task";
-
           var box = document.createElement("button");
           box.className = "box" + (t.done ? " on" : "");
           box.setAttribute("aria-label", t.done ? "Mark task unfinished" : "Mark task finished");
@@ -324,18 +477,15 @@
             ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#16202E" stroke-width="4"><path d="M4 12l6 6L20 6"/></svg>'
             : "";
           box.onclick = function(){ t.done = !t.done; save(); render(); };
-
           var txt = document.createElement("span");
           txt.className = "ttext" + (t.done ? " on" : "");
           txt.textContent = t.text;
-
           var kill = document.createElement("button");
           kill.className = "x";
           kill.setAttribute("aria-label","Remove task");
           kill.textContent = "✕";
           kill.onclick = function(){
             a.tasks = a.tasks.filter(function(x){ return x.id !== t.id; }); save(); render(); };
-
           row.appendChild(box); row.appendChild(txt); row.appendChild(kill);
           body.appendChild(row);
         });
@@ -344,6 +494,7 @@
         add.className = "addtask";
         var ti = document.createElement("input");
         ti.placeholder = "Add a task";
+        ti.setAttribute("aria-label","New task");
         var tb = document.createElement("button");
         tb.textContent = "ADD";
         function pushTask(){
@@ -359,50 +510,129 @@
 
         var acts = document.createElement("div");
         acts.className = "actions";
-
         var sub = document.createElement("button");
         sub.className = "ghost" + (a.done ? "" : " fill");
         sub.textContent = a.done ? "REOPEN" : "MARK SUBMITTED";
         sub.onclick = function(){ a.done = !a.done; save(); render(); };
-
         var rem = document.createElement("button");
         rem.className = "ghost";
         rem.textContent = "REMIND ME";
         rem.onclick = function(){ downloadIcs(a); };
-
         var del = document.createElement("button");
         del.className = "del";
         del.setAttribute("aria-label","Delete assignment");
         del.textContent = "🗑";
         del.onclick = function(){
           if(!confirm("Delete “"+a.title+"”?")) return;
-          items = items.filter(function(x){ return x.id !== a.id; }); save(); render(); };
-
+          state.items = state.items.filter(function(x){ return x.id !== a.id; }); save(); render(); };
         acts.appendChild(sub); acts.appendChild(rem); acts.appendChild(del);
         body.appendChild(acts);
         card.appendChild(body);
       }
       listEl.appendChild(card);
     });
+
+    renderManage();
+  }
+
+  function renderManage(){
+    var wrap = document.getElementById("manage");
+    wrap.hidden = !showManage;
+    if(!showManage) return;
+    var box = document.getElementById("subjectList");
+    box.innerHTML = "";
+    if(!state.subjects.length){
+      var p = document.createElement("div");
+      p.className = "eyebrow";
+      p.style.textTransform = "none";
+      p.style.letterSpacing = ".04em";
+      p.textContent = "No subjects yet. Add one from the + button when you create an assignment.";
+      box.appendChild(p);
+      document.getElementById("mgHint").textContent = "";
+      return;
+    }
+    state.subjects.forEach(function(s){
+      var row = document.createElement("div");
+      row.className = "srow";
+      var cyc = document.createElement("button");
+      cyc.className = "cyc";
+      cyc.style.background = s.color;
+      cyc.setAttribute("aria-label","Change colour for "+s.name);
+      cyc.onclick = function(){
+        s.color = PALETTE[(PALETTE.indexOf(s.color)+1) % PALETTE.length]; save(); render(); };
+      var nameIn = document.createElement("input");
+      nameIn.value = s.name;
+      nameIn.setAttribute("aria-label","Subject name");
+      nameIn.onchange = function(){
+        var v = nameIn.value.trim();
+        if(v){ s.name = v; } else { nameIn.value = s.name; }
+        save(); render(); };
+      var count = state.items.filter(function(a){ return a.subjectId === s.id; }).length;
+      var badge = document.createElement("span");
+      badge.className = "eyebrow";
+      badge.textContent = count;
+      var kill = document.createElement("button");
+      kill.className = "x";
+      kill.style.color = "var(--muted)";
+      kill.setAttribute("aria-label","Delete subject "+s.name);
+      kill.textContent = "✕";
+      kill.onclick = function(){
+        if(count && !confirm("Delete “"+s.name+"”? Its "+count+" assignment(s) become Unfiled.")) return;
+        state.items.forEach(function(a){ if(a.subjectId === s.id) a.subjectId = null; });
+        state.subjects = state.subjects.filter(function(x){ return x.id !== s.id; });
+        if(filter === s.id) filter = "all";
+        save(); fillSubjectSelect(); render(); };
+      row.appendChild(cyc); row.appendChild(nameIn); row.appendChild(badge); row.appendChild(kill);
+      box.appendChild(row);
+    });
+    document.getElementById("mgHint").textContent =
+      "Tap a swatch to change its colour, or the name to rename it. Deleting a subject keeps its assignments.";
   }
 
   /* ---------- wiring ---------- */
   var panel = document.getElementById("panel"), addBtn = document.getElementById("addBtn");
+  var sel = document.getElementById("fSubject"), newBox = document.getElementById("newSubject");
+
   addBtn.onclick = function(){
     panel.hidden = !panel.hidden;
     addBtn.textContent = panel.hidden ? "+" : "✕";
     addBtn.className = "iconbtn" + (panel.hidden ? "" : " open");
-    if(!panel.hidden) document.getElementById("fTitle").focus();
+    if(!panel.hidden){ fillSubjectSelect(); document.getElementById("fTitle").focus(); }
+  };
+
+  sel.onchange = function(){
+    var isNew = sel.value === "__new";
+    newBox.hidden = !isNew;
+    if(isNew){ fillSwatches(); document.getElementById("fSubName").focus(); }
   };
 
   document.getElementById("createBtn").onclick = function(){
-    var t = document.getElementById("fTitle"), m = document.getElementById("fModule"), d = document.getElementById("fDue");
-    var title = t.value.trim(); if(!title){ t.focus(); return; }
-    var a = {id:uid(), title:title, module:m.value.trim().toUpperCase(), due:d.value, tasks:[], done:false};
-    items.unshift(a); t.value = ""; m.value = ""; d.value = "";
+    var t = document.getElementById("fTitle"), d = document.getElementById("fDue");
+    var title = t.value.trim();
+    if(!title){ t.focus(); return; }
+
+    var sid = sel.value || null;
+    if(sid === "__new"){
+      var nm = document.getElementById("fSubName");
+      var name = nm.value.trim();
+      if(!name){ nm.focus(); return; }
+      var s = {id:uid(), name:name, color:picked};
+      state.subjects.push(s);
+      sid = s.id;
+      nm.value = "";
+      newBox.hidden = true;
+      picked = PALETTE[state.subjects.length % PALETTE.length];
+    }
+
+    var a = {id:uid(), title:title, subjectId:sid, due:d.value, tasks:[], done:false};
+    state.items.unshift(a);
+    t.value = ""; d.value = "";
     panel.hidden = true; addBtn.textContent = "+"; addBtn.className = "iconbtn";
-    openId = a.id; tab = "active"; save(); render();
+    openId = a.id; tab = "active";
+    if(filter !== "all" && filter !== sid) filter = "all";
+    save(); fillSubjectSelect(); render();
   };
+
   document.getElementById("fTitle").onkeydown = function(e){
     if(e.key === "Enter") document.getElementById("createBtn").click(); };
 
@@ -410,11 +640,21 @@
     b.onclick = function(){ tab = b.dataset.tab; openId = null; render(); };
   });
 
-  document.getElementById("resetBtn").onclick = function(){
-    if(!confirm("Erase every assignment and task? This can't be undone.")) return;
-    items = []; openId = null; save(); render();
+  document.getElementById("manageBtn").onclick = function(){
+    showManage = !showManage;
+    document.getElementById("manageBtn").textContent = showManage ? "Hide subjects" : "Manage subjects";
+    renderManage();
   };
 
+  document.getElementById("resetBtn").onclick = function(){
+    if(!confirm("Erase every assignment, task and subject? This can't be undone.")) return;
+    state = {subjects:[], items:[]}; openId = null; filter = "all";
+    save(); fillSubjectSelect(); render();
+  };
+
+  state = load();
+  picked = PALETTE[state.subjects.length % PALETTE.length];
+  fillSubjectSelect();
   render();
 })();
 </script>
