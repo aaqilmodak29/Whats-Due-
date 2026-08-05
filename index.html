@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>What's due</title>
+<meta name="theme-color" content="#16202E">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="What's due">
+<link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAIAAACyr5FlAAAFT0lEQVR42u2dz24bVRSHz7l/ILGTOg2oUlEXXbJApRJUKosugrpDrBEbVjwAbwFi1w0SygJRiQXqK7BA4hEqIR4CnNgzjkM8vpeFU5ASJ2TcjHPnzvfJi0iOkvGdL+eee2d+E71z/4EALMMwBIAcgByAHIAcgByAHIAcgByAHIAcAMgByAHIAcgByAHIAcgByAHIAcgBgByAHIAcgByAHIAcgByAHIAcgBwAyAHIAcgB14hr+heo/s/7nIOViTG2W46qEokiKhKXiBFjtewNuBLWWlVtqxyqMhiomosEiEa3RdwrfaBG1RDRydFkNqua88M1p0U1k8GO/vjz5mCgVXV+fjEhHr2z/e2mex856hJCNEa/+PKrX379bXBrez6ft7Vy7OxqdSJ6tvfVEOStwbaXW5zs1fDeNdp2rKPnqGayrHJIiDKbVc5FkcC6qWblCMaY1jekqv+9zi9UVFVVF19yyuuMqjbairLPAcgByAHIAcgByAHIAcgByAHIAcgBgByAHHBtuFYcZdPXpm+cNVxizVaONMeOypFE2SiKMsYoqjnejawxxq1+3zmLHPW0UNWiLD/+5LPhwYF3Lr/pxRidTI5e/PT940cfzOdzay1y1FNkODz8azj03ufXfBhjynIym1VMKyvivfPe5yqH956G9LWKx79kJkfKH4p9Dmh55bDWWGutNVk2pE2nGjNvSEfj4nA0zrLnsMaURVlVNKQrdqP+6d6T8biwzua3zaFGp9Pj3d3bkt5eX9JyLAar3+s933/WhTneGIMctQkh5K3FehJsecqR2p9UR2DQATkAOQA5ADkAOQA5ADkAOQA5ADkAkAOuDom3psggiEXiDdosRwsTb+mG2PKRo6WJt5RDbBlWjnYl3lIOsWXYc7Qr8ZZyiC3P1UqLEm/ZJPPY54CWV452Jd5SDrFl2JC2K/GWcogtNzlal3hLOcSWjxwZJN5anbgh8dag2W1vO0i8AUtZQA5ADkAOQA5ADkAOQA5ADkAOAOQA5IBrgMTbKnQkZEXiDdosR0qJN40xeuf6/R5y3LwWSSXerDWjcfF078nz/WchhOzvMiHxVksOezgaj8cF00pCJJJ4s9Z6751zyJFW8Ugh8Zbr/5m7CPY5oOWVI5HE2+IwunO3M4m3OoNlbXk4mkyOkCOdbjSVxJsxppxMHn34ULqxL0fi7bWODTlunsQSb2oM11bSWVOReGMpC1SOzjO/+NEdUcRaSaOhQY6bwLZj2JFj7Zz8LS9+kOMjMVbObNuoyuxEPv1c7t6T01sUkKMjLM738VS++1oO/hTnz8phjEwKefhY7t6TGEQtcnQMVbn9tqgul2NjU7xnWul2QzqvRPWsHNFIVUkyV31ZygJyAHIAcgANabZ/kvb0dX61YlLZHkWOmyBGKcdSjJYsZa2RspBknouNHOsfci8f7Uk5EuuWVI7jqezsikgK9QM51sjifPf68s3+Fb7ZIEcnufzeJaMiXJXtbkPajkUiS1lADkhwWgnh9HW++w5RQoghBJHAmag5qkGaf6ZNs3KoSq8v/b5Ws/NyaIjSf2NDxFDA6jctRkScs43qoXfuP2joR8cozsl7D6z3S69Ca5T5m/Zdq9siMZH+vC1EiSr68vc/hsMD51xDJaRBORZ+TKeXHLnGOI3MKSucNpEo0tvcaM6MdUwrW1sqFz+tSbX/6pNSOWrWDtEQQqNtxzoa0svf5zyzlAXkAOQA5ADkAEAOQA5ADkAOQA5ADkAOQA5ADkAOAOQA5ADkAOQA5ADkAOQA5ADkAOQAQA5ADkAOQA5ADkAOQA5ADkAO6AT/AIP0Fd/8jI2RAAAAAElFTkSuQmCC">
+<link rel="icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAIAAACyr5FlAAAFT0lEQVR42u2dz24bVRSHz7l/ILGTOg2oUlEXXbJApRJUKosugrpDrBEbVjwAbwFi1w0SygJRiQXqK7BA4hEqIR4CnNgzjkM8vpeFU5ASJ2TcjHPnzvfJi0iOkvGdL+eee2d+E71z/4EALMMwBIAcgByAHIAcgByAHIAcgByAHIAcAMgByAHIAcgByAHIAcgByAHIAcgBgByAHIAcgByAHIAcgByAHIAcgBwAyAHIAcgB14hr+heo/s/7nIOViTG2W46qEokiKhKXiBFjtewNuBLWWlVtqxyqMhiomosEiEa3RdwrfaBG1RDRydFkNqua88M1p0U1k8GO/vjz5mCgVXV+fjEhHr2z/e2mex856hJCNEa/+PKrX379bXBrez6ft7Vy7OxqdSJ6tvfVEOStwbaXW5zs1fDeNdp2rKPnqGayrHJIiDKbVc5FkcC6qWblCMaY1jekqv+9zi9UVFVVF19yyuuMqjbairLPAcgByAHIAcgByAHIAcgByAHIAcgBgByAHHBtuFYcZdPXpm+cNVxizVaONMeOypFE2SiKMsYoqjnejawxxq1+3zmLHPW0UNWiLD/+5LPhwYF3Lr/pxRidTI5e/PT940cfzOdzay1y1FNkODz8azj03ufXfBhjynIym1VMKyvivfPe5yqH956G9LWKx79kJkfKH4p9Dmh55bDWWGutNVk2pE2nGjNvSEfj4nA0zrLnsMaURVlVNKQrdqP+6d6T8biwzua3zaFGp9Pj3d3bkt5eX9JyLAar3+s933/WhTneGIMctQkh5K3FehJsecqR2p9UR2DQATkAOQA5ADkAOQA5ADkAOQA5ADkAkAOuDom3psggiEXiDdosRwsTb+mG2PKRo6WJt5RDbBlWjnYl3lIOsWXYc7Qr8ZZyiC3P1UqLEm/ZJPPY54CWV452Jd5SDrFl2JC2K/GWcogtNzlal3hLOcSWjxwZJN5anbgh8dag2W1vO0i8AUtZQA5ADkAOQA5ADkAOQA5ADkAOAOQA5IBrgMTbKnQkZEXiDdosR0qJN40xeuf6/R5y3LwWSSXerDWjcfF078nz/WchhOzvMiHxVksOezgaj8cF00pCJJJ4s9Z6751zyJFW8Ugh8Zbr/5m7CPY5oOWVI5HE2+IwunO3M4m3OoNlbXk4mkyOkCOdbjSVxJsxppxMHn34ULqxL0fi7bWODTlunsQSb2oM11bSWVOReGMpC1SOzjO/+NEdUcRaSaOhQY6bwLZj2JFj7Zz8LS9+kOMjMVbObNuoyuxEPv1c7t6T01sUkKMjLM738VS++1oO/hTnz8phjEwKefhY7t6TGEQtcnQMVbn9tqgul2NjU7xnWul2QzqvRPWsHNFIVUkyV31ZygJyAHIAcgANabZ/kvb0dX61YlLZHkWOmyBGKcdSjJYsZa2RspBknouNHOsfci8f7Uk5EuuWVI7jqezsikgK9QM51sjifPf68s3+Fb7ZIEcnufzeJaMiXJXtbkPajkUiS1lADkhwWgnh9HW++w5RQoghBJHAmag5qkGaf6ZNs3KoSq8v/b5Ws/NyaIjSf2NDxFDA6jctRkScs43qoXfuP2joR8cozsl7D6z3S69Ca5T5m/Zdq9siMZH+vC1EiSr68vc/hsMD51xDJaRBORZ+TKeXHLnGOI3MKSucNpEo0tvcaM6MdUwrW1sqFz+tSbX/6pNSOWrWDtEQQqNtxzoa0svf5zyzlAXkAOQA5ADkAEAOQA5ADkAOQA5ADkAOQA5ADkAOAOQA5ADkAOQA5ADkAOQA5ADkAOQAQA5ADkAOQA5ADkAOQA5ADkAO6AT/AIP0Fd/8jI2RAAAAAElFTkSuQmCC">
+<style>
+  :root{
+    --ink:#16202E; --paper:#E3E8ED; --card:#FFFFFF; --rule:#C9D2DB;
+    --muted:#6B7A8C; --mark:#DCEE3A; --red:#FF3B1F; --green:#1B9C68;
+    --sans:"Helvetica Neue",Inter,system-ui,-apple-system,sans-serif;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--paper); color:var(--ink); font-family:var(--sans);
+    -webkit-font-smoothing:antialiased; min-height:100vh;
+    padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+  }
+  .wrap{max-width:620px;margin:0 auto;padding:20px 16px 48px}
+  .eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  h1{font-size:32px;font-weight:800;letter-spacing:-.035em;line-height:1;margin:3px 0 0}
+  button{font:inherit;cursor:pointer}
+  button:focus-visible,input:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+  input{font:inherit;color:var(--ink);background:#FAFBFC;border:1px solid var(--rule);padding:9px 10px}
+  input[type=date]{-webkit-appearance:none;appearance:none}
+
+  .top{display:flex;align-items:flex-start;justify-content:space-between}
+  .iconbtn{width:40px;height:40px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;
+    background:var(--ink);color:#fff;border:1.5px solid var(--ink);font-size:20px;line-height:1}
+  .iconbtn.open{background:transparent;color:var(--ink)}
+
+  .horizon{display:flex;align-items:flex-end;gap:3px;height:46px;border-bottom:1px solid var(--ink)}
+  .horizon div{flex:1}
+
+  .panel{background:var(--card);padding:14px;margin-top:18px;border-top:3px solid var(--mark)}
+  .row{display:flex;gap:8px}
+  .row input{flex:1;min-width:0}
+  .primary{width:100%;margin-top:10px;padding:11px 0;border:none;background:var(--ink);color:#fff;
+    font-family:var(--mono);font-size:12px;letter-spacing:.1em}
+
+  .tabs{display:flex;gap:18px;margin:22px 0 12px;border-bottom:1px solid var(--rule)}
+  .tab{background:none;border:none;padding:0 0 8px;margin-bottom:-1px;font-family:var(--mono);
+    font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);border-bottom:2px solid transparent}
+  .tab.on{color:var(--ink);border-bottom-color:var(--ink)}
+
+  .list{display:flex;flex-direction:column;gap:9px}
+  .card{background:var(--card);border-left:6px solid var(--ink);box-shadow:0 1px 0 rgba(22,32,46,.10)}
+  .card.done{opacity:.62}
+  .head{width:100%;text-align:left;background:none;border:none;padding:13px 14px;display:block}
+  .headtop{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+  .count{font-family:var(--mono);font-size:11px;letter-spacing:.06em;font-weight:600;white-space:nowrap}
+  .title{font-size:17px;font-weight:700;letter-spacing:-.015em;line-height:1.25;margin-top:4px}
+  .card.done .title{text-decoration:line-through}
+  .bar{display:flex;align-items:center;gap:9px;margin-top:10px}
+  .track{flex:1;height:3px;background:var(--rule)}
+  .fill{height:100%}
+  .frac{font-family:var(--mono);font-size:10px;color:var(--muted)}
+
+  .body{padding:0 14px 13px}
+  .task{display:flex;align-items:center;gap:10px;padding:5px 0}
+  .box{width:19px;height:19px;flex:0 0 auto;border:1.5px solid var(--rule);background:transparent;
+    display:flex;align-items:center;justify-content:center;padding:0}
+  .box.on{border-color:var(--ink);background:var(--mark)}
+  .box svg{display:block}
+  .ttext{flex:1;font-size:14px;line-height:1.3}
+  .ttext.on{color:var(--muted);text-decoration:line-through}
+  .x{background:none;border:none;padding:3px;color:var(--rule);font-size:15px;line-height:1}
+  .addtask{display:flex;gap:6px;margin-top:8px}
+  .addtask input{flex:1;min-width:0;font-size:14px;padding:7px 9px}
+  .addtask button{background:var(--ink);color:#fff;border:none;padding:0 12px;font-family:var(--mono);font-size:11px}
+
+  .actions{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:13px;flex-wrap:wrap}
+  .ghost{font-family:var(--mono);font-size:11px;letter-spacing:.08em;padding:7px 11px;
+    border:1.5px solid var(--ink);background:transparent;color:var(--ink)}
+  .ghost.fill{background:var(--mark)}
+  .del{background:none;border:none;color:var(--muted);padding:6px;font-size:15px}
+
+  .empty{background:var(--card);padding:26px 16px;text-align:center}
+  .empty b{display:block;font-size:15px;font-weight:600}
+  .empty span{display:block;font-size:13px;color:var(--muted);margin-top:5px}
+
+  .foot{margin-top:30px;text-align:center}
+  .foot button{background:none;border:none}
+  @media (prefers-reduced-motion:no-preference){.card{transition:opacity .15s}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <div class="eyebrow">Coursework</div>
+      <h1>What's due</h1>
+    </div>
+    <button class="iconbtn" id="addBtn" aria-label="Add assignment">+</button>
+  </div>
+
+  <div class="eyebrow" id="stats" style="margin-top:10px"></div>
+
+  <div style="margin-top:18px">
+    <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+      <span class="eyebrow">Next 14 days</span>
+      <span class="eyebrow">Today &rarr; +14</span>
+    </div>
+    <div class="horizon" id="horizon"></div>
+  </div>
+
+  <div class="panel" id="panel" hidden>
+    <div class="eyebrow" style="margin-bottom:10px">New assignment</div>
+    <input id="fTitle" placeholder="Title — e.g. Comparative essay" style="width:100%;margin-bottom:8px;font-size:15px">
+    <div class="row">
+      <input id="fModule" placeholder="Module" style="font-family:var(--mono);font-size:13px;text-transform:uppercase">
+      <input id="fDue" type="date" style="font-family:var(--mono);font-size:13px">
+    </div>
+    <button class="primary" id="createBtn">TRACK IT</button>
+  </div>
+
+  <div class="tabs">
+    <button class="tab on" data-tab="active" id="tabActive"></button>
+    <button class="tab" data-tab="done" id="tabDone"></button>
+  </div>
+
+  <div id="list" class="list"></div>
+  <div class="eyebrow" id="warn" style="color:var(--red);margin-top:16px" hidden></div>
+
+  <div class="foot" id="foot" hidden>
+    <button class="eyebrow" id="resetBtn">Clear all data</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------- storage: localStorage, in-memory fallback ---------- */
+  var KEY = "coursework:v1", mem = null, warned = false;
+  function load(){
+    try { var s = localStorage.getItem(KEY); return s ? JSON.parse(s) : []; }
+    catch(e){ return mem || []; }
+  }
+  function save(){
+    try { localStorage.setItem(KEY, JSON.stringify(items)); }
+    catch(e){
+      mem = items;
+      if(!warned){ warned = true;
+        var w = document.getElementById("warn");
+        w.hidden = false;
+        w.textContent = "Storage is blocked here, so changes won't survive a reload. Host this file or allow site data to keep them.";
+      }
+    }
+  }
+
+  var items = load();
+  var tab = "active", openId = null;
+
+  /* ---------- dates ---------- */
+  function midnight(){ var d = new Date(); return new Date(d.getFullYear(),d.getMonth(),d.getDate()).getTime(); }
+  function daysUntil(iso){
+    if(!iso) return null;
+    var p = iso.split("-").map(Number);
+    return Math.round((new Date(p[0],p[1]-1,p[2]).getTime() - midnight())/86400000);
+  }
+  function countdown(n){
+    if(n === null) return "NO DATE";
+    if(n < -1) return (-n)+" DAYS LATE";
+    if(n === -1) return "1 DAY LATE";
+    if(n === 0) return "DUE TODAY";
+    if(n === 1) return "TOMORROW";
+    return n+" DAYS";
+  }
+  function urgency(n){
+    if(n === null) return "var(--muted)";
+    if(n <= 2) return "var(--red)";
+    if(n <= 6) return "var(--ink)";
+    return "var(--muted)";
+  }
+  function longDate(iso){
+    if(!iso) return "No deadline set";
+    var p = iso.split("-").map(Number);
+    return new Date(p[0],p[1]-1,p[2]).toLocaleDateString(undefined,
+      {weekday:"short",day:"numeric",month:"short",year:"numeric"});
+  }
+  function uid(){ return Math.random().toString(36).slice(2,10); }
+  function esc(s){ return String(s).replace(/[&<>"]/g, function(c){
+    return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
+
+  /* ---------- calendar export ---------- */
+  function icsEscape(s){ return String(s).replace(/([,;\\])/g,"\\$1").replace(/\n/g,"\\n"); }
+  function downloadIcs(a){
+    if(!a.due){ alert("Add a due date first and this will make a calendar reminder."); return; }
+    var d = a.due.replace(/-/g,"");
+    var stamp = new Date().toISOString().replace(/[-:]/g,"").split(".")[0]+"Z";
+    var pending = a.tasks.filter(function(t){ return !t.done; }).map(function(t){ return "- "+t.text; });
+    var desc = (a.module ? a.module+" — " : "") + "due "+longDate(a.due)
+             + (pending.length ? "\nOutstanding:\n"+pending.join("\n") : "");
+    var lines = [
+      "BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Coursework Tracker//EN","CALSCALE:GREGORIAN",
+      "BEGIN:VEVENT",
+      "UID:"+a.id+"@coursework.local",
+      "DTSTAMP:"+stamp,
+      "DTSTART:"+d+"T090000",
+      "DTEND:"+d+"T093000",
+      "SUMMARY:"+icsEscape("Due: "+a.title+(a.module ? " ("+a.module+")" : "")),
+      "DESCRIPTION:"+icsEscape(desc),
+      "BEGIN:VALARM","TRIGGER:-P7D","ACTION:DISPLAY","DESCRIPTION:"+icsEscape("One week until: "+a.title),"END:VALARM",
+      "BEGIN:VALARM","TRIGGER:-P2D","ACTION:DISPLAY","DESCRIPTION:"+icsEscape("Two days until: "+a.title),"END:VALARM",
+      "BEGIN:VALARM","TRIGGER:-PT15H","ACTION:DISPLAY","DESCRIPTION:"+icsEscape("Due tomorrow: "+a.title),"END:VALARM",
+      "END:VEVENT","END:VCALENDAR"
+    ];
+    var blob = new Blob([lines.join("\r\n")], {type:"text/calendar"});
+    var url = URL.createObjectURL(blob);
+    var link = document.createElement("a");
+    link.href = url;
+    link.download = a.title.replace(/[^a-z0-9]+/gi,"-").toLowerCase().slice(0,40)+".ics";
+    document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 2000);
+  }
+
+  /* ---------- render ---------- */
+  var listEl = document.getElementById("list");
+
+  function sorted(){
+    return items.filter(function(a){ return !a.done; }).sort(function(x,y){
+      return (x.due||"9999-99-99").localeCompare(y.due||"9999-99-99"); });
+  }
+
+  function render(){
+    var active = sorted();
+    var done = items.filter(function(a){ return a.done; });
+
+    var over = active.filter(function(a){ var n=daysUntil(a.due); return n!==null && n<0; }).length;
+    var week = active.filter(function(a){ var n=daysUntil(a.due); return n!==null && n>=0 && n<=7; }).length;
+    var st = document.getElementById("stats");
+    st.textContent = (over ? over+" overdue · " : "") + week + " due within 7 days · " + active.length + " open";
+    st.style.color = over ? "var(--red)" : "var(--muted)";
+
+    /* horizon */
+    var h = document.getElementById("horizon");
+    h.innerHTML = "";
+    for(var i=0;i<14;i++){
+      var bucket = active.filter((function(day){
+        return function(a){ return daysUntil(a.due) === day; };
+      })(i));
+      var cell = document.createElement("div");
+      if(bucket.length){
+        cell.style.height = Math.min(40, 12 + (bucket.length-1)*9)+"px";
+        cell.style.background = urgency(i);
+        cell.title = bucket.length+" due "+longDate(bucket[0].due);
+      } else {
+        cell.style.height = "4px";
+        cell.style.background = "var(--rule)";
+        cell.style.opacity = ".55";
+      }
+      h.appendChild(cell);
+    }
+
+    document.getElementById("tabActive").textContent = "Open ("+active.length+")";
+    document.getElementById("tabDone").textContent = "Submitted ("+done.length+")";
+    document.getElementById("tabActive").className = "tab" + (tab==="active" ? " on" : "");
+    document.getElementById("tabDone").className = "tab" + (tab==="done" ? " on" : "");
+    document.getElementById("foot").hidden = items.length === 0;
+
+    var show = tab === "active" ? active : done;
+    listEl.innerHTML = "";
+
+    if(!show.length){
+      var e = document.createElement("div");
+      e.className = "empty";
+      e.innerHTML = tab === "active"
+        ? "<b>Nothing tracked yet</b><span>Add an assignment and the 14-day strip above will start filling in.</span>"
+        : "<b>Nothing submitted yet</b><span>Finished work shows up here once you mark it submitted.</span>";
+      listEl.appendChild(e);
+      return;
+    }
+
+    show.forEach(function(a){
+      var n = daysUntil(a.due);
+      var col = a.done ? "var(--green)" : urgency(n);
+      var total = a.tasks.length, fin = a.tasks.filter(function(t){ return t.done; }).length;
+
+      var card = document.createElement("div");
+      card.className = "card" + (a.done ? " done" : "");
+      card.style.borderLeftColor = col;
+
+      var head = document.createElement("button");
+      head.className = "head";
+      head.setAttribute("aria-expanded", openId === a.id ? "true" : "false");
+      head.innerHTML =
+        '<div class="headtop"><span class="eyebrow">'+esc(a.module || "UNFILED")+'</span>'+
+        '<span class="count" style="color:'+col+'">'+(a.done ? "SUBMITTED" : countdown(n))+'</span></div>'+
+        '<div class="title">'+esc(a.title)+'</div>'+
+        '<div class="bar"><div class="track"><div class="fill" style="width:'+
+          (total ? (fin/total*100) : 0)+'%;background:'+col+'"></div></div>'+
+        '<span class="frac">'+(total ? fin+"/"+total : "no tasks")+'</span></div>';
+      head.onclick = function(){ openId = openId === a.id ? null : a.id; render(); };
+      card.appendChild(head);
+
+      if(openId === a.id){
+        var body = document.createElement("div");
+        body.className = "body";
+
+        var when = document.createElement("div");
+        when.className = "eyebrow";
+        when.style.padding = "4px 0 8px";
+        when.textContent = longDate(a.due);
+        body.appendChild(when);
+
+        a.tasks.forEach(function(t){
+          var row = document.createElement("div");
+          row.className = "task";
+
+          var box = document.createElement("button");
+          box.className = "box" + (t.done ? " on" : "");
+          box.setAttribute("aria-label", t.done ? "Mark task unfinished" : "Mark task finished");
+          box.innerHTML = t.done
+            ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#16202E" stroke-width="4"><path d="M4 12l6 6L20 6"/></svg>'
+            : "";
+          box.onclick = function(){ t.done = !t.done; save(); render(); };
+
+          var txt = document.createElement("span");
+          txt.className = "ttext" + (t.done ? " on" : "");
+          txt.textContent = t.text;
+
+          var kill = document.createElement("button");
+          kill.className = "x";
+          kill.setAttribute("aria-label","Remove task");
+          kill.textContent = "✕";
+          kill.onclick = function(){
+            a.tasks = a.tasks.filter(function(x){ return x.id !== t.id; }); save(); render(); };
+
+          row.appendChild(box); row.appendChild(txt); row.appendChild(kill);
+          body.appendChild(row);
+        });
+
+        var add = document.createElement("div");
+        add.className = "addtask";
+        var ti = document.createElement("input");
+        ti.placeholder = "Add a task";
+        var tb = document.createElement("button");
+        tb.textContent = "ADD";
+        function pushTask(){
+          var v = ti.value.trim(); if(!v) return;
+          a.tasks.push({id:uid(), text:v, done:false}); ti.value = ""; save(); render();
+          var live = document.querySelector('.card [placeholder="Add a task"]');
+          if(live) live.focus();
+        }
+        tb.onclick = pushTask;
+        ti.onkeydown = function(ev){ if(ev.key === "Enter") pushTask(); };
+        add.appendChild(ti); add.appendChild(tb);
+        body.appendChild(add);
+
+        var acts = document.createElement("div");
+        acts.className = "actions";
+
+        var sub = document.createElement("button");
+        sub.className = "ghost" + (a.done ? "" : " fill");
+        sub.textContent = a.done ? "REOPEN" : "MARK SUBMITTED";
+        sub.onclick = function(){ a.done = !a.done; save(); render(); };
+
+        var rem = document.createElement("button");
+        rem.className = "ghost";
+        rem.textContent = "REMIND ME";
+        rem.onclick = function(){ downloadIcs(a); };
+
+        var del = document.createElement("button");
+        del.className = "del";
+        del.setAttribute("aria-label","Delete assignment");
+        del.textContent = "🗑";
+        del.onclick = function(){
+          if(!confirm("Delete “"+a.title+"”?")) return;
+          items = items.filter(function(x){ return x.id !== a.id; }); save(); render(); };
+
+        acts.appendChild(sub); acts.appendChild(rem); acts.appendChild(del);
+        body.appendChild(acts);
+        card.appendChild(body);
+      }
+      listEl.appendChild(card);
+    });
+  }
+
+  /* ---------- wiring ---------- */
+  var panel = document.getElementById("panel"), addBtn = document.getElementById("addBtn");
+  addBtn.onclick = function(){
+    panel.hidden = !panel.hidden;
+    addBtn.textContent = panel.hidden ? "+" : "✕";
+    addBtn.className = "iconbtn" + (panel.hidden ? "" : " open");
+    if(!panel.hidden) document.getElementById("fTitle").focus();
+  };
+
+  document.getElementById("createBtn").onclick = function(){
+    var t = document.getElementById("fTitle"), m = document.getElementById("fModule"), d = document.getElementById("fDue");
+    var title = t.value.trim(); if(!title){ t.focus(); return; }
+    var a = {id:uid(), title:title, module:m.value.trim().toUpperCase(), due:d.value, tasks:[], done:false};
+    items.unshift(a); t.value = ""; m.value = ""; d.value = "";
+    panel.hidden = true; addBtn.textContent = "+"; addBtn.className = "iconbtn";
+    openId = a.id; tab = "active"; save(); render();
+  };
+  document.getElementById("fTitle").onkeydown = function(e){
+    if(e.key === "Enter") document.getElementById("createBtn").click(); };
+
+  Array.prototype.forEach.call(document.querySelectorAll(".tab"), function(b){
+    b.onclick = function(){ tab = b.dataset.tab; openId = null; render(); };
+  });
+
+  document.getElementById("resetBtn").onclick = function(){
+    if(!confirm("Erase every assignment and task? This can't be undone.")) return;
+    items = []; openId = null; save(); render();
+  };
+
+  render();
+})();
+</script>
+</body>
+</html>
