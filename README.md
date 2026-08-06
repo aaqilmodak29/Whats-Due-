@@ -13,8 +13,9 @@ There are now two builds in this repository, and they are both first-class:
 Only source is committed. The web build is compiled and deployed by
 [a GitHub Action](.github/workflows/deploy-web.yml) on push.
 
-Nothing is hosted on a server and nothing syncs. Data lives on the device it was
-entered on. See [Moving your data](#moving-your-data).
+The native builds sync through Firebase, so all three share one list — see
+[Sync](#sync) and [`SYNC-SETUP.md`](SYNC-SETUP.md). Without a Firebase project
+configured the app is local-only and still fully usable.
 
 ---
 
@@ -174,10 +175,52 @@ set alarms and reminders — they are two separate switches.
 
 ---
 
-## Moving your data
+## Sync
 
-Storage is device-local in both builds, with no sync. A backup is the only way to
-move anything.
+All three builds of `app/` share one list through Firebase. Setup is a one-time
+five-minute job in the Firebase console — see [`SYNC-SETUP.md`](SYNC-SETUP.md).
+
+**The whole list is one document, newest wins.** Not per-item merging. For one
+user with tens of items the entire `{subjects, items}` blob is a few kilobytes,
+and treating it as one unit buys a large simplification: a deletion is just an
+item absent from a newer document, so there are no tombstones, no per-item
+timestamps, and no merge algorithm to get subtly wrong.
+
+The cost, stated plainly: edit on two devices without a sync in between and one
+side's edits lose. That case is **detected, not silently resolved** — the app
+stops, shows both sides with item counts and edit times, and asks which to keep.
+
+It pushes a few seconds after a change (debounced, so ticking six checkboxes is
+one write) and pulls on launch and on foreground. The footer link doubles as the
+status indicator.
+
+### Why REST and not the FlutterFire plugins
+
+`cloud_firestore` supports Windows, but its Windows implementation pulls in the
+Firebase C++ SDK. This project had already lost a Windows build to a missing ATL
+header from a far smaller native plugin, and whole-document sync needs exactly
+two operations — read a document, write a document. Firestore's offline cache and
+real-time listeners are the main reasons to take the native SDK, and the local
+store already *is* the offline cache.
+
+So sync is the Firestore and Firebase Auth REST APIs over `http`: no native
+dependencies, one identical code path on Windows, Android and web, no
+`google-services.json`, no `flutterfire configure`, and no C++ SDK to break a
+desktop build.
+
+Sign-in is email/password rather than Google Sign-In because the account has to
+work on Windows, and `google_sign_in` has no Windows implementation.
+
+The project ID and web API key in [`app/lib/sync/firebase_config.dart`](app/lib/sync/firebase_config.dart)
+are **public identifiers, not secrets** — a Firebase web API key ships in the
+JavaScript of every Firebase web app. Access control lives entirely in
+[`firestore.rules`](firestore.rules), which allows a signed-in user to touch
+exactly one document, their own.
+
+## Moving your data by hand
+
+Sync makes this optional, but export/import still works and is the way to get
+data out of the original web app, or to keep a copy before something risky.
 
 **From the web app to a native app:**
 
@@ -213,6 +256,11 @@ app/lib/
   store.dart             load, save, migrate, import, export
   reminders.dart         scheduled local notifications
   ics.dart               calendar export
+  sync/
+    firebase_config.dart project id and API key (public identifiers)
+    auth.dart            Firebase Auth over REST; email/password
+    remote_store.dart    reads and writes the one Firestore document
+    sync_engine.dart     pull, compare, push, conflict detection
   ui/
     home_page.dart       header, stats, chips, tabs, list
     horizon.dart         the 14-day strip
@@ -221,6 +269,7 @@ app/lib/
     edit_sheet.dart      editing title and due date
     manage_subjects.dart rename, recolour, delete
     backup_page.dart     import, export, reminder settings
+    sync_page.dart       sign-in, sync status, conflict resolution
     atoms.dart           shared widgets
 ```
 
@@ -316,12 +365,13 @@ cd app
 flutter test
 ```
 
-67 tests, in four files:
+76 tests, in five files:
 
 | | |
 |---|---|
 | `test/logic_test.dart` | Date arithmetic across DST, urgency thresholds, undated sort order, `.ics` escaping and floating local time, JSON round-trips |
 | `test/store_test.dart` | Loading, saving, v1 migration, and import merge/replace semantics |
+| `test/sync_test.dart` | Payload format, adopting a remote copy (including that deletions propagate and a corrupt payload can't destroy local work), and that a pulled copy is never mistaken for a local edit |
 | `test/ui_test.dart` | The real widget tree over seeded storage: filtering, tabs, tasks, editing, subject deletion, and a build at five viewport sizes from a 360px phone to a 2560px desktop |
 | `test/golden_test.dart` | Rendered snapshots of the design |
 

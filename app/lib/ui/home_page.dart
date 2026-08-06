@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models.dart';
 import '../store.dart';
+import '../sync/sync_engine.dart';
 import '../theme.dart';
 import 'add_panel.dart';
 import 'assignment_card.dart';
@@ -9,6 +10,7 @@ import 'atoms.dart';
 import 'backup_page.dart';
 import 'horizon.dart';
 import 'manage_subjects.dart';
+import 'sync_page.dart';
 
 /// Filter sentinels, matching the web app's `filter` values.
 const _filterAll = 'all';
@@ -229,6 +231,22 @@ class _HomePageState extends State<HomePage> {
                       onPressed: () =>
                           setState(() => _showManage = !_showManage),
                     ),
+                    if (store.sync?.isConfigured ?? false)
+                      EyebrowButton(
+                        label: _syncLabel(),
+                        color: store.sync?.status == SyncStatus.conflict ||
+                                store.sync?.status == SyncStatus.error
+                            ? C.red
+                            : C.muted,
+                        onPressed: () async {
+                          await Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => SyncPage(store: store),
+                            ),
+                          );
+                          if (mounted) setState(() {});
+                        },
+                      ),
                     EyebrowButton(
                       label: 'Backup & reminders',
                       onPressed: () async {
@@ -265,6 +283,16 @@ class _HomePageState extends State<HomePage> {
     _filter = filter;
     _openId = null;
   });
+
+  /// The footer link doubles as the sync indicator, so a conflict or a failure
+  /// is visible from the main screen rather than only once you go looking.
+  String _syncLabel() => switch (store.sync?.status) {
+    SyncStatus.conflict => 'Sync — needs a decision',
+    SyncStatus.error => 'Sync — failed',
+    SyncStatus.syncing => 'Syncing…',
+    SyncStatus.signedOut => 'Sync — sign in',
+    _ => store.sync?.hasPendingChanges ?? false ? 'Sync — pending' : 'Synced',
+  };
 
   Widget _empty() {
     final (head, body) = switch ((
