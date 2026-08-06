@@ -1,0 +1,21 @@
+# Build output. The Flutter web build used to be committed to flutter-web/ and
+# served from the branch; it is built by .github/workflows/deploy-web.yml now,
+# so the repository holds only source.
+app/build/
+flutter-web/
+_site/
+
+app/.dart_tool/
+app/.flutter-plugins-dependencies
+app/windows/flutter/ephemeral/
+app/android/.gradle/
+app/android/local.properties
+app/ios/Flutter/Flutter.podspec
+app/ios/Pods/
+app/.idea/
+
+# Golden test failures land here; the accepted images live in test/goldens/.
+app/test/failures/
+
+.DS_Store
+Thumbs.db

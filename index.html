@@ -110,6 +110,10 @@
   .srow input:focus{background:#FAFBFC;border-color:var(--rule)}
   .cyc{width:22px;height:22px;flex:0 0 auto;border:1.5px solid var(--ink);padding:0}
 
+  #exportText{width:100%;margin-top:10px;font-family:var(--mono);font-size:11px;line-height:1.5;
+    color:var(--ink);background:#FAFBFC;border:1px solid var(--rule);padding:8px;resize:vertical;
+    -webkit-appearance:none;appearance:none}
+
   .foot{margin-top:26px;display:flex;justify-content:center;gap:20px;flex-wrap:wrap}
   .foot button{background:none;border:none}
 </style>
@@ -172,8 +176,20 @@
     <div class="eyebrow" id="mgHint" style="margin-top:10px;text-transform:none;letter-spacing:.04em"></div>
   </div>
 
+  <div class="manage" id="exportBox" hidden>
+    <div class="eyebrow" style="margin-bottom:6px">Export</div>
+    <div class="eyebrow" style="text-transform:none;letter-spacing:.04em">Every subject, assignment and task stored on this device. Copy it, then paste it into the desktop or phone app under &ldquo;Backup &amp; reminders&rdquo; &rarr; Import. Nothing leaves this device on its own.</div>
+    <textarea id="exportText" readonly rows="6" aria-label="Your data as JSON"></textarea>
+    <div class="actions">
+      <button class="ghost fill" id="copyBtn">COPY</button>
+      <button class="ghost" id="dlBtn">DOWNLOAD .JSON</button>
+      <span class="eyebrow" id="copyMsg"></span>
+    </div>
+  </div>
+
   <div class="foot">
     <button class="eyebrow" id="manageBtn">Manage subjects</button>
+    <button class="eyebrow" id="exportBtn">Export JSON</button>
     <button class="eyebrow" id="resetBtn" hidden>Clear all data</button>
   </div>
 </div>
@@ -650,6 +666,58 @@
     if(!confirm("Erase every assignment, task and subject? This can't be undone.")) return;
     state = {subjects:[], items:[]}; openId = null; filter = "all";
     save(); fillSubjectSelect(); render();
+  };
+
+  /* ---------- export ----------
+     The only route off this device. Storage is device-local with no sync, so
+     this is what moves real assignments onto the desktop and phone apps
+     without retyping them. The shape is the stored shape, unchanged. */
+  var exportBox = document.getElementById("exportBox");
+  var exportBtn = document.getElementById("exportBtn");
+
+  function exportText(){ return JSON.stringify(state, null, 2); }
+
+  exportBtn.onclick = function(){
+    var opening = exportBox.hidden;
+    exportBox.hidden = !opening;
+    exportBtn.textContent = opening ? "Hide export" : "Export JSON";
+    if(opening){
+      document.getElementById("exportText").value = exportText();
+      document.getElementById("copyMsg").textContent = "";
+    }
+  };
+
+  document.getElementById("copyBtn").onclick = function(){
+    var ta = document.getElementById("exportText"), msg = document.getElementById("copyMsg");
+    function ok(){ msg.textContent = "Copied"; }
+    function fail(){ msg.textContent = "Select the text and copy it by hand"; }
+    /* Older mobile WebViews have no clipboard API and the page may not be on a
+       secure origin, so fall back to select-and-execCommand rather than
+       leaving the owner with a dead button. */
+    function legacy(){
+      ta.removeAttribute("readonly");
+      ta.focus();
+      ta.setSelectionRange(0, ta.value.length);
+      var done = false;
+      try { done = document.execCommand("copy"); } catch(e){}
+      ta.setAttribute("readonly", "");
+      if(done){ ok(); } else { fail(); }
+    }
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(ta.value).then(ok, legacy);
+    } else {
+      legacy();
+    }
+  };
+
+  document.getElementById("dlBtn").onclick = function(){
+    var blob = new Blob([exportText()], {type:"application/json"});
+    var url = URL.createObjectURL(blob);
+    var link = document.createElement("a");
+    link.href = url;
+    link.download = "whats-due-backup.json";
+    document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 2000);
   };
 
   state = load();

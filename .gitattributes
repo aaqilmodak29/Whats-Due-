@@ -1,0 +1,7 @@
+# Golden snapshots and bundled fonts are binary.
+app/test/goldens/*.png binary
+app/assets/fonts/*.ttf binary
+
+# index.html is stored with LF (core.autocrlf converts it to CRLF on checkout
+# under Windows). Leaving it to normalise as before keeps diffs to the lines
+# that actually changed instead of rewriting all 662 of them.
