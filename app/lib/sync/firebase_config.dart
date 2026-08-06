@@ -1,26 +1,41 @@
-/// Firebase project identifiers.
+/// Firebase project identifiers, injected at build time.
 ///
-/// **These are not secrets.** A Firebase web API key is a public project
-/// identifier — it is embedded in the JavaScript of every Firebase web app and
-/// is safe to commit. It grants nothing on its own: what actually protects the
-/// data is the Firestore security rules, which only allow a signed-in user to
-/// touch their own document. See `firestore.rules` at the repository root.
+/// Nothing is hardcoded here. Values come from a local `.env` that is never
+/// committed — see `.env.example` and `SYNC-SETUP.md`:
 ///
-/// Sync stays switched off until these are filled in, so a fresh clone with no
-/// project of its own still builds and runs as a local-only app.
+/// ```
+/// flutter build apk --release --dart-define-from-file=../.env
+/// ```
+///
+/// Note for anyone auditing this: a Firebase web API key is not a bearer
+/// credential, and it cannot be kept private from users of the app — the web
+/// build has to ship it in its JavaScript in order to call Firebase at all. It
+/// is kept out of source control as good hygiene, not because that conceals it.
+/// The real access control is `firestore.rules`, which permits a signed-in user
+/// to read and write exactly one document, their own.
+///
+/// Sync stays switched off when these are absent, so a build with no `.env` —
+/// or a fresh clone by someone else — still compiles and runs as a local-only
+/// app rather than failing.
 class FirebaseConfig {
   FirebaseConfig._();
 
   /// Firebase console → Project settings → General → Project ID.
-  static const projectId = String.fromEnvironment(
-    'FIREBASE_PROJECT_ID',
-    defaultValue: 'whats-due-sync',
-  );
+  static const projectId = String.fromEnvironment('FIREBASE_PROJECT_ID');
 
   /// Firebase console → Project settings → General → Web API Key.
-  static const apiKey = String.fromEnvironment(
-    'FIREBASE_API_KEY',
-    defaultValue: '',
+  static const apiKey = String.fromEnvironment('FIREBASE_API_KEY');
+
+  /// Firestore database ID.
+  ///
+  /// `(default)` is what the console creates for a project's first database, and
+  /// is almost certainly right. It is only configurable because the newer
+  /// "Create a database" flow puts Database ID front and centre as an editable
+  /// field, and a named database here would otherwise fail as an unexplained 404
+  /// on every sync.
+  static const databaseId = String.fromEnvironment(
+    'FIREBASE_DATABASE_ID',
+    defaultValue: '(default)',
   );
 
   /// False when the project has not been wired up. The whole sync UI hides
@@ -46,6 +61,6 @@ class FirebaseConfig {
   /// The single document holding this user's whole state.
   static Uri document(String uid) => Uri.parse(
     'https://firestore.googleapis.com/v1/projects/$projectId'
-    '/databases/(default)/documents/users/$uid/state/current',
+    '/databases/$databaseId/documents/users/$uid/state/current',
   );
 }

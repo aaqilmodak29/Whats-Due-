@@ -19,3 +19,7 @@ app/test/failures/
 
 .DS_Store
 Thumbs.db
+
+# Firebase project values, injected at build time via
+# --dart-define-from-file. Never committed; see .env.example.
+.env

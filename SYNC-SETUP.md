@@ -24,10 +24,29 @@ Leave "Email link (passwordless sign-in)" off.
 
 ## 3. Create the database
 
-1. Left sidebar → **Build** → **Firestore Database** → **Create database**
-2. Location: **`australia-southeast1`** (Sydney — closest to you, lowest latency)
-3. Start in **production mode**. The rules get replaced in the next step anyway,
-   and test mode would leave the database open to the world for 30 days
+Left sidebar → **Build** → **Firestore Database** → **Create database**. The
+wizard has three steps.
+
+**Select edition → `Standard edition`** (the default).
+
+Enterprise is the MongoDB-compatible edition: self-managed indexing, pipeline
+and MongoDB operations, priced for that workload. This app fetches one document
+by path and writes one document by path — there are no queries at all, so
+nothing in Enterprise applies and Standard carries the generous free tier.
+
+**Database ID and location**
+
+- **Database ID: leave it as `(default)`.** A named database would work, but you
+  would then have to tell me the name — the REST path defaults to `(default)`,
+  and a mismatch shows up as every sync failing with a 404 rather than as
+  anything helpful.
+- **Location: `australia-southeast1`** (Sydney — closest, lowest latency).
+  Location is permanent; the database has to be deleted and recreated to change
+  it.
+
+**Configure → production mode / locked rules.** The rules get replaced in the
+next step anyway, and test mode would leave the database open to the world for
+30 days.
 
 ## 4. Publish the security rules
 
@@ -60,7 +79,59 @@ projectId:  "..."
 apiKey:     "..."
 ```
 
-**Send me both.** They are not secrets — a Firebase web API key is a public
+## 7. Put them in `.env`
+
+From the repository root:
+
+```bash
+cp .env.example .env
+```
+
+Fill in `FIREBASE_PROJECT_ID` and `FIREBASE_API_KEY`. **`.env` is gitignored and
+must stay that way.**
+
+Every build that needs sync passes the file in (run from `app/`):
+
+```bash
+flutter build apk --release --split-per-abi --dart-define-from-file=../.env
+```
+
+```bash
+flutter build windows --release --dart-define-from-file=../.env
+```
+
+```bash
+flutter run -d windows --dart-define-from-file=../.env
+```
+
+Build without it and sync reports itself switched off. The app still works
+completely, just on one device — nothing crashes and nothing is lost.
+
+## 8. Add the same two as repository secrets
+
+The GitHub Action builds the web app, and it cannot read your local `.env`. Add
+them at **Settings → Secrets and variables → Actions → New repository secret**:
+
+| Name | Value |
+|---|---|
+| `FIREBASE_PROJECT_ID` | your project ID |
+| `FIREBASE_API_KEY` | your web API key |
+| `FIREBASE_DATABASE_ID` | `(default)` — optional, assumed if absent |
+
+Skip this and the deployed web app builds fine but reports sync as off. The
+workflow prints a warning in that case so it isn't a silent surprise.
+
+### A note on what this does and doesn't hide
+
+Keeping these out of git is good hygiene and worth doing. It does **not** make
+them private, and it's worth being clear why: the web build has to embed the API
+key in its JavaScript to call Firebase at all, so anyone who opens the deployed
+site can read it. A Firebase web API key isn't a password — it identifies the
+project and authorises nothing by itself.
+
+What actually protects your assignments is [`firestore.rules`](firestore.rules),
+which lets a signed-in user read and write exactly one document, their own, and
+denies everything else. That is the control worth checking is published. They are not secrets — a Firebase web API key is a public
 project identifier embedded in the JavaScript of every Firebase web app, and it
 grants nothing on its own. What protects your data is the rules from step 4,
 which only let a signed-in user touch their own document. They get committed to
