@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background"/>
+    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
+    <!-- No <monochrome> layer on purpose. Android 13+ themed icons
+         expect a single-colour silhouette, and pointing it at this
+         full-colour foreground would flatten the card, spine and red
+         mark into one indistinct blob. Without it the launcher keeps
+         using the normal adaptive icon, which is the better result. -->
+</adaptive-icon>
