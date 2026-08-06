@@ -1,0 +1,88 @@
+# Builds the site GitHub Pages serves, and deploys it.
+#
+# Pages used to serve the `main` branch root directly, which meant the Flutter
+# web build had to be compiled locally and committed — ~180k lines of generated
+# CanvasKit payload, rebuilt and re-committed on every change. This builds it on
+# push instead, so the repository holds only source.
+#
+# The assembled site keeps both apps at the paths they already live at:
+#
+#   /Whats-Due-/               the original single-file app  (index.html)
+#   /Whats-Due-/flutter-web/   the Flutter build
+#
+# index.html is copied verbatim. It is the live app holding real assignments,
+# and nothing here rewrites or regenerates it.
+name: Deploy to Pages
+
+on:
+  push:
+    branches: [main]
+  # Lets the site be redeployed from the Actions tab without a code change,
+  # which is how the first deploy gets triggered after the Pages source is
+  # switched over to Actions.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never let two deploys race. Queue rather than cancel, so a merge landing while
+# another deploy runs still ends up published.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          # Pinned to the version this was developed against, so a future
+          # Flutter release cannot silently change the output.
+          flutter-version: 3.38.3
+          channel: stable
+          cache: true
+
+      - name: Verify the app still builds and passes its tests
+        working-directory: app
+        run: |
+          flutter pub get
+          flutter analyze
+          # Golden tests are excluded: they compare font rasterisation, which
+          # differs between the Windows machine that generated them and this
+          # Linux runner. Everything else runs.
+          flutter test test/logic_test.dart test/store_test.dart test/ui_test.dart
+
+      - name: Build web
+        working-directory: app
+        run: flutter build web --release --base-href /Whats-Due-/flutter-web/
+
+      - name: Assemble the site
+        run: |
+          mkdir -p _site/flutter-web
+          cp index.html _site/index.html
+          cp -r app/build/web/. _site/flutter-web/
+          test -f _site/index.html
+          test -f _site/flutter-web/main.dart.js
+          test -f _site/flutter-web/assets/assets/fonts/Inter-Variable.ttf
+          echo "assembled $(find _site -type f | wc -l) files"
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
