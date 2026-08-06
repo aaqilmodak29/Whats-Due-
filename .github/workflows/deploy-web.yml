@@ -52,10 +52,15 @@ jobs:
         run: |
           flutter pub get
           flutter analyze
-          # Golden tests are excluded: they compare font rasterisation, which
-          # differs between the Windows machine that generated them and this
-          # Linux runner. Everything else runs.
-          flutter test test/logic_test.dart test/store_test.dart test/ui_test.dart
+          # Everything except the goldens, which compare font rasterisation and
+          # so differ between the Windows machine that generated them and this
+          # Linux runner. `--exclude-tags` would need tagging every test, so the
+          # one file is named directly.
+          flutter test \
+            test/logic_test.dart \
+            test/store_test.dart \
+            test/sync_test.dart \
+            test/ui_test.dart
 
       - name: Build web
         working-directory: app

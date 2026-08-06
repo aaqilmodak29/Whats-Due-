@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'reminders.dart';
 import 'store.dart';
+import 'sync/sync_engine.dart';
 import 'theme.dart';
 import 'ui/home_page.dart';
 
@@ -15,13 +17,54 @@ Future<void> main() async {
   final store = AppStore();
   await store.init();
 
+  // Sync is attached after the store has loaded, so the first pull compares
+  // against real local state rather than an empty one. If no Firebase project is
+  // configured the engine reports itself disabled and the app is local-only.
+  final prefs = await SharedPreferences.getInstance();
+  store.sync = SyncEngine(
+    prefs: prefs,
+    readLocal: store.payloadJson,
+    writeLocal: store.adoptRemote,
+    countItems: store.countItemsIn,
+  );
+
   runApp(WhatsDueApp(store: store));
 }
 
-class WhatsDueApp extends StatelessWidget {
+class WhatsDueApp extends StatefulWidget {
   const WhatsDueApp({super.key, required this.store});
 
   final AppStore store;
+
+  @override
+  State<WhatsDueApp> createState() => _WhatsDueAppState();
+}
+
+class _WhatsDueAppState extends State<WhatsDueApp>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    // Pull on launch, so a device picks up whatever the others did while it was
+    // closed before the user starts editing.
+    widget.store.sync?.syncNow();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Coming back to the foreground is the moment a stale copy is most likely,
+    // and the cheapest point to catch it.
+    if (state == AppLifecycleState.resumed) {
+      widget.store.sync?.syncNow();
+    }
+  }
 
   @override
   Widget build(BuildContext context) => MaterialApp(
@@ -32,8 +75,8 @@ class WhatsDueApp extends StatelessWidget {
     // lists are tens of items, so this is imperceptible, and it keeps the web
     // app's `mutate → save → render` model intact.
     home: ListenableBuilder(
-      listenable: store,
-      builder: (context, _) => HomePage(store: store),
+      listenable: widget.store,
+      builder: (context, _) => HomePage(store: widget.store),
     ),
   );
 }
