@@ -92,14 +92,10 @@ jobs:
           flutter pub get
           flutter analyze
           # Goldens are excluded: they compare font rasterisation and were
-          # captured on Windows, so they differ on a Linux runner.
-          flutter test \
-            test/logic_test.dart \
-            test/store_test.dart \
-            test/sync_test.dart \
-            test/manifest_test.dart \
-            test/reminder_schedule_test.dart \
-            test/ui_test.dart
+          # captured on Windows, so they differ on a Linux runner. Excluded by
+          # tag rather than by listing every other file, so a new test file
+          # cannot be silently left out. See app/dart_test.yaml.
+          flutter test --exclude-tags golden
 
       - name: Build
         working-directory: app
