@@ -83,23 +83,7 @@ class HorizonStrip extends StatelessWidget {
           height: _barsHeight + 1 + _labelHeight,
           child: Stack(
             children: [
-              Row(
-                spacing: 3,
-                children: [
-                  for (var day = 0; day < _days; day++)
-                    Expanded(
-                      child: _DayColumn(
-                        date: start.add(Duration(days: day)),
-                        daysAway: day,
-                        bucket: _bucket(day),
-                        selected: selectedDue != null &&
-                            selectedDue ==
-                                formatIsoDate(start.add(Duration(days: day))),
-                        onSelect: onSelect,
-                      ),
-                    ),
-                ],
-              ),
+              Row(children: _columns(start)),
               // Drawn over the columns so the baseline is continuous rather
               // than broken by the 3px gaps between them.
               Positioned(
@@ -113,6 +97,57 @@ class HorizonStrip extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  static const _gap = 3.0;
+
+  /// A week boundary gets a wider gap with a hairline through it.
+  ///
+  /// The gap does most of the work — grouping by spacing costs no ink at all —
+  /// but at phone width seven narrow columns and eight are hard to tell apart,
+  /// so the rule makes it unambiguous. One pixel wide, which nothing will
+  /// mistake for a bar: an earlier attempt at a full-height *filled* band did
+  /// read as one, which is why nothing solid goes in the chart area.
+  static const _weekGap = 11.0;
+
+  List<Widget> _columns(DateTime start) {
+    final children = <Widget>[];
+    for (var day = 0; day < _days; day++) {
+      final date = start.add(Duration(days: day));
+
+      if (day > 0) {
+        // Monday starts a week. The first column never gets a divider, however
+        // it falls — there is nothing to its left to separate it from.
+        final startsWeek = date.weekday == DateTime.monday;
+        children.add(
+          SizedBox(
+            // Keyed so a test can count boundaries; a divider is invisible to
+            // both the semantics tree and a text finder.
+            key: startsWeek
+                ? ValueKey('week-start-${formatIsoDate(date)}')
+                : null,
+            width: startsWeek ? _weekGap : _gap,
+            child: startsWeek
+                ? Center(child: Container(width: 1, color: C.rule))
+                : null,
+          ),
+        );
+      }
+
+      children.add(
+        Expanded(
+          child: _DayColumn(
+            date: date,
+            daysAway: day,
+            bucket: _bucket(day),
+            selected:
+                selectedDue != null && selectedDue == formatIsoDate(date),
+            onSelect: onSelect,
+          ),
+        ),
+      );
+    }
+    return children;
   }
 
   List<Assignment> _bucket(int day) =>

@@ -235,6 +235,32 @@ void main() {
       expect(letters, greaterThanOrEqualTo(14));
     }, seed: _seed());
 
+    appTest('a divider marks each Monday, and never the first column', (
+      tester,
+      store,
+    ) async {
+      final start = midnight();
+      // However today falls, a 14-day window contains exactly two Mondays —
+      // unless today is itself Monday, when the first is the leading column
+      // and gets no divider, leaving one.
+      final mondays = [
+        for (var d = 1; d < 14; d++)
+          if (start.add(Duration(days: d)).weekday == DateTime.monday) d,
+      ];
+
+      final dividers = find.byWidgetPredicate(
+        (w) => w.key is ValueKey<String> &&
+            (w.key as ValueKey<String>).value.startsWith('week-start-'),
+      );
+      expect(dividers, findsNWidgets(mondays.length));
+
+      // Never on the leading column: there is nothing to its left.
+      expect(
+        find.byKey(ValueKey('week-start-${formatIsoDate(start)}')),
+        findsNothing,
+      );
+    }, seed: _seed());
+
     appTest('a day with two deadlines carries a count', (tester, store) async {
       expect(
         find.descendant(
