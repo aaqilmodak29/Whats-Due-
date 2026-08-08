@@ -7,6 +7,7 @@ import 'package:whats_due/main.dart';
 import 'package:whats_due/models.dart';
 import 'package:whats_due/store.dart';
 import 'package:whats_due/theme.dart';
+import 'package:whats_due/ui/horizon.dart';
 
 String _iso(int offsetDays) =>
     formatIsoDate(midnight().add(Duration(days: offsetDays)));
@@ -196,6 +197,164 @@ void main() {
       expect(find.text('Week 3 problem set'), findsOne);
       expect(find.text('SUBMITTED'), findsOne);
       expect(find.text('Comparative essay'), findsNothing);
+    }, seed: _seed());
+  });
+
+  group('the horizon strip', () {
+    // In the seed, +1 has one deadline and +4 has two.
+    String isoIn(int days) =>
+        formatIsoDate(midnight().add(Duration(days: days)));
+
+    appTest('names the fortnight it covers, rather than "+14"', (
+      tester,
+      store,
+    ) async {
+      const months = [
+        'JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN',
+        'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC',
+      ];
+      final start = midnight();
+      final end = start.add(const Duration(days: 13));
+      // The month is named once when both ends share it.
+      final expected = start.month == end.month
+          ? '${start.day} → ${end.day} ${months[end.month - 1]}'
+          : '${start.day} ${months[start.month - 1]} → '
+                '${end.day} ${months[end.month - 1]}';
+
+      expect(find.text(expected), findsOne);
+    }, seed: _seed());
+
+    appTest('labels every column with its weekday', (tester, store) async {
+      // Fourteen columns means every letter of a week, twice.
+      final letters = tester
+          .widgetList<Text>(find.byType(Text))
+          .map((t) => t.data)
+          .whereType<String>()
+          .where((s) => s.length == 1 && 'MTWFS'.contains(s))
+          .length;
+      expect(letters, greaterThanOrEqualTo(14));
+    }, seed: _seed());
+
+    appTest('a divider marks each Monday, and never the first column', (
+      tester,
+      store,
+    ) async {
+      final start = midnight();
+      // However today falls, a 14-day window contains exactly two Mondays —
+      // unless today is itself Monday, when the first is the leading column
+      // and gets no divider, leaving one.
+      final mondays = [
+        for (var d = 1; d < 14; d++)
+          if (start.add(Duration(days: d)).weekday == DateTime.monday) d,
+      ];
+
+      final dividers = find.byWidgetPredicate(
+        (w) => w.key is ValueKey<String> &&
+            (w.key as ValueKey<String>).value.startsWith('week-start-'),
+      );
+      expect(dividers, findsNWidgets(mondays.length));
+
+      // Never on the leading column: there is nothing to its left.
+      expect(
+        find.byKey(ValueKey('week-start-${formatIsoDate(start)}')),
+        findsNothing,
+      );
+    }, seed: _seed());
+
+    appTest('a day with two deadlines carries a count', (tester, store) async {
+      expect(
+        find.descendant(
+          of: find.byType(HorizonStrip),
+          matching: find.text('2'),
+        ),
+        findsOne,
+      );
+    }, seed: _seed());
+
+    appTest('tapping a day filters the list to it', (tester, store) async {
+      await tester.tap(
+        find.bySemanticsLabel('2 due ${longDate(isoIn(4))}, tap to show only these'),
+      );
+      await tester.pumpAndSettle();
+
+      // Only the two due that day survive.
+      expect(find.text('Regression assignment'), findsOne);
+      expect(find.text('Lab report titration'), findsOne);
+      expect(find.text('Comparative essay'), findsNothing);
+      expect(find.text('Reaction mechanisms problem set'), findsNothing);
+
+      // And the reason is stated, with a way out.
+      expect(find.textContaining('SHOW ALL'), findsOne);
+    }, seed: _seed());
+
+    appTest('tapping the same day again clears it', (tester, store) async {
+      final label =
+          '2 due ${longDate(isoIn(4))}, tap to show only these';
+      await tester.tap(find.bySemanticsLabel(label));
+      await tester.pumpAndSettle();
+      expect(find.text('Comparative essay'), findsNothing);
+
+      await tester.tap(
+        find.bySemanticsLabel('Clear the filter on ${longDate(isoIn(4))}'),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Comparative essay'), findsOne);
+    }, seed: _seed());
+
+    appTest('SHOW ALL clears the filter too', (tester, store) async {
+      await tester.tap(
+        find.bySemanticsLabel('2 due ${longDate(isoIn(4))}, tap to show only these'),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.bySemanticsLabel('Clear the day filter'));
+      await tester.pumpAndSettle();
+      expect(find.text('Comparative essay'), findsOne);
+    }, seed: _seed());
+
+    appTest('an empty day is inert, not a route to an empty list', (
+      tester,
+      store,
+    ) async {
+      // Day +2 has nothing due, so it exposes no tappable semantics at all.
+      expect(
+        find.bySemanticsLabel(RegExp('due ${longDate(isoIn(2))}')),
+        findsNothing,
+      );
+    }, seed: _seed());
+
+    appTest('switching to Submitted drops the day filter', (
+      tester,
+      store,
+    ) async {
+      await tester.tap(
+        find.bySemanticsLabel('2 due ${longDate(isoIn(4))}, tap to show only these'),
+      );
+      await tester.pumpAndSettle();
+      expect(find.textContaining('SHOW ALL'), findsOne);
+
+      await tester.tap(find.text('SUBMITTED (1)'));
+      await tester.pumpAndSettle();
+
+      // The strip only charts unsubmitted work, so keeping the filter would
+      // show an empty list for no stated reason.
+      expect(find.textContaining('SHOW ALL'), findsNothing);
+      expect(find.text('Week 3 problem set'), findsOne);
+    }, seed: _seed());
+
+    appTest('the empty state explains a day filter that matches nothing', (
+      tester,
+      store,
+    ) async {
+      // Filter to a subject, then to a day that subject has nothing on.
+      await tester.tap(find.text('STATISTICS 1'));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.bySemanticsLabel('2 due ${longDate(isoIn(4))}, tap to show only these'),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Regression assignment'), findsOne);
     }, seed: _seed());
   });
 
