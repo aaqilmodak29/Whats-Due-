@@ -46,7 +46,11 @@ class Updater extends ChangeNotifier {
   /// replacing the unpacked build directory, which the app cannot sensibly do
   /// to itself while running, so there it reports the new version and leaves it
   /// to the user.
-  static bool get canSelfInstall => !kIsWeb && Platform.isAndroid;
+  ///
+  /// A field rather than a getter so snapshot tests can render the Android
+  /// layout. Tests run on the host, which is Windows here, and would otherwise
+  /// only ever capture the variant the phone never sees.
+  static bool canSelfInstall = !kIsWeb && Platform.isAndroid;
 
   UpdateStatus _status = UpdateStatus.idle;
   Release? _release;
@@ -85,6 +89,62 @@ class Updater extends ChangeNotifier {
       if (l != r) return l.compareTo(r);
     }
     return 0;
+  }
+
+  /// Turns GitHub's generated release notes into a few readable lines.
+  ///
+  /// The raw form is written for a web page, not a phone: markdown headings,
+  /// one bullet per merged pull request, each ending `by @someone in <url>`,
+  /// and a trailing full-changelog link. Rendered as-is it wraps into an
+  /// unreadable wall of URLs, which is what it did.
+  ///
+  /// This keeps the human half of each line — dropping the heading, the
+  /// attribution trailer, bare links, and the conventional-commit prefix that
+  /// means nothing to someone deciding whether to tap Install.
+  static List<String> summarise(String notes, {int max = 4}) {
+    final out = <String>[];
+    var skippingSection = false;
+
+    for (var line in notes.split('\n')) {
+      line = line.trim();
+      if (line.isEmpty) continue;
+
+      if (line.startsWith('#')) {
+        // "New Contributors" is about the repository, not about the app. Its
+        // entries are pure attribution and reduce to nothing once the handle
+        // and link are stripped.
+        skippingSection = line.toLowerCase().contains('contributor');
+        continue;
+      }
+      if (skippingSection) continue;
+      if (line.toLowerCase().startsWith('**full changelog')) continue;
+
+      // Bullet marker.
+      line = line.replaceFirst(RegExp(r'^[*\-+]\s+'), '');
+      // "... by @someone in https://github.com/owner/repo/pull/1"
+      line = line.replaceFirst(RegExp(r'\s+by\s+@\S+\s+in\s+\S+$'), '');
+      // Any remaining bare link.
+      line = line.replaceAll(RegExp(r'https?://\S+'), '').trim();
+      // Conventional-commit prefix: "feat:", "fix(android):", "refactor(sync)!:"
+      line = line.replaceFirst(
+        RegExp(
+          r'^(feat|fix|chore|docs|refactor|test|ci|build|perf|style)'
+          r'(\([^)]*\))?!?:\s*',
+          caseSensitive: false,
+        ),
+        '',
+      );
+      line = line.replaceAll(RegExp(r'\s+'), ' ').trim();
+      // Stripping a link can leave a dangling preposition — "…contribution in".
+      line = line.replaceFirst(RegExp(r'\s+(in|by|at|to|from)$'), '');
+      // A line that was only a link or an attribution is now noise. Anything
+      // still carrying a handle is about people, not about the release.
+      if (line.isEmpty || line.length < 3 || line.contains('@')) continue;
+
+      out.add(line[0].toUpperCase() + line.substring(1));
+      if (out.length == max) break;
+    }
+    return out;
   }
 
   /// Parses the GitHub release payload. Split out so it can be tested without

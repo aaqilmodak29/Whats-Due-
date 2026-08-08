@@ -33,6 +33,90 @@ void main() {
     });
   });
 
+  group('summarising release notes', () {
+    // Copied verbatim from the v1.0.1 release GitHub generated, because that
+    // is the shape that actually has to render on a phone.
+    const real = '''
+## What's Changed
+* feat: Flutter port for Windows, Android and web by @aaqilmodak29 in https://github.com/aaqilmodak29/Whats-Due-/pull/1
+* feat(sync): share one list across Windows, Android and web by @aaqilmodak29 in https://github.com/aaqilmodak29/Whats-Due-/pull/2
+* refactor(sync): inject Firebase config at build time instead of hardc... by @aaqilmodak29 in https://github.com/aaqilmodak29/Whats-Due-/pull/3
+* Secrets out of git by @aaqilmodak29 in https://github.com/aaqilmodak29/Whats-Due-/pull/4
+* ci: harden the workflows before the repository goes public by @aaqilmodak29 in https://github.com/aaqilmodak29/Whats-Due-/pull/5
+
+## New Contributors
+* @aaqilmodak29 made their first contribution in https://github.com/aaqilmodak29/Whats-Due-/pull/1
+
+**Full Changelog**: https://github.com/aaqilmodak29/Whats-Due-/commits/v1.0.1
+''';
+
+    test('turns the real v1.0.1 notes into readable lines', () {
+      expect(Updater.summarise(real), [
+        'Flutter port for Windows, Android and web',
+        'Share one list across Windows, Android and web',
+        'Inject Firebase config at build time instead of hardc...',
+        'Secrets out of git',
+      ]);
+    });
+
+    test('drops every URL — they wrap badly and say nothing', () {
+      for (final line in Updater.summarise(real, max: 99)) {
+        expect(line, isNot(contains('http')));
+        expect(line, isNot(contains('github.com')));
+      }
+    });
+
+    test('drops attribution, headings and the changelog footer', () {
+      final lines = Updater.summarise(real, max: 99);
+      for (final line in lines) {
+        expect(line, isNot(contains('@')));
+        expect(line, isNot(startsWith('#')));
+        expect(line.toLowerCase(), isNot(contains('full changelog')));
+      }
+    });
+
+    test('the New Contributors section is dropped entirely', () {
+      // Its one entry is pure attribution: strip the handle and the link and
+      // "@someone made their first contribution in" is left saying nothing.
+      final lines = Updater.summarise(real, max: 99);
+      expect(
+        lines.any((l) => l.toLowerCase().contains('contribution')),
+        isFalse,
+      );
+      expect(lines.length, 5, reason: 'the five merged changes, and nothing else');
+    });
+
+    test('a stripped link never leaves a dangling preposition', () {
+      expect(
+        Updater.summarise('* Something happened in https://example.test/x'),
+        ['Something happened'],
+      );
+    });
+
+    test('strips conventional-commit prefixes, including scopes', () {
+      expect(Updater.summarise('* feat: add a thing'), ['Add a thing']);
+      expect(Updater.summarise('* fix(android): stop crashing'),
+          ['Stop crashing']);
+      expect(Updater.summarise('* refactor(sync)!: rework'), ['Rework']);
+      // A colon that is not a commit prefix must survive.
+      expect(Updater.summarise('* Note: this stays'), ['Note: this stays']);
+    });
+
+    test('honours the line cap', () {
+      expect(Updater.summarise(real, max: 2).length, 2);
+      expect(Updater.summarise(real, max: 1), [
+        'Flutter port for Windows, Android and web',
+      ]);
+    });
+
+    test('empty or junk notes produce nothing rather than blank bullets', () {
+      expect(Updater.summarise(''), isEmpty);
+      expect(Updater.summarise('## Heading only'), isEmpty);
+      expect(Updater.summarise('* https://example.test/x'), isEmpty);
+      expect(Updater.summarise('\n\n   \n'), isEmpty);
+    });
+  });
+
   group('parsing a GitHub release', () {
     String payload({
       String tag = 'v1.2.0',
