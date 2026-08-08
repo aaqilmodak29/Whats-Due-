@@ -33,6 +33,9 @@ class _HomePageState extends State<HomePage> {
   String _filter = _filterAll;
   String? _openId;
 
+  /// `YYYY-MM-DD` when a day in the horizon strip is being filtered on.
+  String? _selectedDue;
+
   AppStore get store => widget.store;
 
   @override
@@ -50,6 +53,7 @@ class _HomePageState extends State<HomePage> {
     }).length;
 
     final shown = (_showSubmitted ? submitted : active).where((a) {
+      if (_selectedDue != null && a.due != _selectedDue) return false;
       if (_filter == _filterAll) return true;
       if (_filter == _filterUnfiled) return a.subjectId == null;
       return a.subjectId == _filter;
@@ -104,7 +108,19 @@ class _HomePageState extends State<HomePage> {
                 ),
 
                 const SizedBox(height: 18),
-                HorizonStrip(active: active),
+                HorizonStrip(
+                  active: active,
+                  selectedDue: _selectedDue,
+                  onSelect: (due) => setState(() {
+                    _selectedDue = due;
+                    _openId = null;
+                    // The strip only ever shows unsubmitted work, so a day
+                    // selected while the Submitted tab is open would filter to
+                    // nothing.
+                    if (due != null) _showSubmitted = false;
+                  }),
+                ),
+                if (_selectedDue != null) _dayFilterBar(),
 
                 if (_showAdd) ...[
                   const SizedBox(height: 18),
@@ -183,6 +199,9 @@ class _HomePageState extends State<HomePage> {
                         onTap: () => setState(() {
                           _showSubmitted = true;
                           _openId = null;
+                          // The strip only charts unsubmitted work, so keeping
+                          // a day filter here would show an empty list.
+                          _selectedDue = null;
                         }),
                       ),
                     ],
@@ -289,6 +308,38 @@ class _HomePageState extends State<HomePage> {
     _openId = null;
   });
 
+  /// Shows what the strip is filtering on, and how to get out of it. Without
+  /// this a tap on a bar looks like most of the list vanishing for no reason.
+  Widget _dayFilterBar() {
+    final count = store.active.where((a) => a.due == _selectedDue).length;
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Tap(
+        onTap: () => setState(() => _selectedDue = null),
+        semanticLabel: 'Clear the day filter',
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: C.card,
+            border: Border.all(color: C.ink),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '${longDate(_selectedDue!)} · $count due'.toUpperCase(),
+                  style: T.count(C.ink),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text('SHOW ALL', style: T.ghost(C.muted)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   /// The footer link doubles as the sync indicator, so a conflict or a failure
   /// is visible from the main screen rather than only once you go looking.
   String _syncLabel() => switch (store.sync?.status) {
@@ -301,18 +352,28 @@ class _HomePageState extends State<HomePage> {
 
   Widget _empty() {
     final (head, body) = switch ((
+      _selectedDue != null,
       _filter != _filterAll,
       _showSubmitted,
     )) {
-      (true, _) => (
+      // A day filter is the most recent thing the user did, so name it first.
+      (true, true, _) => (
+        'Nothing here',
+        'Nothing in this subject is due on that day. Tap SHOW ALL to widen it.',
+      ),
+      (true, false, _) => (
+        'Nothing here',
+        'Nothing is due on that day any more. Tap SHOW ALL to widen it.',
+      ),
+      (false, true, _) => (
         'Nothing here',
         'No assignments in this subject yet. Tap All to see everything.',
       ),
-      (false, false) => (
+      (false, false, false) => (
         'Nothing tracked yet',
         'Add an assignment and the 14-day strip above will start filling in.',
       ),
-      (false, true) => (
+      (false, false, true) => (
         'Nothing submitted yet',
         'Finished work shows up here once you mark it submitted.',
       ),
