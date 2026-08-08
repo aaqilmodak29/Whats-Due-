@@ -5,22 +5,18 @@ import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
 import 'models.dart';
+import 'reminder_schedule.dart';
 
-/// Real on-device reminders — the one thing the web build could not do.
+/// Real on-device reminders, and the only reminder mechanism in the app.
 ///
-/// The web app shipped `.ics` export instead, because a web page cannot
-/// schedule its own future notifications: the Notification Triggers API never
-/// shipped broadly, and genuine push would have meant a service worker, a push
-/// subscription and a server. A native app needs none of that, so the three
-/// alarms the `.ics` carried are now also scheduled locally:
+/// Calendar (`.ics`) export used to sit alongside this, because a web page
+/// cannot schedule its own future notifications and handing the deadline to the
+/// phone's calendar was the only way to get one. Now that the desktop and phone
+/// builds are the product, that indirection is gone: notifications are
+/// scheduled directly, six per deadline. See [Milestone] for the schedule.
 ///
-///   * 7 days before, 09:00
-///   * 2 days before, 09:00
-///   * 18:00 the evening before
-///
-/// `.ics` export is kept alongside this, unchanged. The two are complementary:
-/// notifications live in the app, calendar events live in the phone's calendar
-/// and survive uninstalling.
+/// Assignments that come due at the same moment are collapsed into a single
+/// notification — see [planReminders].
 class Reminders {
   Reminders._();
 
@@ -152,49 +148,28 @@ class Reminders {
     }
     if (!enabled) return;
 
-    final now = tz.TZDateTime.now(tz.local);
+    Subject? subjectOf(Assignment a) =>
+        subjects.where((s) => s.id == a.subjectId).firstOrNull;
+
+    final groups = planReminders(items, now: clock());
     var id = 1;
 
-    for (final a in items) {
-      if (a.done || a.due.isEmpty) continue;
-      final date = parseIsoDate(a.due);
-      if (date == null) continue;
-
-      final subject = subjects.where((s) => s.id == a.subjectId).firstOrNull;
-      final tag = subject == null ? '' : ' (${subject.name})';
-      final nineAm = tz.TZDateTime(
-        tz.local,
-        date.year,
-        date.month,
-        date.day,
-        9,
-      );
-
-      final schedule = <(tz.TZDateTime, String)>[
-        (nineAm.subtract(const Duration(days: 7)), 'One week until'),
-        (nineAm.subtract(const Duration(days: 2)), 'Two days until'),
-        (nineAm.subtract(const Duration(hours: 15)), 'Due tomorrow —'),
-      ];
-
-      for (final (fireAt, lead) in schedule) {
-        if (!fireAt.isAfter(now)) continue; // never schedule into the past
-        final pending = a.tasks.where((t) => !t.done).length;
-        try {
-          await _plugin.zonedSchedule(
-            id: id++,
-            title: '$lead ${a.title}$tag',
-            body: pending == 0
-                ? 'Due ${longDate(a.due)}.'
-                : 'Due ${longDate(a.due)} — $pending task${pending == 1 ? '' : 's'} outstanding.',
-            scheduledDate: fireAt,
-            notificationDetails: _details,
-            androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-          );
-        } catch (e) {
-          debugPrint('Reminders: schedule failed for ${a.title} — $e');
-        }
+    for (final group in groups) {
+      final when = tz.TZDateTime.from(group.when, tz.local);
+      try {
+        await _plugin.zonedSchedule(
+          id: id++,
+          title: group.title(subjectOf),
+          body: group.body(subjectOf),
+          scheduledDate: when,
+          notificationDetails: _details,
+          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        );
+      } catch (e) {
+        debugPrint('Reminders: schedule failed for ${group.when} — $e');
       }
     }
+    debugPrint('Reminders: scheduled ${groups.length} notifications');
   }
 
   /// How many reminders are currently queued with the OS. Shown in the backup

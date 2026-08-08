@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../ics.dart';
+import '../backup_file.dart';
 import '../reminders.dart';
 import '../store.dart';
 import '../theme.dart';
@@ -115,10 +115,13 @@ class _BackupPageState extends State<BackupPage> {
                     title: 'Reminders',
                     children: [
                       Text(
-                        'Real notifications, scheduled on this device: one week '
-                        'out, two days out, and 6pm the evening before. No '
-                        'server, no account. This is the thing the web version '
-                        'could never do.',
+                        'Six notifications per deadline, scheduled on this '
+                        'device. At 9am two weeks out, one week out, three days '
+                        'out, the day before and the morning it is due — then a '
+                        'last one at 9pm, about three hours before a midnight '
+                        'cut-off.\n\n'
+                        'Assignments due at the same moment arrive as one '
+                        'notification rather than several.',
                         style: T.note,
                       ),
                       const SizedBox(height: 12),
@@ -179,10 +182,9 @@ class _BackupPageState extends State<BackupPage> {
                     title: 'Reminders',
                     children: [
                       Text(
-                        'Scheduled notifications need the desktop or phone app. '
-                        'In a browser tab there is nothing running to fire them '
-                        'later, so use REMIND ME on an assignment to drop it '
-                        'into your calendar instead.',
+                        'Reminders need the desktop or phone app. A browser tab '
+                        'has nothing running to fire a notification days later, '
+                        'so this build cannot remind you of anything.',
                         style: T.note,
                       ),
                     ],

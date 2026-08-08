@@ -208,7 +208,8 @@ void main() {
       expect(find.text('Q6-Q10'), findsOne);
       expect(find.text('MARK SUBMITTED'), findsOne);
       expect(find.text('EDIT'), findsOne);
-      expect(find.text('REMIND ME'), findsOne);
+      // Calendar export is gone; reminders are scheduled notifications now.
+      expect(find.text('REMIND ME'), findsNothing);
     }, seed: _seed());
 
     appTest('a task can be added and ticked', (tester, store) async {

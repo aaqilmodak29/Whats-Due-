@@ -271,38 +271,6 @@
     return state.subjects.filter(function(s){ return s.id === a.subjectId; })[0] || null;
   }
 
-  /* ---------- calendar export ---------- */
-  function icsEscape(s){ return String(s).replace(/([,;\\])/g,"\\$1").replace(/\n/g,"\\n"); }
-  function downloadIcs(a){
-    if(!a.due){ alert("Add a due date first and this will make a calendar reminder."); return; }
-    var subj = subjectOf(a), tag = subj ? subj.name : "";
-    var d = a.due.replace(/-/g,"");
-    var stamp = new Date().toISOString().replace(/[-:]/g,"").split(".")[0]+"Z";
-    var pending = a.tasks.filter(function(t){ return !t.done; }).map(function(t){ return "- "+t.text; });
-    var desc = (tag ? tag+" — " : "") + "due "+longDate(a.due)
-             + (pending.length ? "\nOutstanding:\n"+pending.join("\n") : "");
-    var lines = [
-      "BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Coursework Tracker//EN","CALSCALE:GREGORIAN",
-      "BEGIN:VEVENT",
-      "UID:"+a.id+"@coursework.local",
-      "DTSTAMP:"+stamp,
-      "DTSTART:"+d+"T090000",
-      "DTEND:"+d+"T093000",
-      "SUMMARY:"+icsEscape("Due: "+a.title+(tag ? " ("+tag+")" : "")),
-      "DESCRIPTION:"+icsEscape(desc),
-      "BEGIN:VALARM","TRIGGER:-P7D","ACTION:DISPLAY","DESCRIPTION:"+icsEscape("One week until: "+a.title),"END:VALARM",
-      "BEGIN:VALARM","TRIGGER:-P2D","ACTION:DISPLAY","DESCRIPTION:"+icsEscape("Two days until: "+a.title),"END:VALARM",
-      "BEGIN:VALARM","TRIGGER:-PT15H","ACTION:DISPLAY","DESCRIPTION:"+icsEscape("Due tomorrow: "+a.title),"END:VALARM",
-      "END:VEVENT","END:VCALENDAR"
-    ];
-    var blob = new Blob([lines.join("\r\n")], {type:"text/calendar"});
-    var url = URL.createObjectURL(blob);
-    var link = document.createElement("a");
-    link.href = url;
-    link.download = a.title.replace(/[^a-z0-9]+/gi,"-").toLowerCase().slice(0,40)+".ics";
-    document.body.appendChild(link); link.click(); document.body.removeChild(link);
-    setTimeout(function(){ URL.revokeObjectURL(url); }, 2000);
-  }
 
   /* ---------- subject picker ---------- */
   function fillSubjectSelect(){
@@ -530,10 +498,6 @@
         sub.className = "ghost" + (a.done ? "" : " fill");
         sub.textContent = a.done ? "REOPEN" : "MARK SUBMITTED";
         sub.onclick = function(){ a.done = !a.done; save(); render(); };
-        var rem = document.createElement("button");
-        rem.className = "ghost";
-        rem.textContent = "REMIND ME";
-        rem.onclick = function(){ downloadIcs(a); };
         var del = document.createElement("button");
         del.className = "del";
         del.setAttribute("aria-label","Delete assignment");
@@ -541,7 +505,7 @@
         del.onclick = function(){
           if(!confirm("Delete “"+a.title+"”?")) return;
           state.items = state.items.filter(function(x){ return x.id !== a.id; }); save(); render(); };
-        acts.appendChild(sub); acts.appendChild(rem); acts.appendChild(del);
+        acts.appendChild(sub); acts.appendChild(del);
         body.appendChild(acts);
         card.appendChild(body);
       }
