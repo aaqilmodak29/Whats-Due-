@@ -1,4 +1,5 @@
 @Tags(['golden'])
+library;
 
 import 'dart:io';
 
