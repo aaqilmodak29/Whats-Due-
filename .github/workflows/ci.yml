@@ -1,0 +1,68 @@
+# Analyze and test on every push and pull request.
+#
+# Deliberately has **no secrets and no write permissions**. Once the repository
+# is public anyone can open a pull request, and a pull request can change the
+# workflow it runs under. Because this job holds nothing worth stealing and can
+# write nothing, a hostile PR gains nothing by running it — the review can then
+# be about the code rather than about whether it is safe to run.
+#
+# Releasing is a separate workflow, triggered only by a tag, which collaborators
+# alone can push. That is where the signing keystore lives.
+#
+# This is the check to require in branch protection for `main`.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Read-only. Nothing here needs to write to the repository.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          flutter-version: 3.38.3
+          channel: stable
+          cache: true
+
+      - name: Analyze
+        working-directory: app
+        run: |
+          flutter pub get
+          flutter analyze
+
+      - name: Test
+        working-directory: app
+        # Goldens are excluded: they compare font rasterisation and were
+        # captured on Windows, so they differ on a Linux runner. Everything
+        # else runs, including the manifest guard — which exists because
+        # permissions like INTERNET only take effect in a built APK and had
+        # already broken the app once without failing a single test.
+        run: |
+          flutter test \
+            test/logic_test.dart \
+            test/store_test.dart \
+            test/sync_test.dart \
+            test/manifest_test.dart \
+            test/reminder_schedule_test.dart \
+            test/updater_test.dart \
+            test/ui_test.dart
+
+      - name: Build (unsigned, just to prove it compiles)
+        working-directory: app
+        # No .env and no keystore, so this exercises the path a fresh clone
+        # takes: sync reports itself switched off and the release falls back to
+        # the debug key, rather than the build failing.
+        run: flutter build apk --debug
