@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -16,6 +18,14 @@ Future<void> main() async {
 
   final store = AppStore();
   await store.init();
+
+  // Reminders default to on, so nobody ever touches the switch — and the switch
+  // was the only thing that asked for permission. On Android 13+ that meant
+  // POST_NOTIFICATIONS was never requested, scheduling succeeded, and not one
+  // notification was ever shown. Ask on launch instead, when they are enabled.
+  if (store.remindersEnabled) {
+    unawaited(Reminders.requestPermission());
+  }
 
   // Sync is attached after the store has loaded, so the first pull compares
   // against real local state rather than an empty one. If no Firebase project is

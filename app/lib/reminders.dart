@@ -82,10 +82,18 @@ class Reminders {
             AndroidFlutterLocalNotificationsPlugin
           >();
       if (android != null) {
-        granted = await android.requestNotificationsPermission() ?? false;
+        // Already granted: asking again returns false on some versions once
+        // the prompt has been dismissed, so checking first avoids reporting a
+        // failure for a permission we actually hold.
+        granted = await android.areNotificationsEnabled() ?? false;
+        if (!granted) {
+          granted = await android.requestNotificationsPermission() ?? false;
+        }
         // Best-effort: without this, scheduling silently downgrades to
         // inexact timing rather than failing.
-        await android.requestExactAlarmsPermission();
+        if (await android.canScheduleExactNotifications() == false) {
+          await android.requestExactAlarmsPermission();
+        }
         return granted;
       }
       final ios = _plugin
@@ -177,11 +185,49 @@ class Reminders {
     }
   }
 
+  /// What the OS currently allows, so "reminders aren't working" is an
+  /// answerable question rather than a guess.
+  ///
+  /// Every field is separately capable of silently swallowing a reminder:
+  /// scheduling succeeds and returns normally whether or not the notification
+  /// will ever be shown, which is exactly how a missing POST_NOTIFICATIONS
+  /// grant went unnoticed.
+  static Future<({bool ready, bool? notifications, bool? exactAlarms, int pending})>
+      diagnose() async {
+    await init();
+    if (!_ready) {
+      return (ready: false, notifications: null, exactAlarms: null, pending: 0);
+    }
+    final android = _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
+    bool? notifications;
+    bool? exact;
+    try {
+      notifications = await android?.areNotificationsEnabled();
+      exact = await android?.canScheduleExactNotifications();
+    } catch (e) {
+      debugPrint('Reminders: could not read permission state — $e');
+    }
+    return (
+      ready: true,
+      notifications: notifications,
+      exactAlarms: exact,
+      pending: await pendingCount(),
+    );
+  }
+
   /// Fires a notification a few seconds out, so the permission chain can be
   /// tested without waiting for a real deadline.
+  ///
+  /// Asks for permission first. Scheduling without it succeeds and shows
+  /// nothing, so a test that skipped this step reported success and then sat
+  /// there silently — which is precisely what happened.
   static Future<bool> sendTest() async {
     await init();
     if (!_ready) return false;
+    if (!await requestPermission()) return false;
     try {
       await _plugin.zonedSchedule(
         id: 999999,

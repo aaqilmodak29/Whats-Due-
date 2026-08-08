@@ -26,6 +26,9 @@ class BackupPage extends StatefulWidget {
 class _BackupPageState extends State<BackupPage> {
   final _paste = TextEditingController();
   int _pending = 0;
+  bool? _notificationsAllowed;
+  bool? _exactAlarmsAllowed;
+  bool _remindersReady = true;
 
   @override
   void initState() {
@@ -40,9 +43,46 @@ class _BackupPageState extends State<BackupPage> {
   }
 
   Future<void> _refreshPending() async {
-    final n = await Reminders.pendingCount();
-    if (mounted) setState(() => _pending = n);
+    final d = await Reminders.diagnose();
+    if (!mounted) return;
+    setState(() {
+      _pending = d.pending;
+      _remindersReady = d.ready;
+      _notificationsAllowed = d.notifications;
+      _exactAlarmsAllowed = d.exactAlarms;
+    });
   }
+
+  /// Names whichever link in the chain is actually broken. Scheduling succeeds
+  /// whether or not a notification will ever be shown, so without this the
+  /// only symptom is silence.
+  Widget? _remindersWarning() {
+    if (!_remindersReady) {
+      return _warn('Notifications could not start on this device. Reminders '
+          'will not fire.');
+    }
+    if (_notificationsAllowed == false) {
+      return _warn('This app is not allowed to post notifications, so no '
+          'reminder will ever appear. Turn the switch off and on to be asked '
+          'again, or allow notifications for it in Android settings.');
+    }
+    if (_exactAlarmsAllowed == false) {
+      return _warn('Alarms and reminders are not permitted, so reminders may '
+          'arrive late — Android will batch them rather than firing at 9am. '
+          'Allow "Alarms & reminders" for this app in Android settings.');
+    }
+    return null;
+  }
+
+  Widget _warn(String message) => Padding(
+    padding: const EdgeInsets.only(top: 10),
+    child: Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(border: Border.all(color: C.red)),
+      child: Text(message, style: T.emptyBody.copyWith(color: C.red)),
+    ),
+  );
 
   void _toast(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -132,10 +172,16 @@ class _BackupPageState extends State<BackupPage> {
                         Expanded(
                           child: Text(
                             store.remindersEnabled
-                                ? 'ON — $_pending queued'
+                                ? (_notificationsAllowed == false
+                                      ? 'ON — BUT BLOCKED BY ANDROID'
+                                      : 'ON — $_pending queued')
                                 : 'OFF',
                             style: T.count(
-                              store.remindersEnabled ? C.ink : C.muted,
+                              !store.remindersEnabled
+                                  ? C.muted
+                                  : _notificationsAllowed == false
+                                  ? C.red
+                                  : C.ink,
                             ),
                           ),
                         ),
@@ -151,6 +197,7 @@ class _BackupPageState extends State<BackupPage> {
                         ),
                       ],
                     ),
+                    ?_remindersWarning(),
                     const SizedBox(height: 4),
                     Wrap(
                       spacing: 8,
@@ -161,11 +208,13 @@ class _BackupPageState extends State<BackupPage> {
                           onPressed: () async {
                             final ok = await Reminders.sendTest();
                             if (!mounted) return;
+                            await _refreshPending();
+                            if (!mounted) return;
                             _toast(
                               ok
                                   ? 'A test reminder will appear in 5 seconds.'
-                                  : 'Could not post a notification. Check the '
-                                        'app is allowed to send them.',
+                                  : 'Android is blocking notifications for this '
+                                        'app, so nothing would appear.',
                             );
                           },
                         ),

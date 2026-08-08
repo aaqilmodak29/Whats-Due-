@@ -46,19 +46,13 @@ jobs:
       - name: Test
         working-directory: app
         # Goldens are excluded: they compare font rasterisation and were
-        # captured on Windows, so they differ on a Linux runner. Everything
-        # else runs, including the manifest guard — which exists because
-        # permissions like INTERNET only take effect in a built APK and had
-        # already broken the app once without failing a single test.
-        run: |
-          flutter test \
-            test/logic_test.dart \
-            test/store_test.dart \
-            test/sync_test.dart \
-            test/manifest_test.dart \
-            test/reminder_schedule_test.dart \
-            test/updater_test.dart \
-            test/ui_test.dart
+        # captured on Windows, so they differ on a Linux runner.
+        #
+        # Excluded by tag rather than by listing every other file. Twice a new
+        # test file was added and silently left out of CI because it was not on
+        # that list — including the one guarding the permission chain that had
+        # just broken reminders. See app/dart_test.yaml.
+        run: flutter test --exclude-tags golden
 
       - name: Build (unsigned, just to prove it compiles)
         working-directory: app

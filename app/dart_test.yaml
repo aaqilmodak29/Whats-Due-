@@ -1,0 +1,12 @@
+# Golden tests compare font rasterisation, which differs between the machine
+# that captured them (Windows) and a Linux CI runner. They are tagged so CI can
+# exclude them by tag:
+#
+#     flutter test --exclude-tags golden
+#
+# Excluding by tag rather than by listing every other file matters: twice now a
+# new test file has been added and silently left out of CI because it was not
+# on that list.
+tags:
+  golden:
+    description: Snapshot tests, platform-dependent on font rendering.
