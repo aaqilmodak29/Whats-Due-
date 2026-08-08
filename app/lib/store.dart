@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'models.dart';
 import 'reminders.dart';
 import 'sync/sync_engine.dart';
+import 'updater.dart';
 import 'theme.dart';
 
 /// Outcome of an import, so the UI can report something specific.
@@ -38,6 +39,10 @@ class AppStore extends ChangeNotifier {
   static const _remindersKey = 'coursework:reminders';
 
   SharedPreferences? _prefs;
+
+  /// Checks GitHub for a newer build. Null on platforms that cannot
+  /// self-install, where the UI simply never offers an update.
+  final Updater updater = Updater();
 
   /// Set once sync is wired up. Null keeps the app fully functional offline and
   /// local-only, which is what a build with no Firebase project configured does.

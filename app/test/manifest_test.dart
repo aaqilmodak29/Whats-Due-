@@ -54,6 +54,14 @@ void main() {
     expect(manifest.contains('ScheduledNotificationReceiver'), isTrue);
   });
 
+  test('REQUEST_INSTALL_PACKAGES is declared, or in-app updates cannot install', () {
+    expect(
+      declares('REQUEST_INSTALL_PACKAGES'),
+      isTrue,
+      reason: 'the downloaded APK could not be handed to the installer',
+    );
+  });
+
   test('the app is labelled, not left as the package name', () {
     expect(manifest.contains('android:label="What'), isTrue);
   });

@@ -3,32 +3,15 @@
 A coursework tracker. It answers three questions: what's overdue, what's coming
 up, and what's left to do inside each assignment.
 
-There are now two builds in this repository, and they are both first-class:
+A Flutter app in [`app/`](app), built for **Windows desktop and Android**. Both
+share one list through Firebase — see [Sync](#sync) and
+[`SYNC-SETUP.md`](SYNC-SETUP.md). Without a Firebase project configured the app
+is local-only and still fully usable.
 
-| | |
-|---|---|
-| [`index.html`](index.html) | The original single-file web app. Zero build step, zero dependencies. Still live on GitHub Pages, still holds real data. |
-| [`app/`](app) | A Flutter port that runs as a native Windows desktop app, a native Android app, and a web build. Local storage, real scheduled notifications. |
-
-Only source is committed. The web build is compiled and deployed by
-[a GitHub Action](.github/workflows/deploy-web.yml) on push.
-
-The native builds sync through Firebase, so all three share one list — see
-[Sync](#sync) and [`SYNC-SETUP.md`](SYNC-SETUP.md). Without a Firebase project
-configured the app is local-only and still fully usable.
-
----
-
-## Which one should I use?
-
-Use the **native app** if you want real reminder notifications — the thing the
-web version could never do (see [Reminders](#reminders)).
-
-Keep the **web app** because it works on anything with a browser and needs no
-install. It is unchanged apart from a new `EXPORT JSON` button, which is how
-data gets out of it.
-
-They are not connected. Editing in one does not change the other.
+It started as a single-file web app served from GitHub Pages. That has been
+retired: the desktop and phone builds do everything it did and can fire real
+notifications, which a web page fundamentally cannot. The original `index.html`
+remains in the git history if it is ever wanted.
 
 ---
 
@@ -100,39 +83,42 @@ To run it while plugged in over USB with debugging on:
 flutter run -d android
 ```
 
-**The APK is signed with Flutter's debug key**, deliberately: this app is never
-going near the Play Store, and a real upload key would be one more secret to
-lose. The consequence is that Android shows an "unknown developer" warning on
-first install, and you cannot later switch to a properly signed build without
-uninstalling first — which erases the data. Export a backup before you ever do
-that.
+Release builds are signed with `android-release.keystore` (gitignored; see
+[Releases and updates](#releases-and-updates)). Android still shows an "unknown
+developer" warning on first install, since the key is self-signed rather than
+Play-issued.
 
-### Web
+### Releases and updates
 
-You do not build this by hand. [`.github/workflows/deploy-web.yml`](.github/workflows/deploy-web.yml)
-builds it on every push to `main` and deploys both apps to GitHub Pages:
-
-| URL | |
-|---|---|
-| `https://aaqilmodak29.github.io/Whats-Due-/` | The original single-file app, copied verbatim |
-| `https://aaqilmodak29.github.io/Whats-Due-/flutter-web/` | The Flutter build |
-
-**Pages must be set to deploy from GitHub Actions** — Settings → Pages → Source
-→ *GitHub Actions*. Serving from a branch instead would mean committing the
-build output, which is what this replaced.
-
-The workflow runs `flutter analyze` and the test suite before it builds, so a
-broken commit fails the deploy rather than publishing.
-
-To look at a change locally first:
+Tag a version and CI does the rest:
 
 ```bash
-pwsh tools/preview-web.ps1
+git tag v1.1.0 && git push origin v1.1.0
 ```
 
-Pages caches for roughly ten minutes, so append a fresh `?v=N` after deploying
-rather than clearing site data — **clearing site data would destroy the web
-app's stored assignments.**
+[`release.yml`](.github/workflows/release.yml) runs analyze and the test suite,
+builds a signed APK, and publishes it as a GitHub Release. The app checks that
+release feed on launch and offers to download and install it — so a change no
+longer means copying an APK to the phone by hand.
+
+Two things must line up or the update will not install, and both are handled by
+that workflow:
+
+* **The signing key must match.** Android refuses an update signed by a
+  different key. Flutter's default debug key is generated per machine, so a CI
+  build and a local build would produce APKs that cannot replace each other.
+  Signing uses `android-release.keystore`, which is gitignored and mirrored into
+  CI as a secret.
+* **`versionCode` must increase**, so the build number comes from the CI run
+  number rather than `pubspec.yaml`.
+
+**Back up `android-release.keystore` and its password.** Losing them means never
+being able to ship an update that installs over an existing one — the only way
+back is uninstalling, which erases local data.
+
+Windows updates are not automatic: the app reports that a newer version exists
+and links to the release. Replacing a running executable's own directory is not
+something it can sensibly do to itself.
 
 ### iOS
 
@@ -144,40 +130,59 @@ been built or tested** — that requires a Mac with Xcode. On a Mac,
 
 ## Reminders
 
-This is the one real capability difference between the two builds.
+Six notifications per dated, unsubmitted assignment, scheduled on the device
+with no server and no account. Deadlines are assumed to fall at 23:59, which is
+what submission portals almost always use — that is why the last reminder is at
+21:00 and every earlier one at 09:00, landing at the start of a day rather than
+the end.
 
-A web page cannot schedule its own future notifications: the Notification
-Triggers API never shipped broadly, and genuine push would mean standing up a
-service worker, a push subscription and a server. So the web app exports an
-`.ics` calendar file per assignment and lets the phone's own calendar deliver the
-notification.
+For a deadline of **15 October**:
 
-The native app does the real thing. Three notifications per dated, unsubmitted
-assignment, scheduled on the device with no server and no account:
-
-| When | |
+| Fires | |
 |---|---|
-| 7 days before, 09:00 | One week out |
-| 2 days before, 09:00 | Two days out |
-| 18:00 the evening before | Last call |
+| 1 Oct 09:00 | two weeks out |
+| 8 Oct 09:00 | one week out |
+| 12 Oct 09:00 | three days out |
+| 14 Oct 09:00 | the day before |
+| 15 Oct 09:00 | the morning of |
+| 15 Oct 21:00 | roughly three hours out |
 
-They are re-derived from scratch whenever anything changes, and re-armed after a
-reboot. Turn them on under **Backup & reminders**; there is a **Send a test**
-button there so the permission chain is verifiable rather than a matter of faith.
+**Assignments due at the same moment become one notification**, not several.
+That matters most in the week it is least wanted: five deadlines on one day
+would otherwise mean five toasts at 09:00. A lone reminder keeps a specific
+headline; a group sharing one milestone reads "3 assignments due tomorrow"; a
+mixed group lists each with its own urgency, soonest first.
 
-`.ics` export is kept as well, on every assignment's `REMIND ME` button. The two
-are complementary: notifications live in the app, calendar events live in your
-calendar and survive uninstalling the app.
+Milestones already past are skipped rather than fired late, so adding something
+due in two days schedules three reminders, not six.
+
+The schedule lives in [`reminder_schedule.dart`](app/lib/reminder_schedule.dart)
+as a pure function over assignments and a clock, so it is tested directly rather
+than through the notification plugin.
+
+Reminders are re-derived from scratch whenever anything changes, and re-armed
+after a reboot. Turn them on under **Backup & reminders**; there is a **Send a
+test** button so the permission chain is verifiable rather than a matter of
+faith.
+
+Calendar (`.ics`) export used to sit alongside this, because a web page cannot
+schedule its own notifications. With the web build retired, that indirection is
+gone.
 
 On Android 13+ the OS asks permission the first time. If reminders are silently
 not arriving, check the app is allowed to post notifications **and** allowed to
 set alarms and reminders — they are two separate switches.
 
+On Windows the notification plugin registers an AppUserModelID in the registry
+on first run, so toasts work for the unpackaged build without a Start Menu
+shortcut. Its MSIX caveat applies only to querying and cancelling
+*already-shown* notifications, not to scheduling.
+
 ---
 
 ## Sync
 
-All three builds of `app/` share one list through Firebase. Setup is a one-time
+Both builds of `app/` share one list through Firebase. Setup is a one-time
 five-minute job in the Firebase console — see [`SYNC-SETUP.md`](SYNC-SETUP.md).
 
 **The whole list is one document, newest wins.** Not per-item merging. For one
@@ -204,7 +209,7 @@ real-time listeners are the main reasons to take the native SDK, and the local
 store already *is* the offline cache.
 
 So sync is the Firestore and Firebase Auth REST APIs over `http`: no native
-dependencies, one identical code path on Windows, Android and web, no
+dependencies, one identical code path on Windows and Android, no
 `google-services.json`, no `flutterfire configure`, and no C++ SDK to break a
 desktop build.
 

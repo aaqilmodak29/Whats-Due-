@@ -49,6 +49,9 @@ class _WhatsDueAppState extends State<WhatsDueApp>
     // Pull on launch, so a device picks up whatever the others did while it was
     // closed before the user starts editing.
     widget.store.sync?.syncNow();
+    // Quietly, so a flaky connection at startup says nothing rather than
+    // greeting you with an error you did not ask for.
+    widget.store.updater.check();
   }
 
   @override

@@ -19,6 +19,13 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-permission android:name="android.permission.VIBRATE"/>
 
+    <!-- In-app updates. The app downloads the APK from its GitHub release and
+         hands it to the system installer; Android additionally asks the user to
+         allow installs from this app the first time. Without this the installer
+         refuses to open and updates would have to go back to being copied
+         across by hand. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
+
     <application
         android:label="What&apos;s due"
         android:name="${applicationName}"

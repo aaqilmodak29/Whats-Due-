@@ -7,13 +7,13 @@ import '../store.dart';
 import '../theme.dart';
 import 'assignment_card.dart' show confirm;
 import 'atoms.dart';
+import 'update_section.dart';
 
-/// Backup, migration and reminder settings.
+/// Backup and reminder settings.
 ///
-/// The migration path matters: the web app's data lives in one browser's
-/// `localStorage` and nowhere else. The **Export JSON** button added to
-/// `index.html` produces exactly the JSON this screen imports, which is how
-/// real assignments move onto the native apps without being retyped.
+/// Sync keeps the devices in step, so import and export are no longer how data
+/// travels between them. They remain the escape hatch: a copy that survives
+/// signing out, uninstalling, or deciding to stop using the app.
 class BackupPage extends StatefulWidget {
   const BackupPage({super.key, required this.store});
 
@@ -109,88 +109,75 @@ class _BackupPageState extends State<BackupPage> {
                 ),
                 const SizedBox(height: 24),
 
-                if (Reminders.platformSupported) ...[
-                  _Section(
-                    accent: C.mark,
-                    title: 'Reminders',
-                    children: [
-                      Text(
-                        'Six notifications per deadline, scheduled on this '
-                        'device. At 9am two weeks out, one week out, three days '
-                        'out, the day before and the morning it is due — then a '
-                        'last one at 9pm, about three hours before a midnight '
-                        'cut-off.\n\n'
-                        'Assignments due at the same moment arrive as one '
-                        'notification rather than several.',
-                        style: T.note,
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              store.remindersEnabled
-                                  ? 'ON — $_pending queued'
-                                  : 'OFF',
-                              style: T.count(
-                                store.remindersEnabled ? C.ink : C.muted,
-                              ),
+                UpdateSection(updater: store.updater),
+                const SizedBox(height: 16),
+
+                _Section(
+                  accent: C.mark,
+                  title: 'Reminders',
+                  children: [
+                    Text(
+                      'Six notifications per deadline, scheduled on this '
+                      'device. At 9am two weeks out, one week out, three days '
+                      'out, the day before and the morning it is due — then a '
+                      'last one at 9pm, about three hours before a midnight '
+                      'cut-off.\n\n'
+                      'Assignments due at the same moment arrive as one '
+                      'notification rather than several.',
+                      style: T.note,
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            store.remindersEnabled
+                                ? 'ON — $_pending queued'
+                                : 'OFF',
+                            style: T.count(
+                              store.remindersEnabled ? C.ink : C.muted,
                             ),
                           ),
-                          Switch(
-                            value: store.remindersEnabled,
-                            activeThumbColor: C.ink,
-                            activeTrackColor: C.mark,
-                            onChanged: (v) async {
-                              if (v) await Reminders.requestPermission();
-                              store.setRemindersEnabled(v);
-                              await _refreshPending();
-                            },
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          GhostButton(
-                            label: 'Send a test',
-                            onPressed: () async {
-                              final ok = await Reminders.sendTest();
-                              if (!mounted) return;
-                              _toast(
-                                ok
-                                    ? 'A test reminder will appear in 5 seconds.'
-                                    : 'Could not post a notification. Check the '
-                                          'app is allowed to send them.',
-                              );
-                            },
-                          ),
-                          GhostButton(
-                            label: 'Recount',
-                            onPressed: _refreshPending,
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                ] else ...[
-                  _Section(
-                    accent: C.rule,
-                    title: 'Reminders',
-                    children: [
-                      Text(
-                        'Reminders need the desktop or phone app. A browser tab '
-                        'has nothing running to fire a notification days later, '
-                        'so this build cannot remind you of anything.',
-                        style: T.note,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                ],
+                        ),
+                        Switch(
+                          value: store.remindersEnabled,
+                          activeThumbColor: C.ink,
+                          activeTrackColor: C.mark,
+                          onChanged: (v) async {
+                            if (v) await Reminders.requestPermission();
+                            store.setRemindersEnabled(v);
+                            await _refreshPending();
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        GhostButton(
+                          label: 'Send a test',
+                          onPressed: () async {
+                            final ok = await Reminders.sendTest();
+                            if (!mounted) return;
+                            _toast(
+                              ok
+                                  ? 'A test reminder will appear in 5 seconds.'
+                                  : 'Could not post a notification. Check the '
+                                        'app is allowed to send them.',
+                            );
+                          },
+                        ),
+                        GhostButton(
+                          label: 'Recount',
+                          onPressed: _refreshPending,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
 
                 _Section(
                   accent: C.ink,
@@ -201,8 +188,8 @@ class _BackupPageState extends State<BackupPage> {
                       '${store.items.length == 1 ? '' : 's'} across '
                       '${store.subjects.length} subject'
                       '${store.subjects.length == 1 ? '' : 's'}. '
-                      'Data lives only on this device — there is no sync, so a '
-                      'saved backup is the only way to move it.',
+                      'Sync already keeps your devices in step; a saved backup '
+                      'is what survives signing out or uninstalling.',
                       style: T.note,
                     ),
                     const SizedBox(height: 12),
@@ -249,8 +236,8 @@ class _BackupPageState extends State<BackupPage> {
                   children: [
                     Text(
                       'Paste a backup below. Accepts this app\'s JSON and the '
-                      'old web app\'s — open the web version, tap EXPORT JSON, '
-                      'and paste the result here.\n\n'
+                      'older bare-array format, so an old backup still works.'
+                      '\n\n'
                       'MERGE keeps what you have and adds anything new, '
                       'matching subjects by name and skipping assignments you '
                       'already have. REPLACE overwrites everything.',

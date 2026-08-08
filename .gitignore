@@ -23,3 +23,11 @@ Thumbs.db
 # Firebase project values, injected at build time via
 # --dart-define-from-file. Never committed; see .env.example.
 .env
+
+# Android release signing. Losing these means never being able to ship an
+# update that installs over an existing one, so back them up somewhere safe.
+# They are never committed.
+android-release.keystore
+android-release.keystore.base64
+app/android/key.properties
+keystore-secret.txt

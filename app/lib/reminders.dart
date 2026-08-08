@@ -22,11 +22,6 @@ class Reminders {
 
   static final _plugin = FlutterLocalNotificationsPlugin();
 
-  /// The plugin has no meaningful web implementation — a browser tab cannot be
-  /// relied on to fire a notification days later while closed. On web the
-  /// `.ics` export stays the only reminder path, exactly as before.
-  static bool get platformSupported => !kIsWeb;
-
   static bool _ready = false;
 
   /// Set once initialisation has been tried, successfully or not. Without it a
@@ -40,7 +35,7 @@ class Reminders {
   static const _channelId = 'whats_due_deadlines';
 
   static Future<void> init() async {
-    if (!platformSupported || _attempted) return;
+    if (_attempted) return;
     _attempted = true;
     try {
       tzdata.initializeTimeZones();
@@ -79,7 +74,6 @@ class Reminders {
   /// Android 13+ needs `POST_NOTIFICATIONS` at runtime, and exact alarms are a
   /// separate grant again. Both are requested; neither failing is fatal.
   static Future<bool> requestPermission() async {
-    if (!platformSupported) return false;
     await init();
     if (!_ready) return false;
     try {
@@ -136,7 +130,6 @@ class Reminders {
     List<Subject> subjects, {
     required bool enabled,
   }) async {
-    if (!platformSupported) return;
     await init();
     if (!_ready) return;
 
@@ -175,7 +168,7 @@ class Reminders {
   /// How many reminders are currently queued with the OS. Shown in the backup
   /// screen so the setting is verifiable rather than a matter of faith.
   static Future<int> pendingCount() async {
-    if (!platformSupported || !_ready) return 0;
+    if (!_ready) return 0;
     try {
       final pending = await _plugin.pendingNotificationRequests();
       return pending.length;
@@ -187,7 +180,6 @@ class Reminders {
   /// Fires a notification a few seconds out, so the permission chain can be
   /// tested without waiting for a real deadline.
   static Future<bool> sendTest() async {
-    if (!platformSupported) return false;
     await init();
     if (!_ready) return false;
     try {
