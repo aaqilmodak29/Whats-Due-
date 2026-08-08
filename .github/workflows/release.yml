@@ -25,14 +25,19 @@ on:
         description: 'Version to build, e.g. v1.1.0'
         required: true
 
+# Only what publishing a release needs. The default token is otherwise
+# read-only, so a compromised step cannot touch anything else.
 permissions:
   contents: write
 
 jobs:
   release:
+    # Forks get no secrets, so this could only fail confusingly there — and it
+    # must never publish a release under this repository's name.
+    if: github.repository == 'aaqilmodak29/Whats-Due-'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Work out the version
         id: version
@@ -43,7 +48,7 @@ jobs:
           # what the in-app updater compares against.
           echo "name=${TAG#v}" >> "$GITHUB_OUTPUT"
 
-      - uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           flutter-version: 3.38.3
           channel: stable
@@ -111,7 +116,7 @@ jobs:
           ls -la whats-due-*.apk
 
       - name: Publish the release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           tag_name: ${{ steps.version.outputs.tag }}
           name: ${{ steps.version.outputs.tag }}
