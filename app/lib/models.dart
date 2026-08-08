@@ -111,9 +111,17 @@ const _undatedSentinel = '9999-99-99';
 
 String sortKey(Assignment a) => a.due.isEmpty ? _undatedSentinel : a.due;
 
+/// The clock everything date-related reads from.
+///
+/// A seam purely for tests. Golden snapshots render real dates ("SUN 9 AUG
+/// 2026"), so with a live clock they compare against yesterday's pixels and
+/// fail every day — turning the one check on the design into noise. Tests pin
+/// this; nothing in the app ever reassigns it.
+DateTime Function() clock = DateTime.now;
+
 /// Local start-of-today.
 DateTime midnight() {
-  final n = DateTime.now();
+  final n = clock();
   return DateTime(n.year, n.month, n.day);
 }
 

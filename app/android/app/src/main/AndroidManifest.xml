@@ -1,4 +1,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Required for sync. The Flutter template declares INTERNET only in the
+         debug and profile manifests, so that hot reload works, and leaves the
+         release manifest without it. Omitting it here does not fail the build:
+         it fails at runtime, in release only, as a DNS error —
+         "Failed host lookup ... errno = 7" — because the app has no network
+         access at all. Nothing in the test suite or the web build can catch
+         that, so do not remove it. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+
     <!-- Scheduled reminders. POST_NOTIFICATIONS is a runtime grant on Android
          13+; the exact-alarm permissions are what keep a 9am reminder landing
          at 9am rather than whenever the system next feels like batching work.

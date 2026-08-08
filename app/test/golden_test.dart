@@ -162,8 +162,18 @@ Future<AppStore> _boot(WidgetTester tester, Size size, {String? seed}) async {
   return store;
 }
 
+/// Pinned so the snapshots are reproducible. Without this the seeded dates are
+/// relative to the real clock, the rendered date line changes every day, and
+/// these fail on any day but the one they were captured on.
+final _fixedNow = DateTime(2026, 8, 6, 12);
+
 void main() {
-  setUpAll(_loadFonts);
+  setUpAll(() async {
+    clock = () => _fixedNow;
+    await _loadFonts();
+  });
+
+  tearDownAll(() => clock = DateTime.now);
 
   testWidgets('phone, list', (tester) async {
     await _boot(tester, const Size(430, 932), seed: _seed());
