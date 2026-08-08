@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../ics.dart';
 import '../models.dart';
 import '../store.dart';
 import '../theme.dart';
@@ -49,45 +48,6 @@ class _AssignmentCardState extends State<AssignmentCard> {
     _taskController.clear();
     // Keep focus so several tasks can be typed in a row.
     _taskFocus.requestFocus();
-  }
-
-  Future<void> _remindMe() async {
-    final a = widget.assignment;
-    if (a.due.isEmpty) {
-      await showDialog<void>(
-        context: context,
-        builder: (context) => _Dialog(
-          title: 'No due date yet',
-          body: 'Add a due date and this will make a calendar reminder.',
-          confirmLabel: 'OK',
-          onConfirm: () {},
-        ),
-      );
-      return;
-    }
-    try {
-      final where = await saveIcs(a, widget.store.subjectOf(a));
-      if (!mounted) return;
-      _toast(
-        where == null || where.isEmpty
-            ? 'Calendar file saved.'
-            : 'Calendar file saved to $where',
-      );
-    } catch (e) {
-      if (!mounted) return;
-      _toast('Could not save the calendar file — $e');
-    }
-  }
-
-  void _toast(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        backgroundColor: C.ink,
-        behavior: SnackBarBehavior.floating,
-        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-        content: Text(message, style: T.eyebrow(Colors.white)),
-      ),
-    );
   }
 
   Future<void> _confirmDelete() async {
@@ -303,7 +263,6 @@ class _AssignmentCardState extends State<AssignmentCard> {
                     label: 'Edit',
                     onPressed: () => showEditSheet(context, store, a),
                   ),
-                  GhostButton(label: 'Remind me', onPressed: _remindMe),
                 ],
               ),
             ),

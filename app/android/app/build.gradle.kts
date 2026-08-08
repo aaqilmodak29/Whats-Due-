@@ -1,9 +1,24 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
+
+// Release signing. android/key.properties is gitignored and points at a
+// keystore outside the repository; CI writes both from repository secrets.
+//
+// This has to be a stable key rather than the debug one Flutter defaults to.
+// Android refuses to install an update signed by a different key, and a debug
+// keystore is generated per machine — so a CI build and a local build would
+// produce APKs that cannot replace each other.
+val keystoreProperties = Properties().apply {
+    val file = rootProject.file("key.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
+}
+val hasReleaseKey = keystoreProperties.getProperty("storeFile") != null
 
 android {
     namespace = "com.aaqilmodak.whats_due"
@@ -32,13 +47,33 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (hasReleaseKey) {
+            create("release") {
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+                storeFile = file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // Signed with the debug keys deliberately. This app is never going
-            // near the Play Store — the APK is sideloaded onto one phone — and a
-            // real upload key would be one more secret to lose. Swap this out if
-            // that ever changes.
-            signingConfig = signingConfigs.getByName("debug")
+            // Falls back to the debug key when key.properties is absent, so a
+            // clone without the keystore still builds something runnable. Such
+            // a build cannot update a properly signed install, which is why the
+            // build prints a warning rather than failing quietly.
+            signingConfig = if (hasReleaseKey) {
+                signingConfigs.getByName("release")
+            } else {
+                logger.warn(
+                    "WARNING: no android/key.properties — signing the release " +
+                    "with the debug key. This APK will not install over a " +
+                    "release-signed one."
+                )
+                signingConfigs.getByName("debug")
+            }
         }
     }
 }

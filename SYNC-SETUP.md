@@ -3,8 +3,8 @@
 One-time, about five minutes. Needs your Google account, so it has to be you —
 none of it can be scripted from here.
 
-At the end you get one list shared across the Windows app, the Android app and
-the web build. Sign in once per device with the same account.
+At the end the Windows app and the Android app share one list. Sign in once per
+device with the same account.
 
 ---
 
@@ -109,8 +109,8 @@ completely, just on one device — nothing crashes and nothing is lost.
 
 ## 8. Add the same two as repository secrets
 
-The GitHub Action builds the web app, and it cannot read your local `.env`. Add
-them at **Settings → Secrets and variables → Actions → New repository secret**:
+The release workflow builds the APK and cannot read your local `.env`. Add them
+at **Settings → Secrets and variables → Actions → New repository secret**:
 
 | Name | Value |
 |---|---|
@@ -118,24 +118,31 @@ them at **Settings → Secrets and variables → Actions → New repository secr
 | `FIREBASE_API_KEY` | your web API key |
 | `FIREBASE_DATABASE_ID` | `(default)` — optional, assumed if absent |
 
-Skip this and the deployed web app builds fine but reports sync as off. The
-workflow prints a warning in that case so it isn't a silent surprise.
+Skip this and a released APK builds fine but reports sync as off. The workflow
+prints a warning in that case so it isn't a silent surprise.
+
+The same workflow also needs the signing key, or the APK it builds cannot
+install over one you already have:
+
+| Name | Value |
+|---|---|
+| `ANDROID_KEYSTORE_BASE64` | contents of `android-release.keystore.base64` |
+| `ANDROID_KEYSTORE_PASSWORD` | the password in `keystore-secret.txt` |
+
+Both files sit in the repository root and are gitignored. **Back up
+`android-release.keystore` and its password somewhere safe** — losing them means
+never being able to ship an update that installs over an existing one.
 
 ### A note on what this does and doesn't hide
 
 Keeping these out of git is good hygiene and worth doing. It does **not** make
-them private, and it's worth being clear why: the web build has to embed the API
-key in its JavaScript to call Firebase at all, so anyone who opens the deployed
-site can read it. A Firebase web API key isn't a password — it identifies the
-project and authorises nothing by itself.
+them private, and it's worth being clear why: the key is compiled into the app,
+and anyone can unpack an APK. A Firebase web API key isn't a password — it
+identifies the project and authorises nothing by itself.
 
 What actually protects your assignments is [`firestore.rules`](firestore.rules),
 which lets a signed-in user read and write exactly one document, their own, and
-denies everything else. That is the control worth checking is published. They are not secrets — a Firebase web API key is a public
-project identifier embedded in the JavaScript of every Firebase web app, and it
-grants nothing on its own. What protects your data is the rules from step 4,
-which only let a signed-in user touch their own document. They get committed to
-the repository, which is normal and safe.
+denies everything else. That is the control worth checking is published.
 
 ---
 
@@ -173,5 +180,5 @@ You would have to try extremely hard to leave the free tier.
 ## Turning it off
 
 Sign out on a device and it goes back to local-only — your assignments stay on
-that device, nothing is deleted. Delete the Firebase project and all three
-copies keep working independently, exactly as they did before sync existed.
+that device, nothing is deleted. Delete the Firebase project and both copies
+keep working independently, exactly as they did before sync existed.

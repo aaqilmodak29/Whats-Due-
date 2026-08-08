@@ -1,0 +1,249 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
+import 'package:open_filex/open_filex.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:path_provider/path_provider.dart';
+
+enum UpdateStatus { idle, checking, upToDate, available, downloading, ready, failed }
+
+/// A release newer than what is running.
+class Release {
+  const Release({
+    required this.tag,
+    required this.version,
+    required this.notes,
+    required this.apkUrl,
+    required this.apkBytes,
+  });
+
+  final String tag;
+
+  /// The tag without its leading `v`, matching what [PackageInfo] reports.
+  final String version;
+  final String notes;
+  final String? apkUrl;
+  final int apkBytes;
+}
+
+/// Checks GitHub Releases for a newer build and installs it.
+///
+/// Replaces copying an APK to the phone by hand after every change. The release
+/// workflow publishes a signed APK on a version tag; this finds it, downloads
+/// it, and hands it to Android's package installer.
+///
+/// The update only installs if it is signed with the same key as what is
+/// already there — which is why release signing uses a committed-nowhere
+/// keystore shared with CI rather than Flutter's per-machine debug key.
+class Updater extends ChangeNotifier {
+  static const repo = 'aaqilmodak29/Whats-Due-';
+  static const releasesPage = 'https://github.com/$repo/releases/latest';
+
+  /// Only Android can install an APK over itself. On Windows an update means
+  /// replacing the unpacked build directory, which the app cannot sensibly do
+  /// to itself while running, so there it reports the new version and leaves it
+  /// to the user.
+  static bool get canSelfInstall => !kIsWeb && Platform.isAndroid;
+
+  UpdateStatus _status = UpdateStatus.idle;
+  Release? _release;
+  String? _message;
+  double _progress = 0;
+  String? _downloadedPath;
+  String _currentVersion = '';
+
+  UpdateStatus get status => _status;
+  Release? get release => _release;
+  String? get message => _message;
+  double get progress => _progress;
+  String get currentVersion => _currentVersion;
+
+  void _set(UpdateStatus status, [String? message]) {
+    _status = status;
+    _message = message;
+    notifyListeners();
+  }
+
+  /// Compares dotted version strings numerically.
+  ///
+  /// String comparison would put "1.10.0" before "1.9.0", which is exactly the
+  /// point at which an update would silently stop being offered.
+  @visibleForTesting
+  static int compareVersions(String a, String b) {
+    List<int> parts(String v) => v
+        .split(RegExp(r'[.+-]'))
+        .map((p) => int.tryParse(p) ?? 0)
+        .toList();
+    final x = parts(a);
+    final y = parts(b);
+    for (var i = 0; i < (x.length > y.length ? x.length : y.length); i++) {
+      final l = i < x.length ? x[i] : 0;
+      final r = i < y.length ? y[i] : 0;
+      if (l != r) return l.compareTo(r);
+    }
+    return 0;
+  }
+
+  /// Parses the GitHub release payload. Split out so it can be tested without
+  /// reaching the network.
+  @visibleForTesting
+  static Release? parseRelease(String body) {
+    final json = jsonDecode(body);
+    if (json is! Map) return null;
+    final tag = json['tag_name'] as String?;
+    if (tag == null) return null;
+
+    String? url;
+    var size = 0;
+    for (final asset in (json['assets'] as List? ?? const [])) {
+      if (asset is! Map) continue;
+      final name = asset['name'] as String? ?? '';
+      if (name.toLowerCase().endsWith('.apk')) {
+        url = asset['browser_download_url'] as String?;
+        size = (asset['size'] as num?)?.toInt() ?? 0;
+        break;
+      }
+    }
+
+    return Release(
+      tag: tag,
+      version: tag.startsWith('v') ? tag.substring(1) : tag,
+      notes: (json['body'] as String? ?? '').trim(),
+      apkUrl: url,
+      apkBytes: size,
+    );
+  }
+
+  Future<void> check({bool quiet = true}) async {
+    if (_status == UpdateStatus.downloading) return;
+    _set(UpdateStatus.checking);
+    try {
+      final info = await PackageInfo.fromPlatform();
+      _currentVersion = info.version;
+
+      final res = await http
+          .get(
+            Uri.parse('https://api.github.com/repos/$repo/releases/latest'),
+            headers: const {'Accept': 'application/vnd.github+json'},
+          )
+          .timeout(const Duration(seconds: 20));
+
+      if (res.statusCode == 404) {
+        // Nothing published yet. Not an error worth shouting about.
+        _set(UpdateStatus.upToDate, 'No releases published yet.');
+        return;
+      }
+      if (res.statusCode != 200) {
+        _set(UpdateStatus.failed, 'GitHub returned HTTP ${res.statusCode}.');
+        return;
+      }
+
+      final release = parseRelease(res.body);
+      if (release == null) {
+        _set(UpdateStatus.failed, 'Could not read the release feed.');
+        return;
+      }
+
+      if (compareVersions(release.version, _currentVersion) <= 0) {
+        _release = null;
+        _set(UpdateStatus.upToDate, 'Running the latest version.');
+        return;
+      }
+
+      _release = release;
+      _set(UpdateStatus.available);
+    } on TimeoutException {
+      _set(UpdateStatus.failed, quiet ? null : 'Timed out reaching GitHub.');
+    } catch (e) {
+      debugPrint('Updater: check failed — $e');
+      _set(UpdateStatus.failed, quiet ? null : 'Could not check for updates.');
+    }
+  }
+
+  /// Downloads the APK and hands it to the system installer.
+  Future<void> downloadAndInstall() async {
+    final release = _release;
+    if (release == null) return;
+    final url = release.apkUrl;
+    if (url == null) {
+      _set(UpdateStatus.failed, 'That release has no APK attached.');
+      return;
+    }
+    if (!canSelfInstall) {
+      _set(UpdateStatus.failed, 'Install updates from $releasesPage');
+      return;
+    }
+
+    _progress = 0;
+    _set(UpdateStatus.downloading);
+
+    try {
+      final client = http.Client();
+      final response = await client.send(
+        http.Request('GET', Uri.parse(url))..followRedirects = true,
+      );
+      if (response.statusCode != 200) {
+        client.close();
+        _set(UpdateStatus.failed, 'Download failed (HTTP ${response.statusCode}).');
+        return;
+      }
+
+      final dir = await getExternalStorageDirectory() ??
+          await getApplicationDocumentsDirectory();
+      final file = File('${dir.path}/whats-due-${release.tag}.apk');
+      final sink = file.openWrite();
+      final total = response.contentLength ?? release.apkBytes;
+      var received = 0;
+
+      await for (final chunk in response.stream) {
+        sink.add(chunk);
+        received += chunk.length;
+        if (total > 0) {
+          final next = received / total;
+          // Only repaint on visible movement, not on every chunk.
+          if (next - _progress > 0.01) {
+            _progress = next;
+            notifyListeners();
+          }
+        }
+      }
+      await sink.close();
+      client.close();
+
+      _downloadedPath = file.path;
+      _progress = 1;
+      _set(UpdateStatus.ready);
+
+      // Android shows its own installer UI from here. The first time, it will
+      // also ask for permission to install from this app.
+      final result = await OpenFilex.open(
+        file.path,
+        type: 'application/vnd.android.package-archive',
+      );
+      if (result.type != ResultType.done) {
+        _set(
+          UpdateStatus.failed,
+          'Downloaded, but the installer would not open: ${result.message}. '
+          'The file is at ${file.path}.',
+        );
+      }
+    } catch (e) {
+      debugPrint('Updater: download failed — $e');
+      _set(UpdateStatus.failed, 'Download failed — $e');
+    }
+  }
+
+  /// Re-opens an already-downloaded APK, for when the install prompt was
+  /// dismissed and the permission has since been granted.
+  Future<void> retryInstall() async {
+    final path = _downloadedPath;
+    if (path == null) return;
+    await OpenFilex.open(
+      path,
+      type: 'application/vnd.android.package-archive',
+    );
+  }
+}

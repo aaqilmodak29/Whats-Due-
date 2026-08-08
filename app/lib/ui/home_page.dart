@@ -11,6 +11,7 @@ import 'backup_page.dart';
 import 'horizon.dart';
 import 'manage_subjects.dart';
 import 'sync_page.dart';
+import 'update_section.dart';
 
 /// Filter sentinels, matching the web app's `filter` values.
 const _filterAll = 'all';
@@ -95,6 +96,11 @@ class _HomePageState extends State<HomePage> {
                     '${active.length} open',
                   ].join(' · ').toUpperCase(),
                   style: T.eyebrow(overdue > 0 ? C.red : C.muted),
+                ),
+
+                UpdateBanner(
+                  updater: store.updater,
+                  onTap: () => _openBackup(context),
                 ),
 
                 const SizedBox(height: 18),
@@ -249,25 +255,7 @@ class _HomePageState extends State<HomePage> {
                       ),
                     EyebrowButton(
                       label: 'Backup & reminders',
-                      onPressed: () async {
-                        await Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => BackupPage(store: store),
-                          ),
-                        );
-                        if (!mounted) return;
-                        // The backup screen can delete the item we had open.
-                        setState(() {
-                          if (!store.items.any((a) => a.id == _openId)) {
-                            _openId = null;
-                          }
-                          if (_filter != _filterAll &&
-                              _filter != _filterUnfiled &&
-                              !store.subjects.any((s) => s.id == _filter)) {
-                            _filter = _filterAll;
-                          }
-                        });
-                      },
+                      onPressed: () => _openBackup(context),
                     ),
                   ],
                 ),
@@ -277,6 +265,23 @@ class _HomePageState extends State<HomePage> {
         ),
       ),
     );
+  }
+
+  Future<void> _openBackup(BuildContext context) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => BackupPage(store: store)),
+    );
+    if (!mounted) return;
+    // The backup screen can clear everything, which may delete the item that
+    // was open or the subject being filtered on.
+    setState(() {
+      if (!store.items.any((a) => a.id == _openId)) _openId = null;
+      if (_filter != _filterAll &&
+          _filter != _filterUnfiled &&
+          !store.subjects.any((s) => s.id == _filter)) {
+        _filter = _filterAll;
+      }
+    });
   }
 
   void _select(String filter) => setState(() {
