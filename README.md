@@ -43,7 +43,7 @@ flutter run -d windows
 To produce a distributable build:
 
 ```bash
-flutter build windows --release
+flutter build windows --release --dart-define-from-file=../.env
 ```
 
 The result is a folder, not a single file — the `.exe` needs the DLLs beside it:
@@ -52,8 +52,29 @@ The result is a folder, not a single file — the `.exe` needs the DLLs beside i
 app/build/windows/x64/runner/Release/
 ```
 
-Copy that whole folder anywhere and run `whats_due.exe`. To pin it to the Start
-menu, right-click the `.exe` → **Pin to Start**.
+### Installing it
+
+**Copy that folder out of `build/` before running it.** The installed copy lives
+at `%LOCALAPPDATA%\WhatsDue` — the conventional per-user location on Windows,
+and one that needs no administrator rights:
+
+```powershell
+$dest = "$env:LOCALAPPDATA\WhatsDue"
+New-Item -ItemType Directory -Force -Path $dest | Out-Null
+Copy-Item app\build\windows\x64\runner\Release\* $dest -Recurse -Force
+```
+
+Run `whats_due.exe` from there, and right-click → **Pin to Start**.
+
+Running it in place from `build/` appears to work and then quietly doesn't. That
+directory is disposable: `flutter clean` deletes it, every rebuild overwrites it,
+and it is gitignored — so moving the project leaves the app behind. Not
+hypothetical: the app was installed there, updated itself to 1.0.5 in place, and
+disappeared when the repository was moved, because `app/build` was not part of
+what moved.
+
+A copy outside the repository is independent of all that, and it is what the
+in-app updater then swaps when a new version arrives.
 
 ### Android
 
@@ -97,9 +118,20 @@ git tag v1.1.0 && git push origin v1.1.0
 ```
 
 [`release.yml`](.github/workflows/release.yml) runs analyze and the test suite,
-builds a signed APK, and publishes it as a GitHub Release. The app checks that
-release feed on launch and offers to download and install it — so a change no
-longer means copying an APK to the phone by hand.
+then builds both platforms and publishes them as a GitHub Release:
+
+| Asset | |
+|---|---|
+| `whats-due-<tag>.apk` | signed, built on Linux |
+| `whats-due-<tag>-windows.zip` | the Release folder's contents, built on a Windows runner |
+
+The Windows job runs after the Android one rather than beside it, so the two
+uploads cannot race to create the same release.
+
+Each app checks that feed on launch and offers whichever asset it can actually
+install, so a change no longer means copying anything anywhere by hand. Picking
+the first attachment instead of the matching one would have the desktop download
+an APK it can do nothing with, which is why that selection is tested.
 
 Two things must line up or the update will not install, and both are handled by
 that workflow:
@@ -116,9 +148,23 @@ that workflow:
 being able to ship an update that installs over an existing one — the only way
 back is uninstalling, which erases local data.
 
-Windows updates are not automatic: the app reports that a newer version exists
-and links to the release. Replacing a running executable's own directory is not
-something it can sensibly do to itself.
+Both platforms update themselves. Android hands the APK to the system installer;
+Windows unpacks the zip and hands the swap to a PowerShell helper, because a
+process cannot overwrite its own executable while it is running. The app closes
+and reopens on the new version — the close is expected, not a crash.
+
+The helper waits for the app to exit, copies the current install aside, replaces
+it, verifies the executable is there, and relaunches. On any failure it restores
+the backup and starts the old version instead, so the worst case is the previous
+version coming back rather than a half-written directory. Backups land in
+`%TEMP%\whats-due-backup-<timestamp>` and can be deleted once an update sticks.
+
+Everything it does is written to `%TEMP%\whats-due-update.log`. Read that first
+if an update does not complete — the first version of the helper logged nothing,
+and a silent failure was indistinguishable from a crash.
+
+It swaps whichever directory the running `.exe` lives in, which is the other
+reason to install outside `build/`.
 
 ### iOS
 
@@ -370,18 +416,29 @@ cd app
 flutter test
 ```
 
-76 tests, in five files:
+144 tests. CI runs everything except the goldens:
+
+```bash
+cd app
+flutter test --exclude-tags golden
+```
 
 | | |
 |---|---|
-| `test/logic_test.dart` | Date arithmetic across DST, urgency thresholds, undated sort order, `.ics` escaping and floating local time, JSON round-trips |
-| `test/store_test.dart` | Loading, saving, v1 migration, and import merge/replace semantics |
-| `test/sync_test.dart` | Payload format, adopting a remote copy (including that deletions propagate and a corrupt payload can't destroy local work), and that a pulled copy is never mistaken for a local edit |
-| `test/ui_test.dart` | The real widget tree over seeded storage: filtering, tabs, tasks, editing, subject deletion, and a build at five viewport sizes from a 360px phone to a 2560px desktop |
-| `test/golden_test.dart` | Rendered snapshots of the design |
+| `logic_test.dart` | Date arithmetic across DST, urgency thresholds, undated sort order, JSON round-trips |
+| `store_test.dart` | Loading, saving, v1 migration, import merge/replace semantics |
+| `sync_test.dart` | Payload format, adopting a remote copy — that deletions propagate, that a corrupt payload cannot destroy local work, and that a pulled copy is never mistaken for a local edit |
+| `reminder_schedule_test.dart` | The six milestones, month and leap-year rollover, past milestones skipped, grouping and headline wording |
+| `reminders_permission_test.dart` | That permission is requested *before* scheduling. Scheduling without it succeeds and shows nothing, so there is no error to catch |
+| `manifest_test.dart` | Android permissions and receivers, which only take effect in a built APK and had already broken the app without failing a single test |
+| `updater_test.dart` | Version comparison, release-note summarising, and picking the build for this platform rather than the first attachment |
+| `windows_update_test.dart` | The generated update script: ordering, quoting, and restoring the backup on failure |
+| `ui_test.dart` | The real widget tree over seeded storage, and a build at five viewport sizes from a 360px phone to a 2560px desktop |
+| `golden_test.dart`, `update_golden_test.dart` | Rendered snapshots of the design |
 
 They are aimed at the places where a plausible-looking change does real damage
-rather than at coverage for its own sake.
+rather than at coverage for its own sake. Several exist because the bug they
+guard shipped once already, and the comment above each says which.
 
 ### Goldens
 
@@ -390,8 +447,13 @@ after an intentional design change:
 
 ```bash
 cd app
-flutter test --update-goldens test/golden_test.dart
+flutter test --update-goldens --tags golden
 ```
+
+Goldens are selected by tag rather than by filename. CI excludes them the same
+way, with `--exclude-tags golden`, because listing every *other* file by hand had
+already silently left two new test files out of CI — one of them the guard for a
+bug that was live at the time.
 
 Font rasterisation differs between platforms, so these were captured on Windows
 and will show diffs if regenerated elsewhere. Treat a diff as "open the image and
