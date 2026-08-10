@@ -118,6 +118,13 @@ void main() {
   });
 
   group('parsing a GitHub release', () {
+    // Every test here pins the extension rather than inheriting the host's.
+    // The first version of these did inherit it, so they passed on a Windows
+    // machine and failed on the Linux CI runner — the assertions were about
+    // the runner, not about the code.
+    setUp(() => Updater.assetExtension = '.apk');
+    tearDown(() => Updater.assetExtension = '.apk');
+
     String payload({
       String tag = 'v1.2.0',
       List<Map<String, Object?>>? assets,
@@ -125,6 +132,7 @@ void main() {
     }) => jsonEncode({
       'tag_name': tag,
       'body': body,
+      // Both builds, as a real release carries.
       'assets': assets ??
           [
             {
@@ -132,25 +140,63 @@ void main() {
               'browser_download_url': 'https://example.test/app.apk',
               'size': 18500000,
             },
+            {
+              'name': 'whats-due-v1.2.0-windows.zip',
+              'browser_download_url': 'https://example.test/app-windows.zip',
+              'size': 28000000,
+            },
           ],
     });
 
-    test('reads the tag, version, notes and APK asset', () {
+    test('reads the tag, version and notes', () {
       final r = Updater.parseRelease(payload())!;
       expect(r.tag, 'v1.2.0');
       expect(r.version, '1.2.0', reason: 'the leading v must be stripped');
       expect(r.notes, 'Notes here');
+    });
+
+    test('an Android build picks the APK', () {
+      Updater.assetExtension = '.apk';
+      final r = Updater.parseRelease(payload())!;
       expect(r.apkUrl, 'https://example.test/app.apk');
       expect(r.apkBytes, 18500000);
     });
 
-    test('picks the APK out of a release with several attachments', () {
+    test('a Windows build picks the zip, though the APK is listed first', () {
+      // Taking the first attachment would have the desktop app download an
+      // Android package it can do nothing with.
+      Updater.assetExtension = '.zip';
+      final r = Updater.parseRelease(payload())!;
+      expect(r.apkUrl, 'https://example.test/app-windows.zip');
+      expect(r.apkBytes, 28000000);
+    });
+
+    test('a release missing the build for this platform offers nothing', () {
+      // This was the desktop case until a Windows zip was published: the
+      // release held only an APK, and offering that would be worse than
+      // offering nothing.
+      Updater.assetExtension = '.zip';
       final r = Updater.parseRelease(
         payload(assets: [
           {
-            'name': 'source.zip',
-            'browser_download_url': 'https://example.test/src.zip',
-            'size': 100,
+            'name': 'whats-due-v1.2.0.apk',
+            'browser_download_url': 'https://example.test/app.apk',
+            'size': 50000000,
+          },
+        ]),
+      )!;
+      expect(r.tag, 'v1.2.0');
+      expect(r.apkUrl, isNull);
+    });
+
+    test('unrelated attachments are ignored', () {
+      Updater.assetExtension = '.apk';
+      final r = Updater.parseRelease(
+        payload(assets: [
+          {
+            'name': 'notes.txt',
+            'browser_download_url': 'https://example.test/notes.txt',
+            'size': 10,
           },
           {
             'name': 'whats-due-v1.2.0.apk',
@@ -162,7 +208,7 @@ void main() {
       expect(r.apkUrl, 'https://example.test/app.apk');
     });
 
-    test('a release with no APK parses, but offers nothing to install', () {
+    test('a release with no assets at all parses', () {
       final r = Updater.parseRelease(payload(assets: []))!;
       expect(r.tag, 'v1.2.0');
       expect(r.apkUrl, isNull);
