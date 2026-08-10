@@ -299,6 +299,26 @@ class AppStore extends ChangeNotifier {
     _commit();
   }
 
+  void addSubtask(Task t, String text) {
+    if (text.trim().isEmpty) return;
+    // A finished task keeps its tick when it gains its first step. `done` is
+    // derived from the steps once any exist, so a fresh unticked step would
+    // otherwise silently reopen completed work.
+    final wasDone = t.done;
+    t.subtasks.add(SubTask(id: uid(), text: text.trim(), done: wasDone));
+    _commit();
+  }
+
+  void toggleSubtask(SubTask s) {
+    s.done = !s.done;
+    _commit();
+  }
+
+  void deleteSubtask(Task t, SubTask s) {
+    t.subtasks.removeWhere((x) => x.id == s.id);
+    _commit();
+  }
+
   void deleteTask(Assignment a, Task t) {
     a.tasks.removeWhere((x) => x.id == t.id);
     _commit();
