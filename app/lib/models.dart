@@ -15,10 +15,17 @@ String uid() {
   );
 }
 
-class Task {
-  Task({required this.id, required this.text, this.done = false});
+/// A step within a task. One level only — a subtask cannot be broken down
+/// further.
+///
+/// The depth is capped deliberately. Work nests exactly this far in practice:
+/// "Part A — title, abstract, group details" splits into the three things you
+/// actually do, and no further. Arbitrary depth would buy a tree widget,
+/// indentation that runs out of room on a phone, and no more expressiveness.
+class SubTask {
+  SubTask({required this.id, required this.text, this.done = false});
 
-  factory Task.fromJson(Map<String, dynamic> j) => Task(
+  factory SubTask.fromJson(Map<String, dynamic> j) => SubTask(
     id: j['id'] as String? ?? uid(),
     text: j['text'] as String? ?? '',
     done: j['done'] == true,
@@ -29,6 +36,64 @@ class Task {
   bool done;
 
   Map<String, dynamic> toJson() => {'id': id, 'text': text, 'done': done};
+}
+
+class Task {
+  Task({
+    required this.id,
+    required this.text,
+    bool done = false,
+    List<SubTask>? subtasks,
+  }) : _done = done,
+       subtasks = subtasks ?? <SubTask>[];
+
+  factory Task.fromJson(Map<String, dynamic> j) => Task(
+    id: j['id'] as String? ?? uid(),
+    text: j['text'] as String? ?? '',
+    done: j['done'] == true,
+    // Absent from everything written before subtasks existed, which has to keep
+    // loading unchanged.
+    subtasks: (j['subtasks'] as List? ?? const [])
+        .whereType<Map>()
+        .map((s) => SubTask.fromJson(s.cast<String, dynamic>()))
+        .toList(),
+  );
+
+  final String id;
+  String text;
+  List<SubTask> subtasks;
+
+  bool _done;
+
+  bool get hasSubtasks => subtasks.isNotEmpty;
+
+  /// Derived from the steps once there are any.
+  ///
+  /// A parent able to disagree with its own children — ticked while two steps
+  /// are outstanding — would make the progress bar lie, so the question is
+  /// never asked twice.
+  bool get done => hasSubtasks ? subtasks.every((s) => s.done) : _done;
+
+  /// Setting a parent sets every step under it. With no subtasks it is just
+  /// the flag.
+  set done(bool value) {
+    _done = value;
+    for (final s in subtasks) {
+      s.done = value;
+    }
+  }
+
+  int get finishedSubtasks => subtasks.where((s) => s.done).length;
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'text': text,
+    'done': done,
+    // Omitted when empty, so a task with no steps serialises exactly as before
+    // and existing data round-trips unchanged.
+    if (subtasks.isNotEmpty)
+      'subtasks': subtasks.map((s) => s.toJson()).toList(),
+  };
 }
 
 class Subject {

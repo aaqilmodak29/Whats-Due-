@@ -33,11 +33,19 @@ class AssignmentCard extends StatefulWidget {
 class _AssignmentCardState extends State<AssignmentCard> {
   final _taskController = TextEditingController();
   final _taskFocus = FocusNode();
+  final _subtaskController = TextEditingController();
+  final _subtaskFocus = FocusNode();
+
+  /// Which task has its steps showing. One at a time, so the card cannot grow
+  /// unbounded while it is open.
+  String? _openTaskId;
 
   @override
   void dispose() {
     _taskController.dispose();
     _taskFocus.dispose();
+    _subtaskController.dispose();
+    _subtaskFocus.dispose();
     super.dispose();
   }
 
@@ -48,6 +56,146 @@ class _AssignmentCardState extends State<AssignmentCard> {
     _taskController.clear();
     // Keep focus so several tasks can be typed in a row.
     _taskFocus.requestFocus();
+  }
+
+  /// One task, and its steps when it is open.
+  ///
+  /// Steps stay hidden until the task is tapped. The card is already the
+  /// densest thing on a phone screen, and showing every step of every task at
+  /// once turns a five-line list into thirty.
+  Widget _taskRow(Assignment a, AppStore store, Task t) {
+    final open = _openTaskId == t.id;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 5),
+          child: Row(
+            spacing: 10,
+            children: [
+              CheckBoxSquare(
+                done: t.done,
+                onTap: () => store.toggleTask(a, t),
+              ),
+              Expanded(
+                child: Tap(
+                  onTap: () => setState(() => _openTaskId = open ? null : t.id),
+                  semanticLabel: t.hasSubtasks
+                      ? '${t.text}, ${t.finishedSubtasks} of '
+                            '${t.subtasks.length} steps done, tap to '
+                            '${open ? 'collapse' : 'expand'}'
+                      : '${t.text}, tap to add steps',
+                  child: Row(
+                    spacing: 8,
+                    children: [
+                      Expanded(
+                        child: Text(t.text, style: T.task(done: t.done)),
+                      ),
+                      if (t.hasSubtasks)
+                        Text(
+                          '${t.finishedSubtasks}/${t.subtasks.length}',
+                          style: T.frac,
+                        ),
+                      Icon(
+                        open ? Icons.expand_less : Icons.expand_more,
+                        size: 16,
+                        color: C.rule,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              Tap(
+                onTap: () => store.deleteTask(a, t),
+                semanticLabel: 'Remove task ${t.text}',
+                child: const Padding(
+                  padding: EdgeInsets.all(3),
+                  child: CloseGlyph(color: C.rule, size: 16),
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (open) _steps(store, t),
+      ],
+    );
+  }
+
+  /// Steps sit under their task, indented to the depth of its checkbox so the
+  /// nesting is legible without a connecting line.
+  Widget _steps(AppStore store, Task t) => Padding(
+    padding: const EdgeInsets.only(left: 29, bottom: 6),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final s in t.subtasks)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 3),
+            child: Row(
+              spacing: 10,
+              children: [
+                CheckBoxSquare(
+                  done: s.done,
+                  onTap: () => store.toggleSubtask(s),
+                ),
+                Expanded(
+                  child: Text(
+                    s.text,
+                    style: T.task(done: s.done).copyWith(fontSize: 13),
+                  ),
+                ),
+                Tap(
+                  onTap: () => store.deleteSubtask(t, s),
+                  semanticLabel: 'Remove step ${s.text}',
+                  child: const Padding(
+                    padding: EdgeInsets.all(3),
+                    child: CloseGlyph(color: C.rule, size: 14),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Row(
+            spacing: 6,
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _subtaskController,
+                  focusNode: _subtaskFocus,
+                  style: T.body.copyWith(fontSize: 13),
+                  decoration: fieldDecoration(hint: 'Add a step'),
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => _pushSubtask(t),
+                ),
+              ),
+              Tap(
+                onTap: () => _pushSubtask(t),
+                semanticLabel: 'Add step',
+                child: Container(
+                  height: 38,
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  color: C.ink,
+                  alignment: Alignment.center,
+                  child: Text('ADD', style: T.primary.copyWith(fontSize: 10)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+
+  void _pushSubtask(Task t) {
+    final text = _subtaskController.text.trim();
+    if (text.isEmpty) return;
+    widget.store.addSubtask(t, text);
+    _subtaskController.clear();
+    // Keep focus so several steps can be typed in a row, as with tasks.
+    _subtaskFocus.requestFocus();
   }
 
   Future<void> _confirmDelete() async {
@@ -192,30 +340,7 @@ class _AssignmentCardState extends State<AssignmentCard> {
           ],
         ),
         const SizedBox(height: 10),
-        for (final t in a.tasks)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 5),
-            child: Row(
-              spacing: 10,
-              children: [
-                CheckBoxSquare(
-                  done: t.done,
-                  onTap: () => store.toggleTask(a, t),
-                ),
-                Expanded(
-                  child: Text(t.text, style: T.task(done: t.done)),
-                ),
-                Tap(
-                  onTap: () => store.deleteTask(a, t),
-                  semanticLabel: 'Remove task ${t.text}',
-                  child: const Padding(
-                    padding: EdgeInsets.all(3),
-                    child: CloseGlyph(color: C.rule, size: 16),
-                  ),
-                ),
-              ],
-            ),
-          ),
+        for (final t in a.tasks) _taskRow(a, store, t),
         Padding(
           padding: const EdgeInsets.only(top: 8),
           child: Row(

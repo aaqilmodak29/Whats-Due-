@@ -454,6 +454,94 @@ void main() {
     }, seed: _seed());
   });
 
+  group('subtasks', () {
+    appTest('a task shows its steps only when tapped', (tester, store) async {
+      await tester.tap(find.text('Reaction mechanisms problem set'));
+      await tester.pumpAndSettle();
+
+      // Collapsed: no step field, so the card stays compact.
+      expect(find.widgetWithText(TextField, 'Add a step'), findsNothing);
+
+      await tester.tap(find.bySemanticsLabel('Q1-Q5, tap to add steps'));
+      await tester.pumpAndSettle();
+      expect(find.widgetWithText(TextField, 'Add a step'), findsOne);
+    }, seed: _seed());
+
+    appTest('a step can be added, ticked and removed', (tester, store) async {
+      await tester.tap(find.text('Comparative essay'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField).last, 'Draft outline');
+      await tester.tap(find.bySemanticsLabel('Add task'));
+      await tester.pumpAndSettle();
+
+      final task = store.items.firstWhere((a) => a.id == 'a2').tasks.single;
+      await tester.tap(find.bySemanticsLabel('Draft outline, tap to add steps'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Add a step'),
+        'Agree the topic',
+      );
+      // By label, not by text: both buttons read ADD, and the step's renders
+      // before the task's in the tree, so `.last` picks the wrong one.
+      await tester.tap(find.bySemanticsLabel('Add step'));
+      await tester.pumpAndSettle();
+
+      expect(task.subtasks.single.text, 'Agree the topic');
+      // The parent now reports its steps rather than a bare tick. Asserted by
+      // label, not by the '0/1' text: the card's own task counter reads the
+      // same and would match it too.
+      expect(
+        find.bySemanticsLabel(
+          'Draft outline, 0 of 1 steps done, tap to collapse',
+        ),
+        findsOne,
+      );
+
+      await tester.tap(find.bySemanticsLabel('Mark task finished').last);
+      await tester.pumpAndSettle();
+      expect(task.subtasks.single.done, isTrue);
+      expect(task.done, isTrue, reason: 'the only step is done');
+
+      await tester.tap(find.bySemanticsLabel('Remove step Agree the topic'));
+      await tester.pumpAndSettle();
+      expect(task.subtasks, isEmpty);
+    }, seed: _seed());
+
+    appTest('a task with steps is not finished until they all are', (
+      tester,
+      store,
+    ) async {
+      final a = store.items.firstWhere((x) => x.id == 'a1');
+      store.addSubtask(a.tasks.first, 'Q1');
+      store.addSubtask(a.tasks.first, 'Q2');
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Reaction mechanisms problem set'));
+      await tester.pumpAndSettle();
+
+      // Q1-Q5 was already ticked, so both its new steps came in ticked and it
+      // stays finished; Q6-Q10 was not.
+      expect(a.tasks.first.done, isTrue);
+      expect(a.tasks.first.subtasks.every((s) => s.done), isTrue);
+    }, seed: _seed());
+
+    appTest('only one task shows its steps at a time', (tester, store) async {
+      await tester.tap(find.text('Reaction mechanisms problem set'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.bySemanticsLabel('Q1-Q5, tap to add steps'));
+      await tester.pumpAndSettle();
+      expect(find.widgetWithText(TextField, 'Add a step'), findsOne);
+
+      await tester.tap(find.bySemanticsLabel('Q6-Q10, tap to add steps'));
+      await tester.pumpAndSettle();
+      // Still one: opening the second closed the first.
+      expect(find.widgetWithText(TextField, 'Add a step'), findsOne);
+    }, seed: _seed());
+  });
+
   group('editing', () {
     appTest('title and due date can both be changed after creation', (
       tester,

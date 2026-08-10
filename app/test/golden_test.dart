@@ -196,6 +196,28 @@ void main() {
     );
   });
 
+  testWidgets('phone, task steps open', (tester) async {
+    final store = await _boot(tester, const Size(430, 932), seed: _seed());
+    await tester.tap(find.text('Comparative essay'));
+    await tester.pumpAndSettle();
+
+    final task = store.items.firstWhere((a) => a.id == 'a2').tasks.last;
+    store.addSubtask(task, 'Pull three sources');
+    store.addSubtask(task, 'Draft the argument');
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.bySemanticsLabel(
+        '${task.text}, 0 of 2 steps done, tap to expand',
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await expectLater(
+      find.byType(WhatsDueApp),
+      matchesGoldenFile('goldens/phone-steps.png'),
+    );
+  });
+
   testWidgets('phone, add panel', (tester) async {
     await _boot(tester, const Size(430, 932), seed: _seed());
     await tester.tap(find.bySemanticsLabel('Add assignment'));
