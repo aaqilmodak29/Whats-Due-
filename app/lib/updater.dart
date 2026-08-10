@@ -8,6 +8,8 @@ import 'package:open_filex/open_filex.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 
+import 'windows_update.dart';
+
 enum UpdateStatus { idle, checking, upToDate, available, downloading, ready, failed }
 
 /// A release newer than what is running.
@@ -42,15 +44,19 @@ class Updater extends ChangeNotifier {
   static const repo = 'aaqilmodak29/Whats-Due-';
   static const releasesPage = 'https://github.com/$repo/releases/latest';
 
-  /// Only Android can install an APK over itself. On Windows an update means
-  /// replacing the unpacked build directory, which the app cannot sensibly do
-  /// to itself while running, so there it reports the new version and leaves it
-  /// to the user.
+  /// Android installs an APK over itself; Windows swaps its own directory via
+  /// a helper script. Both are covered — this was Android-only at first, which
+  /// left the desktop app permanently stuck, pointing at a releases page that
+  /// held nothing it could run.
   ///
-  /// A field rather than a getter so snapshot tests can render the Android
-  /// layout. Tests run on the host, which is Windows here, and would otherwise
-  /// only ever capture the variant the phone never sees.
-  static bool canSelfInstall = !kIsWeb && Platform.isAndroid;
+  /// A field rather than a getter so snapshot tests can render either layout.
+  /// Tests run on the host and would otherwise only ever capture one.
+  static bool canSelfInstall =
+      !kIsWeb && (Platform.isAndroid || Platform.isWindows);
+
+  /// The file extension this platform can actually install.
+  static String get _wantedExtension =>
+      !kIsWeb && Platform.isWindows ? '.zip' : '.apk';
 
   UpdateStatus _status = UpdateStatus.idle;
   Release? _release;
@@ -156,12 +162,15 @@ class Updater extends ChangeNotifier {
     final tag = json['tag_name'] as String?;
     if (tag == null) return null;
 
+    // A release carries a build per platform, so pick the one this machine can
+    // install rather than whichever happens to be listed first.
+    final wanted = kIsWeb ? '.apk' : _wantedExtension;
     String? url;
     var size = 0;
     for (final asset in (json['assets'] as List? ?? const [])) {
       if (asset is! Map) continue;
-      final name = asset['name'] as String? ?? '';
-      if (name.toLowerCase().endsWith('.apk')) {
+      final name = (asset['name'] as String? ?? '').toLowerCase();
+      if (name.endsWith(wanted)) {
         url = asset['browser_download_url'] as String?;
         size = (asset['size'] as num?)?.toInt() ?? 0;
         break;
@@ -229,7 +238,10 @@ class Updater extends ChangeNotifier {
     if (release == null) return;
     final url = release.apkUrl;
     if (url == null) {
-      _set(UpdateStatus.failed, 'That release has no APK attached.');
+      _set(
+        UpdateStatus.failed,
+        'That release has no $_wantedExtension build attached.',
+      );
       return;
     }
     if (!canSelfInstall) {
@@ -251,9 +263,16 @@ class Updater extends ChangeNotifier {
         return;
       }
 
-      final dir = await getExternalStorageDirectory() ??
-          await getApplicationDocumentsDirectory();
-      final file = File('${dir.path}/whats-due-${release.tag}.apk');
+      final isWindows = !kIsWeb && Platform.isWindows;
+      // The Windows archive is scratch data: it is unpacked and thrown away, so
+      // it belongs in temp rather than somewhere the user has to tidy up.
+      final dir = isWindows
+          ? Directory.systemTemp
+          : await getExternalStorageDirectory() ??
+                await getApplicationDocumentsDirectory();
+      final file = File(
+        '${dir.path}/whats-due-${release.tag}$_wantedExtension',
+      );
       final sink = file.openWrite();
       final total = response.contentLength ?? release.apkBytes;
       var received = 0;
@@ -277,6 +296,11 @@ class Updater extends ChangeNotifier {
       _progress = 1;
       _set(UpdateStatus.ready);
 
+      if (isWindows) {
+        await _installOnWindows(file);
+        return;
+      }
+
       // Android shows its own installer UI from here. The first time, it will
       // also ask for permission to install from this app.
       final result = await OpenFilex.open(
@@ -294,6 +318,37 @@ class Updater extends ChangeNotifier {
       debugPrint('Updater: download failed — $e');
       _set(UpdateStatus.failed, 'Download failed — $e');
     }
+  }
+
+  /// Unpacks the Windows archive and hands the swap to a helper, then quits.
+  ///
+  /// The app has to exit: a running process holds its own executable open, so
+  /// the files cannot be replaced until it is gone. The helper waits for that,
+  /// swaps them, and starts the app again.
+  Future<void> _installOnWindows(File zip) async {
+    final staging = await WindowsUpdate.stage(zip);
+    if (staging == null) {
+      _set(
+        UpdateStatus.failed,
+        'The download could not be unpacked, so nothing was changed. '
+        'The file is at ${zip.path}.',
+      );
+      return;
+    }
+
+    if (!await WindowsUpdate.handOff(staging)) {
+      _set(
+        UpdateStatus.failed,
+        'Could not start the updater, so nothing was changed. The new version '
+        'is unpacked at ${staging.path} if you want to copy it over yourself.',
+      );
+      return;
+    }
+
+    _set(UpdateStatus.ready, 'Restarting to finish the update…');
+    // Give the message a frame to land, then get out of the helper's way.
+    await Future<void>.delayed(const Duration(milliseconds: 600));
+    exit(0);
   }
 
   /// Re-opens an already-downloaded APK, for when the install prompt was

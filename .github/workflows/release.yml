@@ -31,7 +31,7 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  android:
     # Forks get no secrets, so this could only fail confusingly there — and it
     # must never publish a release under this repository's name.
     if: github.repository == 'aaqilmodak29/Whats-Due-'
@@ -118,3 +118,68 @@ jobs:
           name: ${{ steps.version.outputs.tag }}
           generate_release_notes: true
           files: whats-due-${{ steps.version.outputs.tag }}.apk
+
+  # Windows has to build on a Windows runner, and runs after Android rather
+  # than beside it so the two uploads cannot race to create the same release.
+  #
+  # Until this existed the desktop app had nothing to update to: the release
+  # held an APK and nothing else, while the app told you to go and download it.
+  windows:
+    if: github.repository == 'aaqilmodak29/Whats-Due-'
+    needs: android
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Work out the version
+        id: version
+        shell: bash
+        run: |
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "name=${TAG#v}" >> "$GITHUB_OUTPUT"
+
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          flutter-version: 3.38.3
+          channel: stable
+          cache: true
+
+      - name: Restore the Firebase config
+        shell: bash
+        env:
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
+          FIREBASE_DATABASE_ID: ${{ secrets.FIREBASE_DATABASE_ID }}
+        run: |
+          {
+            echo "FIREBASE_PROJECT_ID=$FIREBASE_PROJECT_ID"
+            echo "FIREBASE_API_KEY=$FIREBASE_API_KEY"
+            echo "FIREBASE_DATABASE_ID=${FIREBASE_DATABASE_ID:-(default)}"
+          } > .env
+
+      - name: Build
+        shell: bash
+        working-directory: app
+        run: |
+          flutter pub get
+          flutter build windows --release             --dart-define-from-file=../.env             --build-name=${{ steps.version.outputs.name }}             --build-number=${{ github.run_number }}
+
+      - name: Zip the build
+        shell: pwsh
+        run: |
+          $dir = 'app/build/windows/x64/runner/Release'
+          if (-not (Test-Path "$dir/whats_due.exe")) {
+            throw "No exe at $dir — refusing to publish an empty archive."
+          }
+          # Zip the *contents*, not the folder, so extracting yields the files
+          # directly. The updater copies them straight over the install.
+          Compress-Archive -Path "$dir/*" `
+            -DestinationPath "whats-due-${{ steps.version.outputs.tag }}-windows.zip"
+          Get-Item "whats-due-*.zip" | Select-Object Name, Length
+
+      - name: Add it to the release
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          files: whats-due-${{ steps.version.outputs.tag }}-windows.zip
