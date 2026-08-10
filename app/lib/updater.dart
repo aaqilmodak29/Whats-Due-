@@ -55,7 +55,12 @@ class Updater extends ChangeNotifier {
       !kIsWeb && (Platform.isAndroid || Platform.isWindows);
 
   /// The file extension this platform can actually install.
-  static String get _wantedExtension =>
+  ///
+  /// A field rather than a getter, like [canSelfInstall], so tests can assert
+  /// both platforms' selection whatever host they run on. The first version of
+  /// those tests derived it from the host and passed on Windows while failing
+  /// on the Linux CI runner.
+  static String assetExtension =
       !kIsWeb && Platform.isWindows ? '.zip' : '.apk';
 
   UpdateStatus _status = UpdateStatus.idle;
@@ -164,7 +169,7 @@ class Updater extends ChangeNotifier {
 
     // A release carries a build per platform, so pick the one this machine can
     // install rather than whichever happens to be listed first.
-    final wanted = kIsWeb ? '.apk' : _wantedExtension;
+    final wanted = assetExtension;
     String? url;
     var size = 0;
     for (final asset in (json['assets'] as List? ?? const [])) {
@@ -240,7 +245,7 @@ class Updater extends ChangeNotifier {
     if (url == null) {
       _set(
         UpdateStatus.failed,
-        'That release has no $_wantedExtension build attached.',
+        'That release has no $assetExtension build attached.',
       );
       return;
     }
@@ -271,7 +276,7 @@ class Updater extends ChangeNotifier {
           : await getExternalStorageDirectory() ??
                 await getApplicationDocumentsDirectory();
       final file = File(
-        '${dir.path}/whats-due-${release.tag}$_wantedExtension',
+        '${dir.path}/whats-due-${release.tag}$assetExtension',
       );
       final sink = file.openWrite();
       final total = response.contentLength ?? release.apkBytes;
