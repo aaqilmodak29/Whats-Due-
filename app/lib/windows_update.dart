@@ -8,8 +8,8 @@ import 'package:flutter/foundation.dart';
 /// swap is handed to a PowerShell script that waits for this process to exit,
 /// copies the new files over, and starts the app again. The app then quits.
 ///
-/// The risk here is obvious — this deletes and replaces the directory the app
-/// is running from — so the order is chosen to fail safe:
+/// The risk here is obvious — this replaces the directory the app is running
+/// from — so the order is chosen to fail safe:
 ///
 ///   1. verify the extracted payload actually contains the executable
 ///   2. copy the current install aside as a backup
@@ -23,15 +23,19 @@ class WindowsUpdate {
 
   static const _exeName = 'whats_due.exe';
 
+  /// Everything the helper does is written here, so a failed update leaves an
+  /// explanation instead of an app that simply never came back. The first
+  /// version logged nothing, and the failure was invisible.
+  static String get logPath =>
+      '${Directory.systemTemp.path}\\whats-due-update.log';
+
   /// Unpacks [zip] into a staging folder and returns it, or null on failure.
   ///
   /// Extraction goes through PowerShell rather than a Dart zip package: it is
   /// already present on every Windows machine, and this whole file is
   /// Windows-only, so a cross-platform dependency would buy nothing.
   static Future<Directory?> stage(File zip) async {
-    final staging = Directory(
-      '${Directory.systemTemp.path}\\whats-due-update',
-    );
+    final staging = Directory('${Directory.systemTemp.path}\\whats-due-update');
     try {
       if (staging.existsSync()) staging.deleteSync(recursive: true);
       staging.createSync(recursive: true);
@@ -61,60 +65,113 @@ class WindowsUpdate {
     }
   }
 
+  /// A PowerShell single-quoted literal, so a path containing a space or a
+  /// quote cannot split into two arguments or break out of the string.
+  @visibleForTesting
+  static String psLiteral(String value) => "'${value.replaceAll("'", "''")}'";
+
+  /// The helper script, with every value baked in.
+  ///
+  /// Embedded rather than passed as arguments: the launcher goes through cmd's
+  /// `start`, and threading quoted paths intact through both cmd and PowerShell
+  /// is a well-known way to get subtly wrong behaviour the first time a path
+  /// contains a space.
+  @visibleForTesting
+  static String buildScript({
+    required int appPid,
+    required String source,
+    required String target,
+    required String exe,
+    required String log,
+  }) =>
+      '''
+\$ErrorActionPreference = 'Stop'
+Start-Transcript -Path ${psLiteral(log)} -Force | Out-Null
+
+\$AppPid = $appPid
+\$Source = ${psLiteral(source)}
+\$Target = ${psLiteral(target)}
+\$Exe    = ${psLiteral(exe)}
+
+Write-Output "waiting for pid \$AppPid to exit"
+\$deadline = (Get-Date).AddSeconds(60)
+while ((Get-Process -Id \$AppPid -ErrorAction SilentlyContinue) -and
+       ((Get-Date) -lt \$deadline)) {
+  Start-Sleep -Milliseconds 250
+}
+# A moment more for Windows to release the file handles.
+Start-Sleep -Milliseconds 750
+
+\$backup = Join-Path \$env:TEMP ('whats-due-backup-' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
+try {
+  Write-Output "backing up \$Target to \$backup"
+  Copy-Item -LiteralPath \$Target -Destination \$backup -Recurse -Force
+
+  Write-Output "copying new files over \$Target"
+  Copy-Item -Path (Join-Path \$Source '*') -Destination \$Target -Recurse -Force
+
+  if (-not (Test-Path (Join-Path \$Target '$_exeName'))) {
+    throw "no $_exeName in \$Target after the copy"
+  }
+
+  Write-Output "relaunching \$Exe"
+  Start-Process -FilePath \$Exe
+  Write-Output "done"
+} catch {
+  Write-Output "FAILED: \$_"
+  if (Test-Path \$backup) {
+    Write-Output "restoring from \$backup"
+    Copy-Item -Path (Join-Path \$backup '*') -Destination \$Target -Recurse -Force
+    Start-Process -FilePath \$Exe
+  }
+  Stop-Transcript | Out-Null
+  exit 1
+}
+Stop-Transcript | Out-Null
+''';
+
   /// Launches the swap and returns true once it is under way, at which point
   /// the caller should exit promptly — the script is waiting on this process.
   static Future<bool> handOff(Directory staging) async {
     try {
       final exe = File(Platform.resolvedExecutable);
-      final installDir = exe.parent.path;
       final script = File(
         '${Directory.systemTemp.path}\\whats-due-apply-update.ps1',
       );
+      script.writeAsStringSync(
+        buildScript(
+          appPid: pid,
+          source: staging.path,
+          target: exe.parent.path,
+          exe: exe.path,
+          log: logPath,
+        ),
+        flush: true,
+      );
 
-      // $PID is a read-only automatic variable in PowerShell, hence AppPid.
-      script.writeAsStringSync(r'''
-param([int]$AppPid, [string]$Source, [string]$Target, [string]$Exe)
-$ErrorActionPreference = 'Stop'
-
-# Wait for the app to let go of its own files.
-$deadline = (Get-Date).AddSeconds(60)
-while ((Get-Process -Id $AppPid -ErrorAction SilentlyContinue) -and
-       ((Get-Date) -lt $deadline)) {
-  Start-Sleep -Milliseconds 250
-}
-Start-Sleep -Milliseconds 500
-
-$backup = Join-Path $env:TEMP ('whats-due-backup-' + (Get-Date -Format 'yyyyMMdd-HHmmss'))
-try {
-  # Keep a copy before touching anything, so a failure is recoverable.
-  Copy-Item -LiteralPath $Target -Destination $backup -Recurse -Force
-  Copy-Item -Path (Join-Path $Source '*') -Destination $Target -Recurse -Force
-  Start-Process -FilePath $Exe
-} catch {
-  # Put back whatever was there and start it, rather than leaving a
-  # half-written install behind.
-  if (Test-Path $backup) {
-    Copy-Item -Path (Join-Path $backup '*') -Destination $Target -Recurse -Force
-    Start-Process -FilePath $Exe
-  }
-  exit 1
-}
-''', flush: true);
-
+      // Launched through cmd's `start`, not as a direct child.
+      //
+      // ProcessStartMode.detached is not enough: a detached child is still a
+      // child, and when the app called exit(0) a moment later Windows tore the
+      // helper down with it. The script was written to disk and never ran, so
+      // the app closed and simply never came back. Measured both ways — the
+      // detached child dies, the one handed to `start` survives.
       await Process.start(
-        'powershell',
+        'cmd',
         [
+          '/c',
+          'start',
+          '""', // `start` reads the first quoted argument as a window title
+          '/min',
+          'powershell',
           '-NoProfile',
-          '-NonInteractive',
-          '-ExecutionPolicy', 'Bypass',
-          '-File', script.path,
-          '-AppPid', '$pid',
-          '-Source', staging.path,
-          '-Target', installDir,
-          '-Exe', exe.path,
+          '-ExecutionPolicy',
+          'Bypass',
+          '-File',
+          script.path,
         ],
-        // Detached, or the script dies with the process it is waiting for.
         mode: ProcessStartMode.detached,
+        runInShell: false,
       );
       return true;
     } catch (e) {
