@@ -54,24 +54,37 @@ app/build/windows/x64/runner/Release/
 
 ### Installing it
 
-**Copy that folder out of `build/` before running it.** The installed copy lives
-at `%LOCALAPPDATA%\WhatsDue` — the conventional per-user location on Windows,
-and one that needs no administrator rights:
+Use the install script. It installs to `%LOCALAPPDATA%\WhatsDue` — the
+conventional per-user location on Windows, and one that needs no administrator
+rights — and creates the Start menu shortcut:
 
 ```powershell
-$dest = "$env:LOCALAPPDATA\WhatsDue"
-New-Item -ItemType Directory -Force -Path $dest | Out-Null
-Copy-Item app\build\windows\x64\runner\Release\* $dest -Recurse -Force
+.\tools\install-windows.ps1
 ```
 
-Run `whats_due.exe` from there, and right-click → **Pin to Start**.
+That downloads the latest release. `-Version v1.0.7` pins a specific one, and
+`-FromBuild` installs what you just built instead of downloading.
 
-Running it in place from `build/` appears to work and then quietly doesn't. That
-directory is disposable: `flutter clean` deletes it, every rebuild overwrites it,
-and it is gitignored — so moving the project leaves the app behind. Not
-hypothetical: the app was installed there, updated itself to 1.0.5 in place, and
-disappeared when the repository was moved, because `app/build` was not part of
-what moved.
+**Run it from an ordinary PowerShell window**, not from a terminal embedded in a
+packaged (MSIX) app. Such a container silently redirects writes to
+`%LOCALAPPDATA%` into its own private storage, where `Test-Path` reports success
+and Explorer correctly reports that the folder does not exist. The script probes
+for this and refuses rather than installing somewhere you cannot reach it.
+
+#### Why not just copy the folder
+
+**Never run it in place from `build/`.** That directory is disposable:
+`flutter clean` deletes it, every rebuild overwrites it, and it is gitignored —
+so moving the project leaves the app behind. Not hypothetical: the app was
+installed there, updated itself to 1.0.5 in place, and disappeared when the
+repository was moved, because `app/build` was not part of what moved.
+
+**The shortcut is part of the install, not an afterthought.** A pin made by
+right-clicking the exe under `build/` points into that same disposable
+directory, so it breaks with it. And a broken shortcut is not a cosmetic
+problem: an app you cannot launch never runs its own updater, so it quietly
+falls behind every release. That is exactly how a desktop install sat on 1.0.5
+while the phone reached 1.0.7.
 
 A copy outside the repository is independent of all that, and it is what the
 in-app updater then swaps when a new version arrives.
