@@ -44,6 +44,8 @@ class Task {
     required this.text,
     bool done = false,
     List<SubTask>? subtasks,
+    this.points,
+    this.minutes,
   }) : _done = done,
        subtasks = subtasks ?? <SubTask>[];
 
@@ -57,11 +59,25 @@ class Task {
         .whereType<Map>()
         .map((s) => SubTask.fromJson(s.cast<String, dynamic>()))
         .toList(),
+    points: _num(j['points']),
+    minutes: _num(j['minutes'])?.round(),
   );
 
   final String id;
   String text;
   List<SubTask> subtasks;
+
+  /// Rubric marks for this part, from the spec — the `(5)` in
+  /// "Part A — title, abstract, group details (5)". Null when untracked.
+  ///
+  /// Deliberately kept out of the card's progress bar, which counts tasks. The
+  /// bar answers "how much of this assignment is left"; letting marks weight it
+  /// would mean two different fractions rendered identically.
+  double? points;
+
+  /// Rough effort estimate in minutes. Null when unestimated, which the planner
+  /// reports separately rather than silently treating as zero work.
+  int? minutes;
 
   bool _done;
 
@@ -89,12 +105,26 @@ class Task {
     'id': id,
     'text': text,
     'done': done,
-    // Omitted when empty, so a task with no steps serialises exactly as before
+    // Omitted when empty or unset, so a plain task serialises exactly as before
     // and existing data round-trips unchanged.
     if (subtasks.isNotEmpty)
       'subtasks': subtasks.map((s) => s.toJson()).toList(),
+    if (points != null) 'points': points,
+    if (minutes != null) 'minutes': minutes,
   };
 }
+
+/// Lenient number reader.
+///
+/// Values reaching here have been through JSON, a hand-edited backup file and
+/// another device's copy of the app, so a mark can arrive as `20`, `20.0` or
+/// `"20"`. Anything unreadable becomes null — untracked — rather than throwing
+/// and taking the whole load with it.
+double? _num(Object? v) => switch (v) {
+  num n => n.toDouble(),
+  String s => double.tryParse(s.trim()),
+  _ => null,
+};
 
 class Subject {
   Subject({required this.id, required this.name, required this.color});
@@ -124,6 +154,9 @@ class Assignment {
     this.due = '',
     this.done = false,
     List<Task>? tasks,
+    this.weight,
+    this.earned,
+    this.outOf,
   }) : tasks = tasks ?? <Task>[];
 
   factory Assignment.fromJson(Map<String, dynamic> j) => Assignment(
@@ -136,6 +169,9 @@ class Assignment {
         .whereType<Map>()
         .map((t) => Task.fromJson(t.cast<String, dynamic>()))
         .toList(),
+    weight: _num(j['weight']),
+    earned: _num(j['earned']),
+    outOf: _num(j['outOf']),
   );
 
   final String id;
@@ -159,7 +195,45 @@ class Assignment {
 
   List<Task> tasks;
 
+  /// Share of the unit's final grade, as a percentage. Null when untracked.
+  ///
+  /// A percentage of the *unit*, not of this assignment — 20 means "this is
+  /// worth 20% of the subject". [earned] and [outOf] are the raw marks it was
+  /// returned with, which is how results actually come back (34 out of 40), and
+  /// the two scales are reconciled once in [scored].
+  double? weight;
+
+  double? earned;
+  double? outOf;
+
   int get finishedTasks => tasks.where((t) => t.done).length;
+
+  /// Total rubric marks across the tasks, when any carry them.
+  double? get taskPoints {
+    final marked = tasks.where((t) => t.points != null);
+    if (marked.isEmpty) return null;
+    return marked.fold<double>(0, (sum, t) => sum + t.points!);
+  }
+
+  double? get finishedPoints {
+    final marked = tasks.where((t) => t.points != null);
+    if (marked.isEmpty) return null;
+    return marked
+        .where((t) => t.done)
+        .fold<double>(0, (sum, t) => sum + t.points!);
+  }
+
+  /// Whether a result has been recorded. A zero mark is a real result, so this
+  /// tests for presence rather than truthiness.
+  bool get graded => earned != null && outOf != null && outOf! > 0;
+
+  /// Fraction of the available marks achieved, 0..1. Null until graded.
+  double? get scored => graded ? earned! / outOf! : null;
+
+  /// Percentage points of the final unit grade this assignment has actually
+  /// secured. Null unless both weighted and graded.
+  double? get contribution =>
+      (weight == null || !graded) ? null : weight! * scored!;
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -168,6 +242,9 @@ class Assignment {
     'due': due,
     'done': done,
     'tasks': tasks.map((t) => t.toJson()).toList(),
+    if (weight != null) 'weight': weight,
+    if (earned != null) 'earned': earned,
+    if (outOf != null) 'outOf': outOf,
   };
 }
 

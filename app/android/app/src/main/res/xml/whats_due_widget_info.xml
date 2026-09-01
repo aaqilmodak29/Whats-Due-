@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- targetCellWidth/Height are the Android 12+ sizing hints; minWidth and
+     minHeight remain for older launchers, which ignore the newer attributes.
+
+     updatePeriodMillis is the system's own refresh, floored at 30 minutes by
+     Android however low it is set. It is only a backstop for the countdowns
+     rolling over at midnight, since every actual edit pushes an update
+     immediately from the app. -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="250dp"
+    android:minHeight="110dp"
+    android:targetCellWidth="4"
+    android:targetCellHeight="2"
+    android:description="@string/wd_widget_description"
+    android:initialLayout="@layout/whats_due_widget"
+    android:previewLayout="@layout/whats_due_widget"
+    android:resizeMode="horizontal|vertical"
+    android:widgetCategory="home_screen"
+    android:updatePeriodMillis="1800000" />

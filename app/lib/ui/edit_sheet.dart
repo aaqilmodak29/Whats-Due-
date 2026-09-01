@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../grades.dart';
 import '../models.dart';
 import '../store.dart';
 import '../theme.dart';
@@ -35,9 +36,25 @@ class _EditSheetState extends State<_EditSheet> {
   );
   late String _due = widget.assignment.due;
 
+  late final _weight = _numberController(widget.assignment.weight);
+  late final _earned = _numberController(widget.assignment.earned);
+  late final _outOf = _numberController(widget.assignment.outOf);
+
+  late double? _weightValue = widget.assignment.weight;
+  late double? _earnedValue = widget.assignment.earned;
+  late double? _outOfValue = widget.assignment.outOf;
+
+  /// Seeded with the trimmed form, so an assignment worth 20% opens showing
+  /// `20` rather than `20.0`.
+  TextEditingController _numberController(double? v) =>
+      TextEditingController(text: v == null ? '' : trimNumber(v));
+
   @override
   void dispose() {
     _title.dispose();
+    _weight.dispose();
+    _earned.dispose();
+    _outOf.dispose();
     super.dispose();
   }
 
@@ -45,14 +62,48 @@ class _EditSheetState extends State<_EditSheet> {
     final title = _title.text.trim();
     if (title.isEmpty) return;
     widget.store.editAssignment(widget.assignment, title: title, due: _due);
+    widget.store.setMarks(
+      widget.assignment,
+      weight: _weightValue,
+      earned: _earnedValue,
+      outOf: _outOfValue,
+    );
     Navigator.of(context).pop();
+  }
+
+  /// Says what the three numbers currently add up to, so the difference
+  /// between "worth 20% of the unit" and "marked out of 40" stays obvious
+  /// while they are being typed.
+  String _marksNote() {
+    final w = _weightValue;
+    final scored = (_earnedValue != null && (_outOfValue ?? 0) > 0)
+        ? _earnedValue! / _outOfValue!
+        : null;
+    if (w == null && scored == null) {
+      return 'Worth is this assignment\'s share of the unit. Leave it empty to '
+          'keep the assignment out of Grades.';
+    }
+    if (scored == null) {
+      return 'Worth ${trimNumber(w!)}% of the unit. Add the mark when it comes '
+          'back.';
+    }
+    if (w == null) {
+      return 'Scored ${formatPercent(scored)}. Add a worth to count it towards '
+          'the unit.';
+    }
+    return 'Scored ${formatPercent(scored)} — '
+        '${trimNumber(w * scored)} of the unit\'s ${trimNumber(w)}%.';
   }
 
   @override
   Widget build(BuildContext context) {
+    final a = widget.assignment;
     final unchanged =
-        _title.text.trim() == widget.assignment.title &&
-        _due == widget.assignment.due;
+        _title.text.trim() == a.title &&
+        _due == a.due &&
+        _weightValue == a.weight &&
+        _earnedValue == a.earned &&
+        _outOfValue == a.outOf;
 
     return Dialog(
       backgroundColor: C.card,
@@ -96,6 +147,54 @@ class _EditSheetState extends State<_EditSheet> {
                     : longDate(_due),
                 style: T.note,
               ),
+
+              const SizedBox(height: 14),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                spacing: 10,
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: LabelledField(
+                      label: 'Worth',
+                      child: NumberField(
+                        controller: _weight,
+                        suffix: '%',
+                        hint: '20',
+                        semanticLabel: 'Percent of the unit grade',
+                        onChanged: (v) => setState(() => _weightValue = v),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: LabelledField(
+                      label: 'Mark',
+                      child: NumberField(
+                        controller: _earned,
+                        hint: '34',
+                        semanticLabel: 'Marks earned',
+                        onChanged: (v) => setState(() => _earnedValue = v),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: LabelledField(
+                      label: 'Out of',
+                      child: NumberField(
+                        controller: _outOf,
+                        hint: '40',
+                        semanticLabel: 'Marks available',
+                        onChanged: (v) => setState(() => _outOfValue = v),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(_marksNote(), style: T.note),
+
               const SizedBox(height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,

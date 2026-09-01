@@ -110,10 +110,14 @@ void appTest(
 }
 
 /// Text fields behind a dialog would otherwise be matched first.
-Finder dialogField() => find.descendant(
-  of: find.byType(Dialog),
-  matching: find.byType(TextField),
-);
+/// The edit sheet's title box — the first field in the dialog.
+///
+/// Scoped to `.first` rather than the only TextField in the dialog: the sheet
+/// also carries the weight and marks boxes, so an unqualified match is
+/// ambiguous.
+Finder dialogField() => find
+    .descendant(of: find.byType(Dialog), matching: find.byType(TextField))
+    .first;
 
 void main() {
   group('home', () {
@@ -757,6 +761,187 @@ void main() {
       expect(store.items, isEmpty);
       expect(store.subjects, isEmpty);
     }, seed: _seed(), size: const Size(430, 1600));
+  });
+
+  group('marks', () {
+    appTest('a weight shows on the card, a mark replaces the countdown', (
+      tester,
+      store,
+    ) async {
+      final a = store.items.firstWhere((x) => x.id == 'a3');
+      store.setMarks(a, weight: 20.0);
+      await tester.pumpAndSettle();
+      expect(find.text('· 20%'), findsOne);
+
+      store.setMarks(a, earned: 34.0, outOf: 40.0);
+      await tester.pumpAndSettle();
+      // Once a result is in it is the only thing left worth reading, so it
+      // takes the countdown's slot rather than adding a line.
+      expect(find.text('34/40 · 85%'), findsOne);
+    }, seed: _seed());
+
+    appTest('marks can be entered from the edit sheet', (tester, store) async {
+      await tester.tap(find.text('Comparative essay'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('EDIT'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.bySemanticsLabel('Percent of the unit grade'),
+        '25',
+      );
+      await tester.enterText(find.bySemanticsLabel('Marks earned'), '18');
+      await tester.enterText(find.bySemanticsLabel('Marks available'), '20');
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('SAVE'));
+      await tester.pumpAndSettle();
+
+      final a = store.items.firstWhere((x) => x.id == 'a2');
+      expect(a.weight, 25);
+      expect(a.contribution, closeTo(22.5, 1e-9));
+    }, seed: _seed());
+
+    appTest('a task carries marks and an estimate', (tester, store) async {
+      await tester.tap(find.text('Reaction mechanisms problem set'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.bySemanticsLabel('Q6-Q10, tap to add steps'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.bySemanticsLabel('Marks for Q6-Q10'), '15');
+      await tester.tap(find.bySemanticsLabel('Estimate 1h'));
+      await tester.pumpAndSettle();
+
+      final t = store.items
+          .firstWhere((x) => x.id == 'a1')
+          .tasks
+          .firstWhere((x) => x.id == 't2');
+      expect(t.points, 15);
+      expect(t.minutes, 60);
+
+      // Tapping the active estimate clears it rather than being a dead end.
+      await tester.tap(find.bySemanticsLabel('Clear the 1h estimate'));
+      await tester.pumpAndSettle();
+      expect(t.minutes, isNull);
+    }, seed: _seed());
+
+    appTest('the grades page reports where a unit stands', (
+      tester,
+      store,
+    ) async {
+      final a = store.items.firstWhere((x) => x.id == 'a1');
+      store.setMarks(a, weight: 50.0, earned: 40.0, outOf: 50.0);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.bySemanticsLabel('Grades'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('80%'), findsOne, reason: 'average across what is in');
+      // Half the unit is untracked, which every projection depends on.
+      expect(find.textContaining('50% of this unit'), findsOne);
+      // Against half a unit every target computes as already lost, which is
+      // arithmetic rather than truth, so the table is withheld.
+      expect(find.text('TO FINISH ON'), findsNothing);
+      expect(find.text('GONE'), findsNothing);
+    }, seed: _seed());
+
+    appTest('projects the rest once a whole unit is weighted', (
+      tester,
+      store,
+    ) async {
+      store.setMarks(
+        store.items.firstWhere((x) => x.id == 'a1'),
+        weight: 40,
+        earned: 30,
+        outOf: 40,
+      );
+      store.setMarks(
+        store.items.firstWhere((x) => x.id == 'a4'),
+        weight: 60,
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.bySemanticsLabel('Grades'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('TO FINISH ON'), findsOne);
+      // 30 secured with 60% of the unit left: (50 - 30) / 60 = 33.3%.
+      expect(find.text('33.3%'), findsOne);
+    }, seed: _seed());
+  });
+
+  group('today', () {
+    appTest('lists a next action per assignment and ticks it off', (
+      tester,
+      store,
+    ) async {
+      await tester.tap(find.bySemanticsLabel('Today'));
+      await tester.pumpAndSettle();
+
+      // Only a1 has tasks in the seed, so it is the only thing to pick up.
+      expect(find.text('Q6-Q10'), findsOne);
+      expect(find.text('1 thing to pick up'), findsOne);
+
+      await tester.tap(find.bySemanticsLabel('Mark task finished'));
+      await tester.pumpAndSettle();
+
+      expect(
+        store.items.firstWhere((x) => x.id == 'a1').tasks.last.done,
+        isTrue,
+      );
+      expect(find.text('Q6-Q10'), findsNothing, reason: 'it is done now');
+    }, seed: _seed());
+
+    appTest('totals the day once tasks are estimated', (tester, store) async {
+      final a = store.items.firstWhere((x) => x.id == 'a1');
+      store.setTaskMinutes(a.tasks.last, 90);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.bySemanticsLabel('Today'));
+      await tester.pumpAndSettle();
+      expect(find.text('About 1h 30m today'), findsOne);
+    }, seed: _seed());
+
+    appTest('names the next step when a task has been broken down', (
+      tester,
+      store,
+    ) async {
+      final a = store.items.firstWhere((x) => x.id == 'a1');
+      store.addSubtask(a.tasks.last, 'Draw the mechanism');
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.bySemanticsLabel('Today'));
+      await tester.pumpAndSettle();
+      // The step is the action; the task is the context around it.
+      expect(find.text('Draw the mechanism'), findsOne);
+      expect(
+        find.text('Q6-Q10 · REACTION MECHANISMS PROBLEM SET'),
+        findsOne,
+      );
+    }, seed: _seed());
+
+    appTest('opening a planned task jumps to its card', (tester, store) async {
+      await tester.tap(find.bySemanticsLabel('Today'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.bySemanticsLabel(RegExp(r'^Q6-Q10, from Reaction mechanisms')),
+      );
+      await tester.pumpAndSettle();
+
+      // Back on Open, with that card expanded — its tasks are on screen.
+      expect(find.text('Q1-Q5'), findsOne);
+      expect(find.widgetWithText(TextField, 'Add a task'), findsOne);
+    }, seed: _seed());
+
+    appTest('says so when there is nothing to pace', (tester, store) async {
+      await tester.tap(find.bySemanticsLabel('Today'));
+      await tester.pumpAndSettle();
+      final a = store.items.firstWhere((x) => x.id == 'a1');
+      store.toggleTask(a, a.tasks.last);
+      await tester.pumpAndSettle();
+
+      expect(find.text('No tasks yet'), findsOne);
+    }, seed: _seed());
   });
 
   group('layout', () {

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Square corners and a highlighter rule along the top, matching the panels
+     inside the app. Android 12+ launchers clip widgets to their own rounded
+     shape, which this sits inside cleanly. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/wd_card" />
+        </shape>
+    </item>
+    <item android:height="3dp" android:gravity="top">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/wd_mark" />
+        </shape>
+    </item>
+</layer-list>

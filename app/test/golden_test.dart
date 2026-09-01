@@ -218,6 +218,54 @@ void main() {
     );
   });
 
+  testWidgets('phone, today', (tester) async {
+    final store = await _boot(tester, const Size(430, 932), seed: _seed());
+    // Estimates are what turn the plan from a next-action list into a paced
+    // day, so the snapshot covers the estimated case.
+    final a1 = store.items.firstWhere((a) => a.id == 'a1');
+    store.setTaskMinutes(a1.tasks.last, 90);
+    final a2 = store.items.firstWhere((a) => a.id == 'a2');
+    store.setTaskMinutes(store.addTask(a2, 'Draft the argument')!, 60);
+    store.addTask(a2, 'Find a third source');
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.bySemanticsLabel('Today'));
+    await tester.pumpAndSettle();
+    await expectLater(
+      find.byType(WhatsDueApp),
+      matchesGoldenFile('goldens/phone-today.png'),
+    );
+  });
+
+  testWidgets('phone, grades', (tester) async {
+    final store = await _boot(tester, const Size(430, 932), seed: _seed());
+    // One unit part-marked and one with nothing back yet, so the snapshot
+    // covers both the projection table and the untracked warning.
+    store.setMarks(
+      store.items.firstWhere((a) => a.id == 'a1'),
+      weight: 40,
+      earned: 30,
+      outOf: 40,
+    );
+    store.setMarks(store.items.firstWhere((a) => a.id == 'a4'), weight: 60);
+    store.setMarks(store.items.firstWhere((a) => a.id == 'a3'), weight: 25);
+    await tester.pumpAndSettle();
+
+    // The footer link is below the fold, and a ListView does not build what it
+    // has not scrolled to.
+    await tester.scrollUntilVisible(
+      find.text('GRADES'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text('GRADES'));
+    await tester.pumpAndSettle();
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('goldens/phone-grades.png'),
+    );
+  });
+
   testWidgets('phone, add panel', (tester) async {
     await _boot(tester, const Size(430, 932), seed: _seed());
     await tester.tap(find.bySemanticsLabel('Add assignment'));

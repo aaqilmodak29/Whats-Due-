@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../grades.dart';
 import '../models.dart';
+import '../planner.dart';
 import '../store.dart';
 import '../theme.dart';
 import 'atoms.dart';
@@ -36,6 +38,9 @@ class _AssignmentCardState extends State<AssignmentCard> {
   final _subtaskController = TextEditingController();
   final _subtaskFocus = FocusNode();
 
+  /// Marks fields, keyed by task id. See [_pointsControllerFor].
+  final _pointsControllers = <String, TextEditingController>{};
+
   /// Which task has its steps showing. One at a time, so the card cannot grow
   /// unbounded while it is open.
   String? _openTaskId;
@@ -46,6 +51,9 @@ class _AssignmentCardState extends State<AssignmentCard> {
     _taskFocus.dispose();
     _subtaskController.dispose();
     _subtaskFocus.dispose();
+    for (final c in _pointsControllers.values) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -92,6 +100,12 @@ class _AssignmentCardState extends State<AssignmentCard> {
                       Expanded(
                         child: Text(t.text, style: T.task(done: t.done)),
                       ),
+                      // `pt`, not `m` — `5m` beside `45m` would read as two
+                      // durations rather than marks and time.
+                      if (t.points != null)
+                        Text('${trimNumber(t.points!)}pt', style: T.frac),
+                      if (t.minutes != null)
+                        Text(formatMinutes(t.minutes!), style: T.frac),
                       if (t.hasSubtasks)
                         Text(
                           '${t.finishedSubtasks}/${t.subtasks.length}',
@@ -123,12 +137,15 @@ class _AssignmentCardState extends State<AssignmentCard> {
   }
 
   /// Steps sit under their task, indented to the depth of its checkbox so the
-  /// nesting is legible without a connecting line.
+  /// nesting is legible without a connecting line. The task's own marks and
+  /// estimate live here too — opening a task is how you get at its detail,
+  /// rather than putting six more controls on every collapsed row.
   Widget _steps(AppStore store, Task t) => Padding(
     padding: const EdgeInsets.only(left: 29, bottom: 6),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        _taskMeta(store, t),
         for (final s in t.subtasks)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 3),
@@ -188,6 +205,79 @@ class _AssignmentCardState extends State<AssignmentCard> {
       ],
     ),
   );
+
+  /// The open task's rubric marks and effort estimate.
+  ///
+  /// The estimate is a row of preset chips rather than a free number field:
+  /// a student guessing to the minute is inventing precision, and the planner
+  /// only needs the rough shape of the work. One tap sets it, tapping the
+  /// active one clears it.
+  Widget _taskMeta(AppStore store, Task t) => Padding(
+    padding: const EdgeInsets.only(bottom: 8),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          spacing: 8,
+          children: [
+            Text('MARKS', style: T.flabel),
+            SizedBox(
+              width: 62,
+              child: NumberField(
+                controller: _pointsControllerFor(t),
+                hint: '5',
+                semanticLabel: 'Marks for ${t.text}',
+                onChanged: (v) => store.setTaskPoints(t, v),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 7),
+        Text('TIME', style: T.flabel),
+        const SizedBox(height: 4),
+        Wrap(
+          spacing: 5,
+          runSpacing: 5,
+          children: [
+            for (final m in kEstimateChoices)
+              Tap(
+                onTap: () =>
+                    store.setTaskMinutes(t, t.minutes == m ? null : m),
+                semanticLabel: t.minutes == m
+                    ? 'Clear the ${formatMinutes(m)} estimate'
+                    : 'Estimate ${formatMinutes(m)}',
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: t.minutes == m ? C.mark : Colors.transparent,
+                    border: Border.all(
+                      color: t.minutes == m ? C.ink : C.rule,
+                    ),
+                  ),
+                  child: Text(
+                    formatMinutes(m),
+                    style: T.chip(t.minutes == m ? C.ink : C.muted),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ],
+    ),
+  );
+
+  /// One controller per task, kept alive across rebuilds so typing a mark does
+  /// not reset the cursor on every keystroke.
+  TextEditingController _pointsControllerFor(Task t) =>
+      _pointsControllers.putIfAbsent(
+        t.id,
+        () => TextEditingController(
+          text: t.points == null ? '' : trimNumber(t.points!),
+        ),
+      );
 
   void _pushSubtask(Task t) {
     final text = _subtaskController.text.trim();
@@ -261,19 +351,32 @@ class _AssignmentCardState extends State<AssignmentCard> {
                                 spacing: 6,
                                 children: [
                                   if (subject != null) Dot(subject.swatch),
-                                  Expanded(
+                                  Flexible(
                                     child: Eyebrow(
                                       subject?.name ?? 'Unfiled',
                                       maxLines: 1,
                                     ),
                                   ),
+                                  // Importance, at a glance, without spending a
+                                  // line or a third colour on it.
+                                  if (a.weight != null)
+                                    Eyebrow('· ${trimNumber(a.weight!)}%'),
                                 ],
                               ),
                             ),
                             const SizedBox(width: 10),
                             Text(
-                              a.done ? 'SUBMITTED' : countdown(n),
-                              style: T.count(spine),
+                              // A returned mark outranks the word SUBMITTED:
+                              // once the result is in, it is the only thing
+                              // left worth reading on a finished card.
+                              a.graded
+                                  ? '${trimNumber(a.earned!)}/'
+                                        '${trimNumber(a.outOf!)}'
+                                        ' · ${formatPercent(a.scored!)}'
+                                  : a.done
+                                  ? 'SUBMITTED'
+                                  : countdown(n),
+                              style: T.count(a.graded ? C.green : spine),
                             ),
                           ],
                         ),
