@@ -8,6 +8,7 @@ import 'models.dart';
 import 'reminders.dart';
 import 'sync/sync_engine.dart';
 import 'updater.dart';
+import 'widget_bridge.dart';
 import 'theme.dart';
 
 /// Sentinel for "this argument was not supplied", so a genuine null can mean
@@ -81,6 +82,7 @@ class AppStore extends ChangeNotifier {
     }
     notifyListeners();
     unawaited(_syncReminders());
+    unawaited(WidgetBridge.push(items));
   }
 
   // ---------------------------------------------------------------- decoding
@@ -149,6 +151,7 @@ class AppStore extends ChangeNotifier {
     }
     notifyListeners();
     unawaited(_syncReminders());
+    unawaited(WidgetBridge.push(items));
     // Stamps the change and schedules a debounced push. Local storage is
     // already written by this point, so a failed or absent sync never costs the
     // user their edit.
@@ -174,6 +177,7 @@ class AppStore extends ChangeNotifier {
     }
     notifyListeners();
     unawaited(_syncReminders());
+    unawaited(WidgetBridge.push(items));
   }
 
   /// Item count for an arbitrary payload, so a conflict can be described

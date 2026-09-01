@@ -239,6 +239,53 @@ shortcut. Its MSIX caveat applies only to querying and cancelling
 
 ---
 
+## Today, marks and grades
+
+Two questions the deadline list cannot answer on its own.
+
+**Today** gives each unsubmitted assignment a share of the day equal to what is
+left on it divided by the days it has to run, then lists its next tasks up to
+that share, worst-behind first. So a report due in ten days with twenty hours
+left outranks a worksheet due in three days with one hour left — which a
+deadline sort gets backwards.
+
+Estimates are set from preset chips, not a free number field, because a student
+guessing to the minute is inventing precision. With nothing estimated the plan
+degrades to one next action per assignment, ordered by deadline: the app has to
+be useful before any effort is entered, or nobody enters any. Unestimated tasks
+are paced at a nominal 30 minutes so they cannot empty one assignment into a
+single day, and that figure is never added to a displayed total.
+
+**Grades** rolls weighted assignments up per subject. A weight is a share of one
+unit, so subjects are never summed — that would add percentages of different
+wholes. The page separates *secured* from *average so far*, because 40 of 100 in
+week six is not a failing grade, it is half a semester that has not happened
+yet. Where a whole unit is weighted it works out what the remaining assessments
+have to average for each band; where it is not, it withholds that table, since
+against a quarter of a unit every target computes as already lost.
+
+---
+
+## Home-screen widget
+
+Android only. Shows today's plan — the headline, up to three next actions with
+their countdowns and estimates, and a count of what did not fit.
+
+The plan is computed in Dart and handed to the widget as flat strings; the
+Kotlin provider renders them and hides empty rows. It holds no scheduling logic
+of its own on purpose. The ranking is the opinionated part of the app, and two
+copies of it would drift until the widget and the Today tab disagreed.
+
+The widget refreshes on every edit. `updatePeriodMillis` is set to 30 minutes as
+a backstop so the countdowns roll over at midnight without the app being opened;
+Android floors that value at 30 minutes however low it is set.
+
+Adding it: long-press the home screen → **Widgets** → *What's due*. It is 4×2
+cells by default and resizable. Before the app has ever run it shows "Open to
+see today" rather than an empty card.
+
+---
+
 ## Sync
 
 Both builds of `app/` share one list through Firebase. Setup is a one-time
@@ -407,13 +454,19 @@ key, migrate forward, leave the old key in place as an accidental backup.
   could reassign a subject but not change the title or the date; it was the most
   obvious gap in it.
 - **Real scheduled notifications** (see above).
+- **Sub-tasks**, one level under a task.
+- **Marks and weighting**, with a Grades page per subject (see below).
+- **Effort estimates and a Today plan**, which paces the day rather than
+  listing deadlines.
+- **An Android home-screen widget** (see below).
 - **Import and export**, in both builds.
+- **Sync across devices** (see above).
 - Native window, native install, no hosting dependency, no cache-busting
   `?v=N` dance.
 
-Still not built, in either: grade weighting, effort estimates, recurring
-assignments, sync, search, sorting other than due-date ascending, and bulk
-`.ics` export for a whole semester.
+Still not built, in either: recurring assignments, search, a link or attachment
+per assignment, archiving by term, sorting other than due-date ascending, and
+bulk `.ics` export for a whole semester.
 
 ---
 

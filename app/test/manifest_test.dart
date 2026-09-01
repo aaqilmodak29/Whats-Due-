@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:whats_due/widget_bridge.dart';
 
 /// Guards the Android release manifest.
 ///
@@ -64,5 +65,65 @@ void main() {
 
   test('the app is labelled, not left as the package name', () {
     expect(manifest.contains('android:label="What'), isTrue);
+  });
+
+  group('the home-screen widget', () {
+    test('the provider is registered and exported', () {
+      // The launcher is a different process. An unexported provider never
+      // appears in the widget picker, and nothing about that shows up at build
+      // time — the APK is valid, the widget is simply missing.
+      final receiver = RegExp(
+        r'<receiver[^>]*android:name="\.WhatsDueWidgetProvider"'
+        r'[\s\S]*?</receiver>',
+      ).firstMatch(manifest)?.group(0);
+
+      expect(receiver, isNotNull, reason: 'no widget receiver declared');
+      expect(
+        receiver,
+        contains('android:exported="true"'),
+        reason: 'the launcher could not bind it',
+      );
+      expect(
+        receiver,
+        contains('android.appwidget.action.APPWIDGET_UPDATE'),
+        reason: 'the system would never ask it to draw',
+      );
+      expect(
+        receiver,
+        contains('@xml/whats_due_widget_info'),
+        reason: 'without the metadata it is not a widget provider at all',
+      );
+    });
+
+    test('the resources it names all exist', () {
+      // A missing drawable or layout fails the resource link step rather than
+      // the Dart analyzer, so it is worth catching without a full APK build.
+      for (final path in const [
+        'android/app/src/main/res/xml/whats_due_widget_info.xml',
+        'android/app/src/main/res/layout/whats_due_widget.xml',
+        'android/app/src/main/res/drawable/whats_due_widget_background.xml',
+        'android/app/src/main/res/values/whats_due_widget.xml',
+        'android/app/src/main/kotlin/com/aaqilmodak/whats_due/'
+            'WhatsDueWidgetProvider.kt',
+      ]) {
+        expect(File(path).existsSync(), isTrue, reason: '$path is missing');
+      }
+    });
+
+    test('every row the payload fills exists in the layout', () {
+      // The Dart side writes wd_t0..wd_t2; the layout has to carry a matching
+      // row for each, or the extra ones are silently dropped.
+      final layout = File(
+        'android/app/src/main/res/layout/whats_due_widget.xml',
+      ).readAsStringSync();
+      for (var i = 0; i < WidgetBridge.rows; i++) {
+        expect(layout, contains('@+id/wd_row$i'));
+        expect(layout, contains('@+id/wd_t${i}_text'));
+        expect(layout, contains('@+id/wd_t${i}_meta'));
+      }
+      expect(layout, contains('@+id/wd_headline'));
+      expect(layout, contains('@+id/wd_more'));
+      expect(layout, contains('@+id/wd_root'));
+    });
   });
 }

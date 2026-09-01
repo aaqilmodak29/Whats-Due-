@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The app's palette and the widget's one string, carried over so the widget
+     reads as part of the app rather than as a launcher default. -->
+<resources>
+    <color name="wd_ink">#FF16202E</color>
+    <color name="wd_paper">#FFE3E8ED</color>
+    <color name="wd_card">#FFFFFFFF</color>
+    <color name="wd_muted">#FF6B7A8C</color>
+    <color name="wd_mark">#FFDCEE3A</color>
+
+    <string name="wd_widget_description">Today\'s plan from What\'s due</string>
+</resources>
