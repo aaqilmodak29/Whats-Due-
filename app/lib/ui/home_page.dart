@@ -8,9 +8,11 @@ import 'add_panel.dart';
 import 'assignment_card.dart';
 import 'atoms.dart';
 import 'backup_page.dart';
+import 'grades_page.dart';
 import 'horizon.dart';
 import 'manage_subjects.dart';
 import 'sync_page.dart';
+import 'today_view.dart';
 import 'update_section.dart';
 
 /// Filter sentinels, matching the web app's `filter` values.
@@ -26,12 +28,17 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
+/// Which list the tab strip is showing.
+enum _View { today, open, submitted }
+
 class _HomePageState extends State<HomePage> {
   bool _showAdd = false;
   bool _showManage = false;
-  bool _showSubmitted = false;
+  _View _view = _View.open;
   String _filter = _filterAll;
   String? _openId;
+
+  bool get _showSubmitted => _view == _View.submitted;
 
   /// `YYYY-MM-DD` when a day in the horizon strip is being filtered on.
   String? _selectedDue;
@@ -114,10 +121,10 @@ class _HomePageState extends State<HomePage> {
                   onSelect: (due) => setState(() {
                     _selectedDue = due;
                     _openId = null;
-                    // The strip only ever shows unsubmitted work, so a day
-                    // selected while the Submitted tab is open would filter to
-                    // nothing.
-                    if (due != null) _showSubmitted = false;
+                    // The strip only ever charts unsubmitted work, so a day
+                    // picked from Today or Submitted has to land on the list
+                    // that can actually show it.
+                    if (due != null) _view = _View.open;
                   }),
                 ),
                 if (_selectedDue != null) _dayFilterBar(),
@@ -129,7 +136,9 @@ class _HomePageState extends State<HomePage> {
                     onCreated: (created) => setState(() {
                       _showAdd = false;
                       _openId = created.id;
-                      _showSubmitted = false;
+                      // Show the card that was just created, which neither
+                      // Today nor Submitted would list.
+                      _view = _View.open;
                       if (_filter != _filterAll &&
                           _filter != (created.subjectId ?? _filterUnfiled)) {
                         _filter = _filterAll;
@@ -182,35 +191,50 @@ class _HomePageState extends State<HomePage> {
                   decoration: const BoxDecoration(
                     border: Border(bottom: BorderSide(color: C.rule)),
                   ),
-                  child: Row(
-                    spacing: 18,
-                    children: [
-                      _Tab(
-                        label: 'Open (${active.length})',
-                        on: !_showSubmitted,
-                        onTap: () => setState(() {
-                          _showSubmitted = false;
-                          _openId = null;
-                        }),
-                      ),
-                      _Tab(
-                        label: 'Submitted (${submitted.length})',
-                        on: _showSubmitted,
-                        onTap: () => setState(() {
-                          _showSubmitted = true;
-                          _openId = null;
-                          // The strip only charts unsubmitted work, so keeping
-                          // a day filter here would show an empty list.
-                          _selectedDue = null;
-                        }),
-                      ),
-                    ],
+                  // Scrolls rather than wraps, matching the filter chips above.
+                  // Three labels plus their counts no longer fit a 360px phone,
+                  // and the underline that marks the active tab only reads as
+                  // one if they stay on a single line.
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      spacing: 18,
+                      children: [
+                        _Tab(
+                          label: 'Today',
+                          on: _view == _View.today,
+                          onTap: () => _show(_View.today),
+                        ),
+                        _Tab(
+                          label: 'Open (${active.length})',
+                          on: _view == _View.open,
+                          onTap: () => _show(_View.open),
+                        ),
+                        _Tab(
+                          label: 'Submitted (${submitted.length})',
+                          on: _showSubmitted,
+                          onTap: () => _show(_View.submitted),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
 
                 // ---- list ----
                 const SizedBox(height: 12),
-                if (shown.isEmpty)
+                if (_view == _View.today)
+                  TodayView(
+                    store: store,
+                    onOpen: (a) => setState(() {
+                      // Jumping to a card means leaving Today, or the card it
+                      // opened would not be on screen.
+                      _view = _View.open;
+                      _filter = _filterAll;
+                      _selectedDue = null;
+                      _openId = a.id;
+                    }),
+                  )
+                else if (shown.isEmpty)
                   _empty()
                 else
                   Column(
@@ -255,6 +279,14 @@ class _HomePageState extends State<HomePage> {
                       label: _showManage ? 'Hide subjects' : 'Manage subjects',
                       onPressed: () =>
                           setState(() => _showManage = !_showManage),
+                    ),
+                    EyebrowButton(
+                      label: 'Grades',
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => GradesPage(store: store),
+                        ),
+                      ),
                     ),
                     if (store.sync?.isConfigured ?? false)
                       EyebrowButton(
@@ -306,6 +338,14 @@ class _HomePageState extends State<HomePage> {
   void _select(String filter) => setState(() {
     _filter = filter;
     _openId = null;
+  });
+
+  void _show(_View v) => setState(() {
+    _view = v;
+    _openId = null;
+    // The horizon strip only charts unsubmitted, dated work, so a day filter
+    // carried into either of the other two views would show an empty list.
+    if (v != _View.open) _selectedDue = null;
   });
 
   /// Shows what the strip is filtering on, and how to get out of it. Without

@@ -10,6 +10,10 @@ import 'sync/sync_engine.dart';
 import 'updater.dart';
 import 'theme.dart';
 
+/// Sentinel for "this argument was not supplied", so a genuine null can mean
+/// "clear it". See [AppStore.setMarks].
+const Object _unchanged = Object();
+
 /// Outcome of an import, so the UI can report something specific.
 class ImportResult {
   const ImportResult.ok({required this.subjects, required this.items})
@@ -278,6 +282,35 @@ class AppStore extends ChangeNotifier {
     _commit();
   }
 
+  /// Sets the weighting and the returned result.
+  ///
+  /// Every field is nullable and every argument is a double-wrapped option, so
+  /// that "leave this alone" and "clear this back to untracked" stay
+  /// distinguishable — passing null for either directly would collapse them.
+  void setMarks(
+    Assignment a, {
+    Object? weight = _unchanged,
+    Object? earned = _unchanged,
+    Object? outOf = _unchanged,
+  }) {
+    // Coerced rather than cast: the arguments are untyped to make the sentinel
+    // work, so an int literal would otherwise fail the cast at runtime.
+    if (!identical(weight, _unchanged)) a.weight = (weight as num?)?.toDouble();
+    if (!identical(earned, _unchanged)) a.earned = (earned as num?)?.toDouble();
+    if (!identical(outOf, _unchanged)) a.outOf = (outOf as num?)?.toDouble();
+    _commit();
+  }
+
+  void setTaskPoints(Task t, double? points) {
+    t.points = points;
+    _commit();
+  }
+
+  void setTaskMinutes(Task t, int? minutes) {
+    t.minutes = minutes;
+    _commit();
+  }
+
   void toggleSubmitted(Assignment a) {
     a.done = !a.done;
     _commit();
@@ -288,10 +321,15 @@ class AppStore extends ChangeNotifier {
     _commit();
   }
 
-  void addTask(Assignment a, String text) {
-    if (text.trim().isEmpty) return;
-    a.tasks.add(Task(id: uid(), text: text.trim()));
+  /// Returns the new task, or null when [text] was blank, so a caller that
+  /// needs to set marks or an estimate on it does not have to go fishing in the
+  /// list for the one it just added.
+  Task? addTask(Assignment a, String text) {
+    if (text.trim().isEmpty) return null;
+    final t = Task(id: uid(), text: text.trim());
+    a.tasks.add(t);
     _commit();
+    return t;
   }
 
   void toggleTask(Assignment a, Task t) {

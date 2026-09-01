@@ -235,6 +235,53 @@ InputDecoration fieldDecoration({String? hint, bool mono = false}) =>
       ),
     );
 
+/// A small numeric field, rendered in mono like every other piece of data.
+///
+/// Hands back null for an empty or unparseable box, which the store reads as
+/// "untracked" — so clearing a mark is the same gesture as never entering one.
+class NumberField extends StatelessWidget {
+  const NumberField({
+    super.key,
+    required this.controller,
+    required this.onChanged,
+    required this.semanticLabel,
+    this.hint,
+    this.suffix,
+  });
+
+  final TextEditingController controller;
+  final ValueChanged<double?> onChanged;
+  final String semanticLabel;
+  final String? hint;
+
+  /// A trailing unit, e.g. `%`.
+  final String? suffix;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    textField: true,
+    label: semanticLabel,
+    child: ExcludeSemantics(
+      child: TextField(
+        controller: controller,
+        style: T.monoInput,
+        // A decimal weight is real (12.5% of a unit); a negative one is not.
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        decoration: fieldDecoration(hint: hint, mono: true).copyWith(
+          suffixText: suffix,
+          suffixStyle: T.monoInput.copyWith(color: C.muted),
+        ),
+        onChanged: (raw) {
+          final text = raw.trim();
+          if (text.isEmpty) return onChanged(null);
+          final v = double.tryParse(text);
+          onChanged(v == null || v < 0 ? null : v);
+        },
+      ),
+    ),
+  );
+}
+
 /// A labelled field. CSS `.flabel` + `input`.
 class LabelledField extends StatelessWidget {
   const LabelledField({super.key, required this.label, required this.child});
