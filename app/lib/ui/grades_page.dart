@@ -16,54 +16,48 @@ const _bands = <(String, double)>[
 
 /// Where each subject stands, and what is still needed.
 ///
-/// A page rather than a strip on the home screen: grades are a thing you go and
-/// check, not a thing you need while triaging deadlines, and the home screen is
-/// already the densest surface in the app.
+/// Its own destination rather than a strip on Home: grades are something you go
+/// and check, not something you need while triaging deadlines, and Home is
+/// already carrying the strip and the next three.
 class GradesPage extends StatelessWidget {
-  const GradesPage({super.key, required this.store});
+  const GradesPage({
+    super.key,
+    required this.store,
+    required this.controller,
+  });
 
   final AppStore store;
+  final ScrollController controller;
 
   @override
   Widget build(BuildContext context) {
     final grades = gradesBySubject(store.items)
       ..sort((a, b) => _name(a.subjectId).compareTo(_name(b.subjectId)));
+    final tracked = grades.where((g) => g.average != null).length;
 
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: C.paper,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: C.ink),
-        title: Text('Grades', style: T.title()),
-      ),
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 620),
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 48),
-              children: [
-                if (grades.isEmpty)
-                  _empty()
-                else ...[
-                  for (final g in grades) ...[
-                    _subjectCard(g),
-                    const SizedBox(height: 9),
-                  ],
-                  const SizedBox(height: 6),
-                  Text(
-                    'A weight is a share of one unit, so subjects are never '
-                    'added together. Set one on an assignment from its EDIT '
-                    'button.',
-                    style: T.note,
-                  ),
-                ],
-              ],
-            ),
+    return PageBody(
+      controller: controller,
+      title: 'Grades',
+      eyebrow: grades.isEmpty
+          ? 'Nothing weighted yet'
+          : '${grades.length} ${grades.length == 1 ? 'unit' : 'units'} weighted'
+                ' · $tracked with results',
+      children: [
+        if (grades.isEmpty)
+          _empty()
+        else ...[
+          for (final g in grades) ...[
+            _subjectCard(g),
+            const SizedBox(height: 9),
+          ],
+          const SizedBox(height: 6),
+          Text(
+            'A weight is a share of one unit, so subjects are never added '
+            'together. Set one on an assignment from its EDIT button.',
+            style: T.note,
           ),
-        ),
-      ),
+        ],
+      ],
     );
   }
 
@@ -193,21 +187,10 @@ class GradesPage extends StatelessWidget {
     );
   }
 
-  Widget _empty() => Container(
-    color: C.card,
-    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 26),
-    child: Column(
-      children: [
-        Text('No weights set', style: T.emptyHead, textAlign: TextAlign.center),
-        const SizedBox(height: 5),
-        Text(
-          'Open an assignment, tap EDIT, and set what it is worth. Once a '
-          'result comes back, this page works out where the unit stands and '
-          'what the rest has to average.',
-          style: T.emptyBody,
-          textAlign: TextAlign.center,
-        ),
-      ],
-    ),
+  Widget _empty() => const EmptyState(
+    head: 'No weights set',
+    body: 'Open an assignment, tap EDIT, and set what it is worth. Once a '
+        'result comes back, this page works out where the unit stands and '
+        'what the rest has to average.',
   );
 }

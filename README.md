@@ -220,7 +220,7 @@ as a pure function over assignments and a clock, so it is tested directly rather
 than through the notification plugin.
 
 Reminders are re-derived from scratch whenever anything changes, and re-armed
-after a reboot. Turn them on under **Backup & reminders**; there is a **Send a
+after a reboot. Turn them on under **Settings**; there is a **Send a
 test** button so the permission chain is verifiable rather than a matter of
 faith.
 
@@ -236,6 +236,34 @@ On Windows the notification plugin registers an AppUserModelID in the registry
 on first run, so toasts work for the unpackaged build without a Start Menu
 shortcut. Its MSIX caveat applies only to querying and cancelling
 *already-shown* notifications, not to scheduling.
+
+---
+
+## Getting around
+
+Four destinations in a bottom bar.
+
+| | |
+|---|---|
+| **Home** | The glance. Triage counts, the 14-day strip, the next three deadlines, today's load, and a one-line grade summary. |
+| **Assignments** | The working list: subject chips, Manage subjects, and the Today / Open / Submitted tabs. |
+| **Grades** | Per-subject standing and what the rest has to average. |
+| **Settings** | Sync, version, reminders, export, import and erasing — one scroll. |
+
+Home is read-only apart from the `+`: everything on it is a fact that changes
+daily or a warning, and nothing is there purely to navigate. The horizon strip
+lives there rather than on Assignments because it is a glance artifact, and
+tapping a day carries you to Assignments filtered to it rather than being
+duplicated on both.
+
+Sync and Backup used to be separate pages behind footer links, so the two halves
+of "where does my data live" were never visible at once — and a sync conflict
+was only discoverable by going looking for it. Settings is one page now, and
+Home raises a warning when sync needs attention.
+
+The Assignments view state — which tab, which filter, which day, which card is
+open — is held by the shell rather than the page, so Home can navigate into a
+particular view of it and so the page comes back as you left it.
 
 ---
 
@@ -302,7 +330,8 @@ side's edits lose. That case is **detected, not silently resolved** — the app
 stops, shows both sides with item counts and edit times, and asks which to keep.
 
 It pushes a few seconds after a change (debounced, so ticking six checkboxes is
-one write) and pulls on launch and on foreground. The footer link doubles as the
+one write) and pulls on launch and on foreground. Home surfaces a warning when
+sync needs a decision or has failed, which doubles as the
 status indicator.
 
 ### Why REST and not the FlutterFire plugins
@@ -337,7 +366,7 @@ data out of the original web app, or to keep a copy before something risky.
 
 1. Open the web app, scroll to the bottom, tap **Export JSON**
 2. Tap **COPY**
-3. In the native app: **Backup & reminders** → paste into the Import box → **MERGE**
+3. In the native app: **Settings** → paste into the Import box → **MERGE**
 
 `MERGE` keeps what is already there and adds anything new, matching subjects by
 name so you don't end up with two identical chips, and skipping assignments you
@@ -347,7 +376,7 @@ overwrites everything.
 The importer also accepts the older bare-array format, so an ancient backup still
 works.
 
-**Backing up:** **Backup & reminders** → **Save .json file** or **Copy to
+**Backing up:** **Settings** → **Save .json file** or **Copy to
 clipboard**. Worth doing before uninstalling anything, and before switching
 phones. Uninstalling the app erases its data.
 

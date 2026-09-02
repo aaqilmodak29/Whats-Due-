@@ -14,16 +14,16 @@ import 'update_section.dart';
 /// Sync keeps the devices in step, so import and export are no longer how data
 /// travels between them. They remain the escape hatch: a copy that survives
 /// signing out, uninstalling, or deciding to stop using the app.
-class BackupPage extends StatefulWidget {
-  const BackupPage({super.key, required this.store});
+class BackupSections extends StatefulWidget {
+  const BackupSections({super.key, required this.store});
 
   final AppStore store;
 
   @override
-  State<BackupPage> createState() => _BackupPageState();
+  State<BackupSections> createState() => _BackupSectionsState();
 }
 
-class _BackupPageState extends State<BackupPage> {
+class _BackupSectionsState extends State<BackupSections> {
   final _paste = TextEditingController();
   int _pending = 0;
   bool? _notificationsAllowed;
@@ -118,37 +118,8 @@ class _BackupPageState extends State<BackupPage> {
   Widget build(BuildContext context) {
     final store = widget.store;
 
-    return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 620),
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 20, 16, 48),
+    return Column(
               children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Eyebrow('Coursework'),
-                          const SizedBox(height: 3),
-                          Text('Backup', style: T.h1),
-                        ],
-                      ),
-                    ),
-                    IconSquare(
-                      icon: Icons.close,
-                      open: true,
-                      semanticLabel: 'Close',
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-
                 UpdateSection(updater: store.updater),
                 const SizedBox(height: 16),
 
@@ -375,10 +346,6 @@ class _BackupPageState extends State<BackupPage> {
                   ],
                 ),
               ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 }
