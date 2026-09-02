@@ -7,7 +7,7 @@ import 'reminders.dart';
 import 'store.dart';
 import 'sync/sync_engine.dart';
 import 'theme.dart';
-import 'ui/home_page.dart';
+import 'ui/app_shell.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -89,7 +89,7 @@ class _WhatsDueAppState extends State<WhatsDueApp>
     // app's `mutate → save → render` model intact.
     home: ListenableBuilder(
       listenable: widget.store,
-      builder: (context, _) => HomePage(store: widget.store),
+      builder: (context, _) => AppShell(store: widget.store),
     ),
   );
 }

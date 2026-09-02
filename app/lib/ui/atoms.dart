@@ -235,6 +235,92 @@ InputDecoration fieldDecoration({String? hint, bool mono = false}) =>
       ),
     );
 
+/// The shared page body: a centred 620px column with the standard header.
+///
+/// Every destination in the nav bar uses this, so the four pages agree on
+/// margins, column width and the shape of a title. It is not a [Scaffold] —
+/// the shell owns the one Scaffold and the nav bar beneath it.
+class PageBody extends StatelessWidget {
+  const PageBody({
+    super.key,
+    required this.title,
+    required this.children,
+    this.eyebrow,
+    this.eyebrowColor = C.muted,
+    this.action,
+    this.controller,
+  });
+
+  final String title;
+  final List<Widget> children;
+  final String? eyebrow;
+  final Color eyebrowColor;
+
+  /// The square button in the top right, where a page has one.
+  final Widget? action;
+
+  final ScrollController? controller;
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+    child: Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 620),
+        child: ListView(
+          controller: controller,
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Eyebrow('Coursework'),
+                      const SizedBox(height: 3),
+                      Text(title, style: T.h1),
+                    ],
+                  ),
+                ),
+                ?action,
+              ],
+            ),
+            if (eyebrow != null) ...[
+              const SizedBox(height: 10),
+              Text(eyebrow!.toUpperCase(), style: T.eyebrow(eyebrowColor)),
+            ],
+            const SizedBox(height: 18),
+            ...children,
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+/// The white card carrying a "nothing here" explanation. Used by every list in
+/// the app, which all have several distinct reasons to be empty.
+class EmptyState extends StatelessWidget {
+  const EmptyState({super.key, required this.head, required this.body});
+
+  final String head;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    color: C.card,
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 26),
+    child: Column(
+      children: [
+        Text(head, style: T.emptyHead, textAlign: TextAlign.center),
+        const SizedBox(height: 5),
+        Text(body, style: T.emptyBody, textAlign: TextAlign.center),
+      ],
+    ),
+  );
+}
+
 /// A small numeric field, rendered in mono like every other piece of data.
 ///
 /// Hands back null for an empty or unparseable box, which the store reads as

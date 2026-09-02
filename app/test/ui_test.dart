@@ -87,6 +87,7 @@ void appTest(
   Future<void> Function(WidgetTester tester, AppStore store) body, {
   String? seed,
   Size size = const Size(430, 932),
+  String? tab,
 }) {
   testWidgets(description, (tester) async {
     tester.view.devicePixelRatio = 1.0;
@@ -102,11 +103,20 @@ void appTest(
       await store.init();
       await tester.pumpWidget(WhatsDueApp(store: store));
       await tester.pumpAndSettle();
+      // The app opens on Home, so anything testing another destination has to
+      // say which one rather than assuming the list is on screen.
+      if (tab != null) await goTo(tester, tab);
       await body(tester, store);
     } finally {
       semantics.dispose();
     }
   });
+}
+
+/// Taps a bottom-nav destination by the label a screen reader would announce.
+Future<void> goTo(WidgetTester tester, String label) async {
+  await tester.tap(find.bySemanticsLabel('Go to $label'));
+  await tester.pumpAndSettle();
 }
 
 /// Text fields behind a dialog would otherwise be matched first.
@@ -121,7 +131,7 @@ Finder dialogField() => find
 
 void main() {
   group('home', () {
-    appTest('renders the header, stats and every open assignment', (
+    appTest('leads with the wordmark and the triage line', (
       tester,
       store,
     ) async {
@@ -131,7 +141,90 @@ void main() {
       // One overdue; three of the five open items fall inside seven days; the
       // undated one is open but lands in neither bucket.
       expect(find.text('1 OVERDUE · 3 DUE WITHIN 7 DAYS · 5 OPEN'), findsOne);
+    }, seed: _seed());
 
+    appTest('shows the next three deadlines, soonest first', (
+      tester,
+      store,
+    ) async {
+      expect(find.text('NEXT UP'), findsOne);
+      expect(find.text('Reaction mechanisms problem set'), findsOne);
+      expect(find.text('Comparative essay'), findsOne);
+      expect(find.text('Regression assignment'), findsOne);
+
+      // Three, not everything: the full list is a tab away.
+      expect(find.text('Lab report titration'), findsNothing);
+      // Undated work cannot be counted down, so it is not a next submission
+      // however long it has been sitting there.
+      expect(find.text('Read chapters 4-6'), findsNothing);
+      // Nor is submitted work.
+      expect(find.text('Week 3 problem set'), findsNothing);
+    }, seed: _seed());
+
+    appTest('pairs each deadline with its task progress', (
+      tester,
+      store,
+    ) async {
+      // "Two days, nothing done" is the alarming combination, and a date on
+      // its own hides it.
+      expect(find.text('1/2 tasks'), findsOne);
+      expect(find.text('no tasks'), findsExactly(2));
+    }, seed: _seed());
+
+    appTest('summarises today and names the next action', (
+      tester,
+      store,
+    ) async {
+      final a = store.items.firstWhere((x) => x.id == 'a1');
+      store.setTaskMinutes(a.tasks.last, 45);
+      await tester.pumpAndSettle();
+
+      expect(find.text('About 45m today'), findsOne);
+      expect(find.text('NEXT · Q6-Q10'), findsOne);
+    }, seed: _seed());
+
+    appTest('opening today jumps to the Today tab', (tester, store) async {
+      await tester.tap(find.bySemanticsLabel(RegExp(r'tap to open Today$')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('TODAY'), findsWidgets);
+      expect(find.text('Q6-Q10'), findsOne);
+    }, seed: _seed());
+
+    appTest('a deadline taps through to its card', (tester, store) async {
+      await tester.tap(
+        find.bySemanticsLabel(RegExp(r'^Comparative essay, Medieval History')),
+      );
+      await tester.pumpAndSettle();
+
+      // On Assignments now, with that card expanded.
+      expect(find.widgetWithText(TextField, 'Add a task'), findsOne);
+      expect(find.text('MARK SUBMITTED'), findsOne);
+    }, seed: _seed());
+
+    appTest('stays quiet about grades until something is weighted', (
+      tester,
+      store,
+    ) async {
+      expect(find.textContaining('AVERAGING'), findsNothing);
+
+      final a = store.items.firstWhere((x) => x.id == 'a1');
+      store.setMarks(a, weight: 40, earned: 30, outOf: 40);
+      await tester.pumpAndSettle();
+      expect(find.text('1 UNIT TRACKED · AVERAGING 75%'), findsOne);
+    }, seed: _seed());
+
+    appTest('the empty state explains itself', (tester, store) async {
+      expect(find.text('Nothing with a deadline'), findsOne);
+      expect(find.text('Nothing to pick up'), findsOne);
+    });
+  });
+
+  group('assignments', () {
+    appTest('lists every open assignment behind its own tab', (
+      tester,
+      store,
+    ) async {
       expect(find.text('OPEN (5)'), findsOne);
       expect(find.text('SUBMITTED (1)'), findsOne);
 
@@ -140,7 +233,7 @@ void main() {
       expect(find.text('Read chapters 4-6'), findsOne);
       // Submitted work is behind the other tab.
       expect(find.text('Week 3 problem set'), findsNothing);
-    }, seed: _seed());
+    }, seed: _seed(), tab: 'Assignments');
 
     appTest('sorts soonest first and puts undated work last', (
       tester,
@@ -162,25 +255,22 @@ void main() {
 
       expect(rendered.first, 'Reaction mechanisms problem set');
       expect(rendered.last, 'Read chapters 4-6');
-    }, seed: _seed());
+    }, seed: _seed(), tab: 'Assignments');
 
     appTest('countdowns read as words, not raw dates', (tester, store) async {
       expect(find.text('2 DAYS LATE'), findsOne);
       expect(find.text('TOMORROW'), findsOne);
       expect(find.text('NO DATE'), findsOne);
-    }, seed: _seed());
+    }, seed: _seed(), tab: 'Assignments');
 
     appTest('the empty state explains itself', (tester, store) async {
       expect(find.text('Nothing tracked yet'), findsOne);
       expect(find.text('OPEN (0)'), findsOne);
       // No subjects means no filter chips at all.
       expect(find.textContaining('ALL '), findsNothing);
-    });
+    }, tab: 'Assignments');
 
-    appTest('subject chips filter the list but not the horizon', (
-      tester,
-      store,
-    ) async {
+    appTest('subject chips filter the list', (tester, store) async {
       expect(find.text('ORGANIC CHEMISTRY 2'), findsOne);
       await tester.tap(find.text('ORGANIC CHEMISTRY 2'));
       await tester.pumpAndSettle();
@@ -192,7 +282,7 @@ void main() {
       await tester.tap(find.text('ALL 5'));
       await tester.pumpAndSettle();
       expect(find.text('Comparative essay'), findsOne);
-    }, seed: _seed());
+    }, seed: _seed(), tab: 'Assignments');
 
     appTest('the submitted tab shows finished work', (tester, store) async {
       await tester.tap(find.text('SUBMITTED (1)'));
@@ -201,7 +291,7 @@ void main() {
       expect(find.text('Week 3 problem set'), findsOne);
       expect(find.text('SUBMITTED'), findsOne);
       expect(find.text('Comparative essay'), findsNothing);
-    }, seed: _seed());
+    }, seed: _seed(), tab: 'Assignments');
   });
 
   group('the horizon strip', () {
@@ -291,18 +381,27 @@ void main() {
       expect(find.textContaining('SHOW ALL'), findsOne);
     }, seed: _seed());
 
-    appTest('tapping the same day again clears it', (tester, store) async {
-      final label =
-          '2 due ${longDate(isoIn(4))}, tap to show only these';
-      await tester.tap(find.bySemanticsLabel(label));
+    appTest('picking another day re-filters rather than stacking', (
+      tester,
+      store,
+    ) async {
+      // The strip lives on Home and holds no selection of its own, so there is
+      // no "tap it again to clear" any more — going back and picking a
+      // different day has to replace the filter, not add to it.
+      await tester.tap(
+        find.bySemanticsLabel('2 due ${longDate(isoIn(4))}, tap to show only these'),
+      );
       await tester.pumpAndSettle();
       expect(find.text('Comparative essay'), findsNothing);
 
+      await goTo(tester, 'Home');
       await tester.tap(
-        find.bySemanticsLabel('Clear the filter on ${longDate(isoIn(4))}'),
+        find.bySemanticsLabel('1 due ${longDate(isoIn(1))}, tap to show only these'),
       );
       await tester.pumpAndSettle();
+
       expect(find.text('Comparative essay'), findsOne);
+      expect(find.text('Regression assignment'), findsNothing);
     }, seed: _seed());
 
     appTest('SHOW ALL clears the filter too', (tester, store) async {
@@ -350,15 +449,26 @@ void main() {
       tester,
       store,
     ) async {
-      // Filter to a subject, then to a day that subject has nothing on.
+      // The chips are on Assignments and the strip is on Home, so a filter
+      // that combines the two now spans both pages — and has to survive the
+      // trip.
+      await goTo(tester, 'Assignments');
+      // The chip row scrolls, and this one sits off the right edge of a phone.
+      // Tapping it unscrolled quietly hits nothing, which is how the previous
+      // version of this test passed while never applying the filter at all.
+      await tester.ensureVisible(find.text('STATISTICS 1'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('STATISTICS 1'));
       await tester.pumpAndSettle();
+
+      await goTo(tester, 'Home');
       await tester.tap(
         find.bySemanticsLabel('2 due ${longDate(isoIn(4))}, tap to show only these'),
       );
       await tester.pumpAndSettle();
 
       expect(find.text('Regression assignment'), findsOne);
+      expect(find.text('Lab report titration'), findsNothing);
     }, seed: _seed());
   });
 
@@ -373,7 +483,7 @@ void main() {
       expect(find.text('EDIT'), findsOne);
       // Calendar export is gone; reminders are scheduled notifications now.
       expect(find.text('REMIND ME'), findsNothing);
-    }, seed: _seed());
+    }, seed: _seed(), tab: 'Assignments');
 
     appTest('a task can be added and ticked', (tester, store) async {
       await tester.tap(find.text('Comparative essay'));
@@ -392,7 +502,7 @@ void main() {
 
       expect(essay.tasks.single.done, isTrue);
       expect(find.text('1/1'), findsOne);
-    }, seed: _seed());
+    }, seed: _seed(), tab: 'Assignments');
 
     appTest('a task can be removed', (tester, store) async {
       await tester.tap(find.text('Reaction mechanisms problem set'));
@@ -404,7 +514,7 @@ void main() {
       final a = store.items.firstWhere((x) => x.id == 'a1');
       expect(a.tasks.map((t) => t.text), ['Q1-Q5']);
       expect(find.text('Q6-Q10'), findsNothing);
-    }, seed: _seed());
+    }, seed: _seed(), tab: 'Assignments');
 
     appTest('marking submitted moves it to the other tab', (
       tester,
@@ -418,7 +528,7 @@ void main() {
       expect(store.items.firstWhere((a) => a.id == 'a2').done, isTrue);
       expect(find.text('OPEN (4)'), findsOne);
       expect(find.text('SUBMITTED (2)'), findsOne);
-    }, seed: _seed());
+    }, seed: _seed(), tab: 'Assignments');
 
     appTest('the subject can be reassigned from the card', (
       tester,
@@ -433,7 +543,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(store.items.firstWhere((a) => a.id == 'a2').subjectId, 's2');
-    }, seed: _seed());
+    }, seed: _seed(), tab: 'Assignments');
 
     appTest('deleting asks first, then removes it', (tester, store) async {
       await tester.tap(find.text('Comparative essay'));
@@ -455,7 +565,7 @@ void main() {
 
       expect(store.items.any((a) => a.id == 'a2'), isFalse);
       expect(find.text('Comparative essay'), findsNothing);
-    }, seed: _seed());
+    }, seed: _seed(), tab: 'Assignments');
   });
 
   group('subtasks', () {
@@ -469,7 +579,7 @@ void main() {
       await tester.tap(find.bySemanticsLabel('Q1-Q5, tap to add steps'));
       await tester.pumpAndSettle();
       expect(find.widgetWithText(TextField, 'Add a step'), findsOne);
-    }, seed: _seed());
+    }, seed: _seed(), tab: 'Assignments');
 
     appTest('a step can be added, ticked and removed', (tester, store) async {
       await tester.tap(find.text('Comparative essay'));
@@ -511,7 +621,7 @@ void main() {
       await tester.tap(find.bySemanticsLabel('Remove step Agree the topic'));
       await tester.pumpAndSettle();
       expect(task.subtasks, isEmpty);
-    }, seed: _seed());
+    }, seed: _seed(), tab: 'Assignments');
 
     appTest('a task with steps is not finished until they all are', (
       tester,
@@ -529,7 +639,7 @@ void main() {
       // stays finished; Q6-Q10 was not.
       expect(a.tasks.first.done, isTrue);
       expect(a.tasks.first.subtasks.every((s) => s.done), isTrue);
-    }, seed: _seed());
+    }, seed: _seed(), tab: 'Assignments');
 
     appTest('only one task shows its steps at a time', (tester, store) async {
       await tester.tap(find.text('Reaction mechanisms problem set'));
@@ -543,7 +653,7 @@ void main() {
       await tester.pumpAndSettle();
       // Still one: opening the second closed the first.
       expect(find.widgetWithText(TextField, 'Add a step'), findsOne);
-    }, seed: _seed());
+    }, seed: _seed(), tab: 'Assignments');
   });
 
   group('editing', () {
@@ -568,7 +678,7 @@ void main() {
         'Comparative essay - final',
       );
       expect(find.text('Comparative essay - final'), findsOne);
-    }, seed: _seed());
+    }, seed: _seed(), tab: 'Assignments');
 
     appTest('cancelling changes nothing', (tester, store) async {
       await tester.tap(find.text('Comparative essay'));
@@ -585,7 +695,7 @@ void main() {
         store.items.firstWhere((a) => a.id == 'a2').title,
         'Comparative essay',
       );
-    }, seed: _seed());
+    }, seed: _seed(), tab: 'Assignments');
 
     appTest('a due date can be cleared back to undated', (tester, store) async {
       await tester.tap(find.text('Comparative essay'));
@@ -600,7 +710,7 @@ void main() {
 
       expect(store.items.firstWhere((a) => a.id == 'a2').due, '');
       expect(find.text('NO DATE'), findsExactly(2));
-    }, seed: _seed());
+    }, seed: _seed(), tab: 'Assignments');
   });
 
   group('adding', () {
@@ -670,7 +780,7 @@ void main() {
       expect(find.text('SUBJECTS'), findsOne);
       expect(find.text('Organic Chemistry'), findsOne);
       expect(find.text('Medieval History'), findsOne);
-    }, seed: _seed(), size: const Size(430, 1600));
+    }, seed: _seed(), size: const Size(430, 2000), tab: 'Assignments');
 
     appTest('recolouring cycles through the palette', (tester, store) async {
       await tester.tap(find.text('MANAGE SUBJECTS'));
@@ -684,7 +794,7 @@ void main() {
 
       expect(store.subjects.first.color, isNot(before));
       expect(kPalette, contains(store.subjects.first.color));
-    }, seed: _seed(), size: const Size(430, 1600));
+    }, seed: _seed(), size: const Size(430, 2000), tab: 'Assignments');
 
     appTest('deleting a subject unfiles its work instead of losing it', (
       tester,
@@ -705,32 +815,31 @@ void main() {
       expect(store.items.firstWhere((a) => a.id == 'a1').subjectId, isNull);
       expect(store.items.firstWhere((a) => a.id == 'a4').subjectId, isNull);
       expect(find.text('Reaction mechanisms problem set'), findsOne);
-    }, seed: _seed(), size: const Size(430, 1600));
+    }, seed: _seed(), size: const Size(430, 2000), tab: 'Assignments');
   });
 
-  group('backup screen', () {
-    appTest('opens and offers import, export and reminders', (
+  group('settings', () {
+    appTest('gathers sync, reminders, backup and updates on one page', (
       tester,
       store,
     ) async {
-      await tester.tap(find.text('BACKUP & REMINDERS'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Backup'), findsOne);
+      expect(find.text('Settings'), findsOne);
+      // Sync and backup used to be two separate pushed pages, so the two
+      // halves of "where does my data live" were never visible at once. With
+      // no Firebase project configured the sync section says so, which is
+      // still proof it is on this page.
+      expect(find.text('NOT CONFIGURED'), findsOne);
       expect(find.text('EXPORT'), findsOne);
       expect(find.text('IMPORT'), findsOne);
       expect(find.text('REMINDERS'), findsOne);
       expect(find.text('SAVE .JSON FILE'), findsOne);
       expect(find.text('CLEAR ALL DATA'), findsOne);
-    }, seed: _seed(), size: const Size(430, 1600));
+    }, seed: _seed(), size: const Size(430, 2000), tab: 'Settings');
 
     appTest('pasting a backup and merging brings the work in', (
       tester,
       store,
     ) async {
-      await tester.tap(find.text('BACKUP & REMINDERS'));
-      await tester.pumpAndSettle();
-
       await tester.enterText(find.byType(TextField).last, _seed());
       await tester.pumpAndSettle();
 
@@ -739,12 +848,9 @@ void main() {
 
       expect(store.items.length, 6);
       expect(store.subjects.length, 3);
-    }, size: const Size(430, 1600));
+    }, size: const Size(430, 2000), tab: 'Settings');
 
     appTest('clearing everything asks first', (tester, store) async {
-      await tester.tap(find.text('BACKUP & REMINDERS'));
-      await tester.pumpAndSettle();
-
       await tester.tap(find.text('CLEAR ALL DATA'));
       await tester.pumpAndSettle();
       expect(find.text('Erase everything?'), findsOne);
@@ -760,7 +866,7 @@ void main() {
 
       expect(store.items, isEmpty);
       expect(store.subjects, isEmpty);
-    }, seed: _seed(), size: const Size(430, 1600));
+    }, seed: _seed(), size: const Size(430, 2000), tab: 'Settings');
   });
 
   group('marks', () {
@@ -778,7 +884,7 @@ void main() {
       // Once a result is in it is the only thing left worth reading, so it
       // takes the countdown's slot rather than adding a line.
       expect(find.text('34/40 · 85%'), findsOne);
-    }, seed: _seed());
+    }, seed: _seed(), tab: 'Assignments');
 
     appTest('marks can be entered from the edit sheet', (tester, store) async {
       await tester.tap(find.text('Comparative essay'));
@@ -799,7 +905,7 @@ void main() {
       final a = store.items.firstWhere((x) => x.id == 'a2');
       expect(a.weight, 25);
       expect(a.contribution, closeTo(22.5, 1e-9));
-    }, seed: _seed());
+    }, seed: _seed(), tab: 'Assignments');
 
     appTest('a task carries marks and an estimate', (tester, store) async {
       await tester.tap(find.text('Reaction mechanisms problem set'));
@@ -822,7 +928,7 @@ void main() {
       await tester.tap(find.bySemanticsLabel('Clear the 1h estimate'));
       await tester.pumpAndSettle();
       expect(t.minutes, isNull);
-    }, seed: _seed());
+    }, seed: _seed(), tab: 'Assignments');
 
     appTest('the grades page reports where a unit stands', (
       tester,
@@ -832,9 +938,6 @@ void main() {
       store.setMarks(a, weight: 50.0, earned: 40.0, outOf: 50.0);
       await tester.pumpAndSettle();
 
-      await tester.tap(find.bySemanticsLabel('Grades'));
-      await tester.pumpAndSettle();
-
       expect(find.text('80%'), findsOne, reason: 'average across what is in');
       // Half the unit is untracked, which every projection depends on.
       expect(find.textContaining('50% of this unit'), findsOne);
@@ -842,7 +945,7 @@ void main() {
       // arithmetic rather than truth, so the table is withheld.
       expect(find.text('TO FINISH ON'), findsNothing);
       expect(find.text('GONE'), findsNothing);
-    }, seed: _seed());
+    }, seed: _seed(), tab: 'Grades');
 
     appTest('projects the rest once a whole unit is weighted', (
       tester,
@@ -860,13 +963,10 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.bySemanticsLabel('Grades'));
-      await tester.pumpAndSettle();
-
       expect(find.text('TO FINISH ON'), findsOne);
       // 30 secured with 60% of the unit left: (50 - 30) / 60 = 33.3%.
       expect(find.text('33.3%'), findsOne);
-    }, seed: _seed());
+    }, seed: _seed(), tab: 'Grades');
   });
 
   group('today', () {
@@ -889,7 +989,7 @@ void main() {
         isTrue,
       );
       expect(find.text('Q6-Q10'), findsNothing, reason: 'it is done now');
-    }, seed: _seed());
+    }, seed: _seed(), tab: 'Assignments');
 
     appTest('totals the day once tasks are estimated', (tester, store) async {
       final a = store.items.firstWhere((x) => x.id == 'a1');
@@ -899,7 +999,7 @@ void main() {
       await tester.tap(find.bySemanticsLabel('Today'));
       await tester.pumpAndSettle();
       expect(find.text('About 1h 30m today'), findsOne);
-    }, seed: _seed());
+    }, seed: _seed(), tab: 'Assignments');
 
     appTest('names the next step when a task has been broken down', (
       tester,
@@ -917,7 +1017,7 @@ void main() {
         find.text('Q6-Q10 · REACTION MECHANISMS PROBLEM SET'),
         findsOne,
       );
-    }, seed: _seed());
+    }, seed: _seed(), tab: 'Assignments');
 
     appTest('opening a planned task jumps to its card', (tester, store) async {
       await tester.tap(find.bySemanticsLabel('Today'));
@@ -931,7 +1031,7 @@ void main() {
       // Back on Open, with that card expanded — its tasks are on screen.
       expect(find.text('Q1-Q5'), findsOne);
       expect(find.widgetWithText(TextField, 'Add a task'), findsOne);
-    }, seed: _seed());
+    }, seed: _seed(), tab: 'Assignments');
 
     appTest('says so when there is nothing to pace', (tester, store) async {
       await tester.tap(find.bySemanticsLabel('Today'));
@@ -941,7 +1041,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('No tasks yet'), findsOne);
-    }, seed: _seed());
+    }, seed: _seed(), tab: 'Assignments');
   });
 
   group('layout', () {
@@ -965,7 +1065,7 @@ void main() {
         await tester.tap(find.text('Reaction mechanisms problem set'));
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
-      }, seed: _seed(), size: size);
+      }, seed: _seed(), size: size, tab: 'Assignments');
     }
 
     appTest('the add panel survives a narrow phone', (tester, store) async {

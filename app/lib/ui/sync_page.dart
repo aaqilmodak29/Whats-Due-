@@ -6,16 +6,16 @@ import '../theme.dart';
 import 'atoms.dart';
 
 /// Sign-in, sync status, and conflict resolution.
-class SyncPage extends StatefulWidget {
-  const SyncPage({super.key, required this.store});
+class SyncSection extends StatefulWidget {
+  const SyncSection({super.key, required this.store});
 
   final AppStore store;
 
   @override
-  State<SyncPage> createState() => _SyncPageState();
+  State<SyncSection> createState() => _SyncSectionState();
 }
 
-class _SyncPageState extends State<SyncPage> {
+class _SyncSectionState extends State<SyncSection> {
   final _email = TextEditingController();
   final _password = TextEditingController();
   bool _signUp = false;
@@ -55,52 +55,22 @@ class _SyncPageState extends State<SyncPage> {
   Widget build(BuildContext context) {
     final engine = sync;
 
-    return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 620),
-            child: ListenableBuilder(
-              listenable: engine ?? Listenable.merge([]),
-              builder: (context, _) => ListView(
-                padding: const EdgeInsets.fromLTRB(16, 20, 16, 48),
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Eyebrow('Coursework'),
-                            const SizedBox(height: 3),
-                            Text('Sync', style: T.h1),
-                          ],
-                        ),
-                      ),
-                      IconSquare(
-                        icon: Icons.close,
-                        open: true,
-                        semanticLabel: 'Close',
-                        onPressed: () => Navigator.of(context).pop(),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-
-                  if (engine == null || !engine.isConfigured)
-                    _notConfigured()
-                  else if (engine.status == SyncStatus.conflict)
-                    _conflictPanel(engine)
-                  else if (!engine.isSignedIn)
-                    _signInPanel(engine)
-                  else
-                    _signedInPanel(engine),
-                ],
-              ),
-            ),
-          ),
-        ),
+    // Keeps its own listenable: the engine reports progress and failures
+    // outside the store's mutate-save-notify cycle, so the surrounding page
+    // does not rebuild when a push finishes.
+    return ListenableBuilder(
+      listenable: engine ?? Listenable.merge([]),
+      builder: (context, _) => Column(
+        children: [
+          if (engine == null || !engine.isConfigured)
+            _notConfigured()
+          else if (engine.status == SyncStatus.conflict)
+            _conflictPanel(engine)
+          else if (!engine.isSignedIn)
+            _signInPanel(engine)
+          else
+            _signedInPanel(engine),
+        ],
       ),
     );
   }

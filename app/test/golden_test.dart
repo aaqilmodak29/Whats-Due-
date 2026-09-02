@@ -170,6 +170,13 @@ Future<AppStore> _boot(WidgetTester tester, Size size, {String? seed}) async {
 /// these fail on any day but the one they were captured on.
 final _fixedNow = DateTime(2026, 8, 6, 12);
 
+/// Taps a bottom-nav destination. Goldens run without a semantics handle, so
+/// this matches the visible label rather than the screen-reader one.
+Future<void> _goTo(WidgetTester tester, String label) async {
+  await tester.tap(find.text(label.toUpperCase()).last);
+  await tester.pumpAndSettle();
+}
+
 void main() {
   setUpAll(() async {
     clock = () => _fixedNow;
@@ -178,8 +185,17 @@ void main() {
 
   tearDownAll(() => clock = DateTime.now);
 
+  testWidgets('phone, home', (tester) async {
+    await _boot(tester, const Size(430, 932), seed: _seed());
+    await expectLater(
+      find.byType(WhatsDueApp),
+      matchesGoldenFile('goldens/phone-home.png'),
+    );
+  });
+
   testWidgets('phone, list', (tester) async {
     await _boot(tester, const Size(430, 932), seed: _seed());
+    await _goTo(tester, 'Assignments');
     await expectLater(
       find.byType(WhatsDueApp),
       matchesGoldenFile('goldens/phone-list.png'),
@@ -188,6 +204,7 @@ void main() {
 
   testWidgets('phone, card expanded', (tester) async {
     await _boot(tester, const Size(430, 932), seed: _seed());
+    await _goTo(tester, 'Assignments');
     await tester.tap(find.text('Comparative essay'));
     await tester.pumpAndSettle();
     await expectLater(
@@ -198,6 +215,7 @@ void main() {
 
   testWidgets('phone, task steps open', (tester) async {
     final store = await _boot(tester, const Size(430, 932), seed: _seed());
+    await _goTo(tester, 'Assignments');
     await tester.tap(find.text('Comparative essay'));
     await tester.pumpAndSettle();
 
@@ -229,7 +247,8 @@ void main() {
     store.addTask(a2, 'Find a third source');
     await tester.pumpAndSettle();
 
-    await tester.tap(find.bySemanticsLabel('Today'));
+    await _goTo(tester, 'Assignments');
+    await tester.tap(find.text('TODAY'));
     await tester.pumpAndSettle();
     await expectLater(
       find.byType(WhatsDueApp),
@@ -251,15 +270,7 @@ void main() {
     store.setMarks(store.items.firstWhere((a) => a.id == 'a3'), weight: 25);
     await tester.pumpAndSettle();
 
-    // The footer link is below the fold, and a ListView does not build what it
-    // has not scrolled to.
-    await tester.scrollUntilVisible(
-      find.text('GRADES'),
-      300,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.tap(find.text('GRADES'));
-    await tester.pumpAndSettle();
+    await _goTo(tester, 'Grades');
     await expectLater(
       find.byType(MaterialApp),
       matchesGoldenFile('goldens/phone-grades.png'),
@@ -286,27 +297,21 @@ void main() {
 
   testWidgets('desktop, list', (tester) async {
     await _boot(tester, const Size(1100, 900), seed: _seed());
+    await _goTo(tester, 'Assignments');
     await expectLater(
       find.byType(WhatsDueApp),
       matchesGoldenFile('goldens/desktop-list.png'),
     );
   });
 
-  testWidgets('phone, backup screen', (tester) async {
-    await _boot(tester, const Size(430, 932), seed: _seed());
-    // The footer sits below the fold on a phone once there is real data in the
-    // list, so it has to be scrolled to before it can be tapped.
-    await tester.scrollUntilVisible(
-      find.text('BACKUP & REMINDERS'),
-      300,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('BACKUP & REMINDERS'));
-    await tester.pumpAndSettle();
+  testWidgets('phone, settings', (tester) async {
+    // Tall, so the whole merged page is in one snapshot: sync, reminders,
+    // backup, restore, updates and erasing used to be spread over two screens.
+    await _boot(tester, const Size(430, 2000), seed: _seed());
+    await _goTo(tester, 'Settings');
     await expectLater(
       find.byType(WhatsDueApp),
-      matchesGoldenFile('goldens/phone-backup.png'),
+      matchesGoldenFile('goldens/phone-settings.png'),
     );
   });
 }
