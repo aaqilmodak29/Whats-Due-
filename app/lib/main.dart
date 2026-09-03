@@ -80,16 +80,21 @@ class _WhatsDueAppState extends State<WhatsDueApp>
   }
 
   @override
-  Widget build(BuildContext context) => MaterialApp(
-    title: "What's due",
-    debugShowCheckedModeBanner: false,
-    theme: buildTheme(),
-    // One listenable at the root rebuilds the whole tree on any mutation. The
-    // lists are tens of items, so this is imperceptible, and it keeps the web
-    // app's `mutate → save → render` model intact.
-    home: ListenableBuilder(
-      listenable: widget.store,
-      builder: (context, _) => AppShell(store: widget.store),
-    ),
-  );
+  Widget build(BuildContext context) =>
+      // One listenable at the root rebuilds the whole tree on any mutation. The
+      // lists are tens of items, so this is imperceptible, and it keeps the web
+      // app's `mutate → save → render` model intact.
+      //
+      // The MaterialApp is inside the builder, not outside it: `buildTheme()`
+      // reads the palette in force, so a theme built once would keep its
+      // original colours after a swap.
+      ListenableBuilder(
+        listenable: widget.store,
+        builder: (context, _) => MaterialApp(
+          title: "What's due",
+          debugShowCheckedModeBanner: false,
+          theme: buildTheme(),
+          home: AppShell(store: widget.store),
+        ),
+      );
 }

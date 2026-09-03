@@ -88,6 +88,7 @@ void appTest(
   String? seed,
   Size size = const Size(430, 932),
   String? tab,
+  bool dark = false,
 }) {
   testWidgets(description, (tester) async {
     tester.view.devicePixelRatio = 1.0;
@@ -96,15 +97,16 @@ void appTest(
 
     final semantics = tester.ensureSemantics();
     try {
-      SharedPreferences.setMockInitialValues(
-        seed == null ? {} : {AppStore.storageKey: seed},
-      );
+      SharedPreferences.setMockInitialValues({
+        AppStore.storageKey: ?seed,
+        if (dark) 'coursework:dark': true,
+      });
       final store = AppStore();
       await store.init();
       await tester.pumpWidget(WhatsDueApp(store: store));
       await tester.pumpAndSettle();
-      // The app opens on Home, so anything testing another destination has to
-      // say which one rather than assuming the list is on screen.
+      // The app opens on Assignments; anything testing another destination has
+      // to name it rather than assuming that page is on screen.
       if (tab != null) await goTo(tester, tab);
       await body(tester, store);
     } finally {
@@ -114,8 +116,15 @@ void appTest(
 }
 
 /// Taps a bottom-nav destination by the label a screen reader would announce.
+///
+/// Matches the current-page label too, so a test can name the destination it
+/// needs without caring which one the app happens to open on.
 Future<void> goTo(WidgetTester tester, String label) async {
-  await tester.tap(find.bySemanticsLabel('Go to $label'));
+  await tester.tap(
+    find.bySemanticsLabel(
+      RegExp('^(Go to $label|$label, current page)\$'),
+    ),
+  );
   await tester.pumpAndSettle();
 }
 
@@ -130,7 +139,7 @@ Finder dialogField() => find
     .first;
 
 void main() {
-  group('home', () {
+  group('assignments', () {
     appTest('leads with the wordmark and the triage line', (
       tester,
       store,
@@ -143,84 +152,6 @@ void main() {
       expect(find.text('1 OVERDUE · 3 DUE WITHIN 7 DAYS · 5 OPEN'), findsOne);
     }, seed: _seed());
 
-    appTest('shows the next three deadlines, soonest first', (
-      tester,
-      store,
-    ) async {
-      expect(find.text('NEXT UP'), findsOne);
-      expect(find.text('Reaction mechanisms problem set'), findsOne);
-      expect(find.text('Comparative essay'), findsOne);
-      expect(find.text('Regression assignment'), findsOne);
-
-      // Three, not everything: the full list is a tab away.
-      expect(find.text('Lab report titration'), findsNothing);
-      // Undated work cannot be counted down, so it is not a next submission
-      // however long it has been sitting there.
-      expect(find.text('Read chapters 4-6'), findsNothing);
-      // Nor is submitted work.
-      expect(find.text('Week 3 problem set'), findsNothing);
-    }, seed: _seed());
-
-    appTest('pairs each deadline with its task progress', (
-      tester,
-      store,
-    ) async {
-      // "Two days, nothing done" is the alarming combination, and a date on
-      // its own hides it.
-      expect(find.text('1/2 tasks'), findsOne);
-      expect(find.text('no tasks'), findsExactly(2));
-    }, seed: _seed());
-
-    appTest('summarises today and names the next action', (
-      tester,
-      store,
-    ) async {
-      final a = store.items.firstWhere((x) => x.id == 'a1');
-      store.setTaskMinutes(a.tasks.last, 45);
-      await tester.pumpAndSettle();
-
-      expect(find.text('About 45m today'), findsOne);
-      expect(find.text('NEXT · Q6-Q10'), findsOne);
-    }, seed: _seed());
-
-    appTest('opening today jumps to the Today tab', (tester, store) async {
-      await tester.tap(find.bySemanticsLabel(RegExp(r'tap to open Today$')));
-      await tester.pumpAndSettle();
-
-      expect(find.text('TODAY'), findsWidgets);
-      expect(find.text('Q6-Q10'), findsOne);
-    }, seed: _seed());
-
-    appTest('a deadline taps through to its card', (tester, store) async {
-      await tester.tap(
-        find.bySemanticsLabel(RegExp(r'^Comparative essay, Medieval History')),
-      );
-      await tester.pumpAndSettle();
-
-      // On Assignments now, with that card expanded.
-      expect(find.widgetWithText(TextField, 'Add a task'), findsOne);
-      expect(find.text('MARK SUBMITTED'), findsOne);
-    }, seed: _seed());
-
-    appTest('stays quiet about grades until something is weighted', (
-      tester,
-      store,
-    ) async {
-      expect(find.textContaining('AVERAGING'), findsNothing);
-
-      final a = store.items.firstWhere((x) => x.id == 'a1');
-      store.setMarks(a, weight: 40, earned: 30, outOf: 40);
-      await tester.pumpAndSettle();
-      expect(find.text('1 UNIT TRACKED · AVERAGING 75%'), findsOne);
-    }, seed: _seed());
-
-    appTest('the empty state explains itself', (tester, store) async {
-      expect(find.text('Nothing with a deadline'), findsOne);
-      expect(find.text('Nothing to pick up'), findsOne);
-    });
-  });
-
-  group('assignments', () {
     appTest('lists every open assignment behind its own tab', (
       tester,
       store,
@@ -381,27 +312,19 @@ void main() {
       expect(find.textContaining('SHOW ALL'), findsOne);
     }, seed: _seed());
 
-    appTest('picking another day re-filters rather than stacking', (
-      tester,
-      store,
-    ) async {
-      // The strip lives on Home and holds no selection of its own, so there is
-      // no "tap it again to clear" any more — going back and picking a
-      // different day has to replace the filter, not add to it.
-      await tester.tap(
-        find.bySemanticsLabel('2 due ${longDate(isoIn(4))}, tap to show only these'),
-      );
+    appTest('tapping the same day again clears it', (tester, store) async {
+      // The strip sits on the page it filters, so it holds the selection and
+      // the same column is the way back out.
+      final label = '2 due ${longDate(isoIn(4))}, tap to show only these';
+      await tester.tap(find.bySemanticsLabel(label));
       await tester.pumpAndSettle();
       expect(find.text('Comparative essay'), findsNothing);
 
-      await goTo(tester, 'Home');
       await tester.tap(
-        find.bySemanticsLabel('1 due ${longDate(isoIn(1))}, tap to show only these'),
+        find.bySemanticsLabel('Clear the filter on ${longDate(isoIn(4))}'),
       );
       await tester.pumpAndSettle();
-
       expect(find.text('Comparative essay'), findsOne);
-      expect(find.text('Regression assignment'), findsNothing);
     }, seed: _seed());
 
     appTest('SHOW ALL clears the filter too', (tester, store) async {
@@ -449,19 +372,14 @@ void main() {
       tester,
       store,
     ) async {
-      // The chips are on Assignments and the strip is on Home, so a filter
-      // that combines the two now spans both pages — and has to survive the
-      // trip.
-      await goTo(tester, 'Assignments');
       // The chip row scrolls, and this one sits off the right edge of a phone.
-      // Tapping it unscrolled quietly hits nothing, which is how the previous
+      // Tapping it unscrolled quietly hits nothing, which is how an earlier
       // version of this test passed while never applying the filter at all.
       await tester.ensureVisible(find.text('STATISTICS 1'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('STATISTICS 1'));
       await tester.pumpAndSettle();
 
-      await goTo(tester, 'Home');
       await tester.tap(
         find.bySemanticsLabel('2 due ${longDate(isoIn(4))}, tap to show only these'),
       );
@@ -1042,6 +960,69 @@ void main() {
 
       expect(find.text('No tasks yet'), findsOne);
     }, seed: _seed(), tab: 'Assignments');
+  });
+
+  group('dark mode', () {
+    // The palette is global mutable state, so a test that leaves it dark would
+    // silently change what every later test renders.
+    tearDown(() => C.palette = Palette.light);
+
+    appTest('the toggle swaps the palette and persists', (tester, store) async {
+      expect(C.isDark, isFalse);
+
+      await tester.tap(find.byType(Switch).first);
+      await tester.pumpAndSettle();
+
+      expect(store.darkMode, isTrue);
+      expect(C.isDark, isTrue);
+      expect(find.text('DARK'), findsOne);
+
+      // Survives a reload, which is the whole point of persisting it.
+      final reloaded = AppStore();
+      await reloaded.init();
+      expect(reloaded.darkMode, isTrue);
+      expect(C.isDark, isTrue);
+    }, seed: _seed(), tab: 'Settings');
+
+    appTest('the app actually repaints, rather than keeping a stale theme', (
+      tester,
+      store,
+    ) async {
+      // buildTheme() reads the palette in force, so a MaterialApp constructed
+      // outside the listenable would hold its original colours for ever.
+      final before = Theme.of(tester.element(find.byType(Switch).first));
+      expect(before.scaffoldBackgroundColor, Palette.light.paper);
+
+      await tester.tap(find.byType(Switch).first);
+      await tester.pumpAndSettle();
+
+      final after = Theme.of(tester.element(find.byType(Switch).first));
+      expect(after.scaffoldBackgroundColor, Palette.night.paper);
+      expect(after.brightness, Brightness.dark);
+    }, seed: _seed(), tab: 'Settings');
+
+    appTest('opens dark when it was left dark, with no flash of light', (
+      tester,
+      store,
+    ) async {
+      // The palette is applied during init, before the first frame.
+      expect(store.darkMode, isTrue);
+      expect(C.isDark, isTrue);
+      expect(
+        Theme.of(tester.element(find.text("What's due"))).brightness,
+        Brightness.dark,
+      );
+    }, seed: _seed(), dark: true);
+
+    test('what sits on ink and on the highlighter inverts with the palette', () {
+      // Reversing out to white would be invisible after dark, where ink is
+      // near-white; the highlighter does not move, so what sits on it does not
+      // either.
+      expect(Palette.light.onInk, const Color(0xFFFFFFFF));
+      expect(Palette.night.onInk, Palette.night.paper);
+      expect(Palette.light.mark, Palette.night.mark);
+      expect(Palette.light.onMark, Palette.night.onMark);
+    });
   });
 
   group('layout', () {

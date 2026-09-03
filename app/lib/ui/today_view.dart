@@ -64,7 +64,7 @@ class TodayView extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 13),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: C.card,
         border: Border(top: BorderSide(color: C.mark, width: 3)),
       ),

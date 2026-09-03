@@ -90,7 +90,7 @@ class _BackupSectionsState extends State<BackupSections> {
         backgroundColor: C.ink,
         behavior: SnackBarBehavior.floating,
         shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-        content: Text(message, style: T.eyebrow(Colors.white)),
+        content: Text(message, style: T.eyebrow(C.onInk)),
       ),
     );
   }
@@ -158,7 +158,7 @@ class _BackupSectionsState extends State<BackupSections> {
                         ),
                         Switch(
                           value: store.remindersEnabled,
-                          activeThumbColor: C.ink,
+                          activeThumbColor: C.onMark,
                           activeTrackColor: C.mark,
                           onChanged: (v) async {
                             if (v) await Reminders.requestPermission();

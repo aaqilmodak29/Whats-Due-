@@ -5,17 +5,20 @@ import '../theme.dart';
 import 'assignments_page.dart';
 import 'atoms.dart';
 import 'grades_page.dart';
-import 'home_landing.dart';
 import 'settings_page.dart';
 
-enum AppTab { home, assignments, grades, settings }
+enum AppTab { assignments, grades, settings }
 
-/// The four destinations, and the one Scaffold under all of them.
+/// The three destinations, and the one Scaffold under all of them.
 ///
-/// The Assignments view state lives here rather than inside that page, so Home
-/// can navigate into a particular view of it — a day from the horizon strip,
-/// the card behind a planned task — and so the page comes back as you left it
-/// when you switch tabs and return.
+/// Assignments is the landing page. A separate Home page existed briefly and
+/// was removed: every block on it either restated the list below it or was a
+/// door to somewhere the nav bar already went, so it cost a tap on launch and
+/// gave nothing back.
+///
+/// The Assignments view state lives here rather than inside that page so it
+/// survives switching tabs and coming back, and so the Today tab can open the
+/// card behind a planned task.
 class AppShell extends StatefulWidget {
   const AppShell({super.key, required this.store});
 
@@ -26,7 +29,7 @@ class AppShell extends StatefulWidget {
 }
 
 class _AppShellState extends State<AppShell> {
-  AppTab _tab = AppTab.home;
+  AppTab _tab = AppTab.assignments;
   AssignmentsView _assignments = const AssignmentsView();
 
   /// One controller per destination, so each keeps its own scroll position
@@ -45,11 +48,6 @@ class _AppShellState extends State<AppShell> {
     super.dispose();
   }
 
-  void _goToAssignments(AssignmentsView view) => setState(() {
-    _assignments = view;
-    _tab = AppTab.assignments;
-  });
-
   @override
   Widget build(BuildContext context) => Scaffold(
     // IndexedStack rather than a swap: every destination stays alive, so its
@@ -57,39 +55,12 @@ class _AppShellState extends State<AppShell> {
     body: IndexedStack(
       index: _tab.index,
       children: [
-        HomeLanding(
-          store: store,
-          controller: _controllers[AppTab.home]!,
-          onOpenAssignment: (a) => _goToAssignments(
-            _assignments.copyWith(
-              tab: AssignmentTab.open,
-              filter: filterAll,
-              openId: a.id,
-              clearSelectedDue: true,
-            ),
-          ),
-          onPickDay: (due) => _goToAssignments(
-            _assignments.copyWith(
-              tab: AssignmentTab.open,
-              selectedDue: due,
-              clearOpenId: true,
-            ),
-          ),
-          onOpenToday: () => _goToAssignments(
-            _assignments.copyWith(
-              tab: AssignmentTab.today,
-              clearSelectedDue: true,
-              clearOpenId: true,
-            ),
-          ),
-          onOpenGrades: () => setState(() => _tab = AppTab.grades),
-          onOpenSettings: () => setState(() => _tab = AppTab.settings),
-        ),
         AssignmentsPage(
           store: store,
           view: _assignments,
           controller: _controllers[AppTab.assignments]!,
           onView: (v) => setState(() => _assignments = v),
+          onOpenSettings: () => setState(() => _tab = AppTab.settings),
         ),
         GradesPage(
           store: store,
@@ -120,7 +91,6 @@ class _NavBar extends StatelessWidget {
   final ValueChanged<AppTab> onSelect;
 
   static const _items = <(AppTab, IconData, String)>[
-    (AppTab.home, Icons.dashboard_outlined, 'Home'),
     (AppTab.assignments, Icons.checklist_outlined, 'Assignments'),
     (AppTab.grades, Icons.insights_outlined, 'Grades'),
     (AppTab.settings, Icons.settings_outlined, 'Settings'),
@@ -128,7 +98,7 @@ class _NavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    decoration: const BoxDecoration(
+    decoration: BoxDecoration(
       color: C.card,
       border: Border(top: BorderSide(color: C.rule)),
     ),

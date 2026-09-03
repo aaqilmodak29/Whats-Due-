@@ -11,6 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:whats_due/main.dart';
 import 'package:whats_due/models.dart';
 import 'package:whats_due/store.dart';
+import 'package:whats_due/theme.dart';
 
 /// Rendered snapshots of the design.
 ///
@@ -150,14 +151,22 @@ String _seed() => jsonEncode({
   ],
 });
 
-Future<AppStore> _boot(WidgetTester tester, Size size, {String? seed}) async {
+Future<AppStore> _boot(
+  WidgetTester tester,
+  Size size, {
+  String? seed,
+  bool dark = false,
+}) async {
   tester.view.devicePixelRatio = 1.0;
   tester.view.physicalSize = size;
   addTearDown(tester.view.reset);
+  // The palette is global, so a dark snapshot must not leak into the next test.
+  addTearDown(() => C.palette = Palette.light);
 
-  SharedPreferences.setMockInitialValues(
-    seed == null ? {} : {AppStore.storageKey: seed},
-  );
+  SharedPreferences.setMockInitialValues({
+    AppStore.storageKey: ?seed,
+    if (dark) 'coursework:dark': true,
+  });
   final store = AppStore();
   await store.init();
   await tester.pumpWidget(WhatsDueApp(store: store));
@@ -184,14 +193,6 @@ void main() {
   });
 
   tearDownAll(() => clock = DateTime.now);
-
-  testWidgets('phone, home', (tester) async {
-    await _boot(tester, const Size(430, 932), seed: _seed());
-    await expectLater(
-      find.byType(WhatsDueApp),
-      matchesGoldenFile('goldens/phone-home.png'),
-    );
-  });
 
   testWidgets('phone, list', (tester) async {
     await _boot(tester, const Size(430, 932), seed: _seed());
@@ -301,6 +302,25 @@ void main() {
     await expectLater(
       find.byType(WhatsDueApp),
       matchesGoldenFile('goldens/desktop-list.png'),
+    );
+  });
+
+  testWidgets('phone, dark', (tester) async {
+    await _boot(tester, const Size(430, 932), seed: _seed(), dark: true);
+    await expectLater(
+      find.byType(WhatsDueApp),
+      matchesGoldenFile('goldens/phone-dark.png'),
+    );
+  });
+
+  testWidgets('phone, dark card expanded', (tester) async {
+    // The densest surface, where a missed colour pair would show up first.
+    await _boot(tester, const Size(430, 932), seed: _seed(), dark: true);
+    await tester.tap(find.text('Comparative essay'));
+    await tester.pumpAndSettle();
+    await expectLater(
+      find.byType(WhatsDueApp),
+      matchesGoldenFile('goldens/phone-dark-expanded.png'),
     );
   });
 

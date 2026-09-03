@@ -226,7 +226,7 @@ class UpdateBanner extends StatelessWidget {
           child: Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               color: C.mark,
               border: Border(left: BorderSide(color: C.ink, width: 6)),
             ),
