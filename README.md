@@ -241,29 +241,57 @@ shortcut. Its MSIX caveat applies only to querying and cancelling
 
 ## Getting around
 
-Four destinations in a bottom bar.
+Three destinations in a bottom bar.
 
 | | |
 |---|---|
-| **Home** | The glance. Triage counts, the 14-day strip, the next three deadlines, today's load, and a one-line grade summary. |
-| **Assignments** | The working list: subject chips, Manage subjects, and the Today / Open / Submitted tabs. |
+| **Assignments** | The landing page. Triage counts, the 14-day strip, subject chips, Manage subjects, and the Today / Open / Submitted tabs. |
 | **Grades** | Per-subject standing and what the rest has to average. |
-| **Settings** | Sync, version, reminders, export, import and erasing — one scroll. |
+| **Settings** | Appearance, sync, version, reminders, export, import and erasing — one scroll. |
 
-Home is read-only apart from the `+`: everything on it is a fact that changes
-daily or a warning, and nothing is there purely to navigate. The horizon strip
-lives there rather than on Assignments because it is a glance artifact, and
-tapping a day carries you to Assignments filtered to it rather than being
-duplicated on both.
+A separate Home page existed briefly and was removed. Every block on it either
+restated the list underneath it or was a door to somewhere the nav bar already
+went, so it cost a tap on every launch and gave nothing back. The strip, the
+update banner and the sync warning moved onto Assignments, which is where they
+were before and where the thing they filter actually lives.
 
 Sync and Backup used to be separate pages behind footer links, so the two halves
-of "where does my data live" were never visible at once — and a sync conflict
-was only discoverable by going looking for it. Settings is one page now, and
-Home raises a warning when sync needs attention.
+of "where does my data live" were never visible at once — and a sync conflict was
+only discoverable by going looking for it. Settings is one page now, and
+Assignments raises a warning when sync needs attention.
 
 The Assignments view state — which tab, which filter, which day, which card is
-open — is held by the shell rather than the page, so Home can navigate into a
-particular view of it and so the page comes back as you left it.
+open — is held by the shell rather than the page, so it survives switching tabs
+and coming back.
+
+---
+
+## Dark mode
+
+Toggled under **Settings → Appearance**, and remembered.
+
+The same design after dark rather than a different one: the roles keep their
+relationships, so a card still sits above the page and a rule still reads as a
+hairline. Red and green are lifted, because the light values are too dense
+against a dark ground. The highlighter does not move at all — it is the one
+saturated accent in the design and it carries enough contrast either way.
+
+Two token pairs exist precisely because they invert:
+
+* `onInk` — what sits on a filled ink surface. Ink is near-white after dark, so
+  reversing out to white would put white on white.
+* `onMark` — what sits on the highlighter. Always the dark ink, because the
+  highlighter itself never changes.
+
+`C.ink` and friends are getters over a swappable [`Palette`](app/lib/theme.dart),
+not constants. That is why almost nothing in the widget tree is `const` any
+more: a `const` colour is baked in at compile time and would keep its light
+value after a swap. It is global mutable state, which the rest of the codebase
+avoids — the alternative was threading a palette through several hundred call
+sites for a setting that changes a handful of times in the app's life.
+
+Deliberately a plain switch rather than following the system: the app is read in
+libraries and lecture theatres where the right answer often is not the phone's.
 
 ---
 
@@ -296,21 +324,36 @@ against a quarter of a unit every target computes as already lost.
 
 ## Home-screen widget
 
-Android only. Shows today's plan — the headline, up to three next actions with
-their countdowns and estimates, and a count of what did not fit.
+Android only. Shows everything due in the next seven days — up to four rows,
+each mirroring an Assignments card: urgency spine, subject, countdown, title,
+task fraction. When the week is clear it says *"No assignments due in the next 7
+days"*.
 
-The plan is computed in Dart and handed to the widget as flat strings; the
-Kotlin provider renders them and hides empty rows. It holds no scheduling logic
-of its own on purpose. The ranking is the opinionated part of the app, and two
-copies of it would drift until the widget and the Today tab disagreed.
+Overdue work is included even though it is not, strictly, due in the next week.
+It is the most urgent thing there is, and an assignment silently disappearing
+from the widget on the day it goes late would be the opposite of useful.
 
-The widget refreshes on every edit. `updatePeriodMillis` is set to 30 minutes as
-a backstop so the countdowns roll over at midnight without the app being opened;
-Android floors that value at 30 minutes however low it is set.
+The selection, ordering, countdown wording and urgency colour are all decided in
+Dart and handed over as flat strings; the Kotlin provider renders them and hides
+empty rows. It holds no rules of its own on purpose — the widget is meant to be a
+cut-down view of the Assignments list, and anything duplicated there would
+eventually disagree with the list it mirrors.
 
-Adding it: long-press the home screen → **Widgets** → *What's due*. It is 4×2
-cells by default and resizable. Before the app has ever run it shows "Open to
-see today" rather than an empty card.
+Every row slot is written on every push, including the empty ones. Omitting a key
+would leave the launcher rendering last week's deadline indefinitely.
+
+The widget follows the **system's** dark mode through `values-night`, not the
+app's own toggle: the launcher draws it, so it should sit against the home screen
+rather than against whatever the app was last set to. The spine colours are
+resolved against the light palette and read acceptably on either ground.
+
+It refreshes on every edit. `updatePeriodMillis` is 30 minutes as a backstop so
+the countdowns roll over at midnight without the app being opened; Android floors
+that value at 30 minutes however low it is set.
+
+Adding it: long-press the home screen → **Widgets** → *What's due*. It is 4×3
+cells by default and resizable. Before the app has ever run it shows "Open to see
+this week".
 
 ---
 
@@ -488,6 +531,7 @@ key, migrate forward, leave the old key in place as an accidental backup.
 - **Effort estimates and a Today plan**, which paces the day rather than
   listing deadlines.
 - **An Android home-screen widget** (see below).
+- **Dark mode** (see below).
 - **Import and export**, in both builds.
 - **Sync across devices** (see above).
 - Native window, native install, no hosting dependency, no cache-busting

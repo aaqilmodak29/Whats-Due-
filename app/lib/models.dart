@@ -304,11 +304,16 @@ String countdown(int? n) {
 }
 
 /// Days-until to colour. **The only place urgency thresholds live.**
-Color urgency(int? n) {
-  if (n == null) return C.muted;
-  if (n <= 2) return C.red;
-  if (n <= 6) return C.ink;
-  return C.muted;
+///
+/// [palette] overrides the one in force, which the home-screen widget needs: it
+/// is drawn by the launcher against its own ground, independently of whichever
+/// theme the app happens to be showing.
+Color urgency(int? n, [Palette? palette]) {
+  final p = palette ?? C.palette;
+  if (n == null) return p.muted;
+  if (n <= 2) return p.red;
+  if (n <= 6) return p.ink;
+  return p.muted;
 }
 
 const _weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];

@@ -1,13 +1,13 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:whats_due/models.dart';
-import 'package:whats_due/planner.dart';
+import 'package:whats_due/theme.dart';
 import 'package:whats_due/widget_bridge.dart';
 
 /// The payload handed to the Android widget.
 ///
-/// The Kotlin side is deliberately dumb — it renders strings and hides empty
-/// rows — so everything worth testing about the widget is testable here, on the
-/// Dart side, without a device.
+/// The Kotlin side is deliberately dumb — it renders strings, paints one colour
+/// and hides empty rows — so everything worth testing about the widget is
+/// testable here, on the Dart side, without a device.
 void main() {
   final fixedNow = DateTime(2026, 8, 6, 12);
   setUp(() => clock = () => fixedNow);
@@ -19,102 +19,140 @@ void main() {
     ),
   );
 
-  Assignment work(String id, int dueInDays, List<Task> tasks) => Assignment(
+  final subjects = [
+    Subject(id: 's1', name: 'Organic Chemistry', color: kPalette.first),
+  ];
+
+  Assignment work(
+    String id,
+    int dueInDays, {
+    bool done = false,
+    String? subjectId = 's1',
+    List<Task>? tasks,
+    String? title,
+  }) => Assignment(
     id: id,
-    title: 'Item $id',
-    due: inDays(dueInDays),
+    title: title ?? 'Item $id',
+    subjectId: subjectId,
+    due: dueInDays == 9999 ? '' : inDays(dueInDays),
+    done: done,
     tasks: tasks,
   );
 
-  test('fills every row slot, so stale text cannot survive a refresh', () {
-    // The provider hides a row on an empty string. Omitting the key instead
-    // would leave the launcher rendering yesterday's task forever.
-    final payload = WidgetBridge.buildPayload(
-      todayPlan([
-        work('a', 1, [Task(id: 't1', text: 'Only task')]),
-      ]),
-    );
-    for (var i = 0; i < WidgetBridge.rows; i++) {
-      expect(payload.containsKey('wd_t${i}_text'), isTrue);
-      expect(payload.containsKey('wd_t${i}_meta'), isTrue);
-    }
-    expect(payload['wd_t0_text'], 'Only task');
-    expect(payload['wd_t1_text'], '');
-    expect(payload['wd_t2_text'], '');
+  group('what the week contains', () {
+    test('takes only the next seven days', () {
+      final soon = WidgetBridge.dueSoon([
+        work('a', 3),
+        work('b', 7),
+        work('c', 8),
+        work('d', 30),
+      ]);
+      expect(soon.map((a) => a.id), ['a', 'b']);
+    });
+
+    test('keeps overdue work rather than dropping it on the day it goes late', () {
+      // Not "due in the next week" strictly, but it is the most urgent thing
+      // there is, and vanishing from the widget the moment it goes late would
+      // be the opposite of useful.
+      final soon = WidgetBridge.dueSoon([work('late', -4), work('soon', 2)]);
+      expect(soon.map((a) => a.id), ['late', 'soon']);
+    });
+
+    test('leaves out submitted and undated work', () {
+      final soon = WidgetBridge.dueSoon([
+        work('done', 2, done: true),
+        work('undated', 9999),
+        work('real', 2),
+      ]);
+      expect(soon.map((a) => a.id), ['real']);
+    });
+
+    test('sorts soonest first', () {
+      final soon = WidgetBridge.dueSoon([work('c', 6), work('a', 1), work('b', 3)]);
+      expect(soon.map((a) => a.id), ['a', 'b', 'c']);
+    });
   });
 
-  test('reports the total when the day is estimated', () {
-    final payload = WidgetBridge.buildPayload(
-      todayPlan([
-        work('a', 0, [
-          Task(id: 't1', text: 'One', minutes: 60),
-          Task(id: 't2', text: 'Two', minutes: 30),
-        ]),
-      ]),
-    );
-    expect(payload['wd_headline'], 'About 1h 30m today');
-  });
+  group('the payload', () {
+    test('carries what the Assignments card shows, in the same terms', () {
+      final payload = WidgetBridge.buildPayload([
+        work(
+          'a',
+          2,
+          title: 'Reaction mechanisms',
+          tasks: [
+            Task(id: 't1', text: 'Q1', done: true),
+            Task(id: 't2', text: 'Q2'),
+          ],
+        ),
+      ], subjects);
 
-  test('counts the work when nothing is estimated', () {
-    final payload = WidgetBridge.buildPayload(
-      todayPlan([
-        work('a', 1, [Task(id: 't1', text: 'One')]),
-        work('b', 2, [Task(id: 't2', text: 'Two')]),
-      ]),
-    );
-    expect(payload['wd_headline'], '2 things to pick up');
-  });
+      expect(payload['wd_t0_subject'], 'ORGANIC CHEMISTRY');
+      expect(payload['wd_t0_title'], 'Reaction mechanisms');
+      expect(payload['wd_t0_count'], '2 DAYS');
+      expect(payload['wd_t0_progress'], '1/2');
+    });
 
-  test('says how much is not shown', () {
-    // Three rows must not read as the whole day.
-    final payload = WidgetBridge.buildPayload(
-      todayPlan([
-        for (var i = 0; i < 6; i++)
-          work('a$i', 0, [Task(id: 't$i', text: 'Task $i', minutes: 30)]),
-      ]),
-    );
-    expect(payload['wd_count'], '6');
-    expect(payload['wd_more'], '3');
-  });
+    test('says so when an assignment has no tasks', () {
+      final payload = WidgetBridge.buildPayload([work('a', 2)], subjects);
+      expect(payload['wd_t0_progress'], 'NO TASKS');
+    });
 
-  test('carries the countdown and the estimate as the row meta', () {
-    final payload = WidgetBridge.buildPayload(
-      todayPlan([
-        work('a', 0, [Task(id: 't1', text: 'One', minutes: 45)]),
-      ]),
-    );
-    expect(payload['wd_t0_meta'], 'DUE TODAY · 45m');
-  });
+    test('falls back to Unfiled rather than an empty subject', () {
+      final payload = WidgetBridge.buildPayload([
+        work('a', 2, subjectId: null),
+      ], subjects);
+      expect(payload['wd_t0_subject'], 'UNFILED');
+    });
 
-  test('omits the estimate from the meta when there is none', () {
-    final payload = WidgetBridge.buildPayload(
-      todayPlan([
-        work('a', 1, [Task(id: 't1', text: 'One')]),
-      ]),
-    );
-    expect(payload['wd_t0_meta'], 'TOMORROW');
-  });
+    test('carries the urgency colour the card would paint', () {
+      final payload = WidgetBridge.buildPayload([
+        work('late', -1),
+        work('soon', 1),
+        work('later', 10),
+      ], subjects);
 
-  test('shows the next step rather than the task it sits under', () {
-    final payload = WidgetBridge.buildPayload(
-      todayPlan([
-        work('a', 1, [
-          Task(
-            id: 't1',
-            text: 'Part A',
-            subtasks: [SubTask(id: 's1', text: 'Draft the abstract')],
-          ),
-        ]),
-      ]),
-    );
-    expect(payload['wd_t0_text'], 'Draft the abstract');
-  });
+      // Overdue and imminent are red; the third is outside the week entirely.
+      expect(payload['wd_t0_spine'], '${C.red.toARGB32()}');
+      expect(payload['wd_t1_spine'], '${C.red.toARGB32()}');
+      expect(payload['wd_t2_title'], '');
+    });
 
-  test('an empty plan still produces a complete payload', () {
-    final payload = WidgetBridge.buildPayload(todayPlan([]));
-    expect(payload['wd_headline'], 'Nothing to pick up');
-    expect(payload['wd_count'], '0');
-    expect(payload['wd_more'], '0');
-    expect(payload['wd_t0_text'], '');
+    test('fills every row slot, so stale text cannot survive a refresh', () {
+      final payload = WidgetBridge.buildPayload([work('a', 2)], subjects);
+      for (var i = 0; i < WidgetBridge.rows; i++) {
+        for (final k in ['subject', 'title', 'count', 'progress', 'spine']) {
+          expect(payload.containsKey('wd_t${i}_$k'), isTrue, reason: 'wd_t${i}_$k');
+        }
+      }
+      expect(payload['wd_t1_title'], '');
+      expect(payload['wd_t1_spine'], '0');
+    });
+
+    test('says how much did not fit', () {
+      final payload = WidgetBridge.buildPayload([
+        for (var i = 0; i < 6; i++) work('a$i', i),
+      ], subjects);
+      expect(payload['wd_count'], '6');
+      expect(payload['wd_more'], '${6 - WidgetBridge.rows}');
+      expect(payload['wd_empty'], '');
+    });
+
+    test('an empty week says exactly that', () {
+      final payload = WidgetBridge.buildPayload([work('far', 30)], subjects);
+      expect(
+        payload['wd_empty'],
+        'No assignments due in the next 7 days',
+      );
+      expect(payload['wd_count'], '0');
+      expect(payload['wd_more'], '0');
+      expect(payload['wd_t0_title'], '');
+    });
+
+    test('an empty list still produces a complete payload', () {
+      final payload = WidgetBridge.buildPayload([], subjects);
+      expect(payload['wd_empty'], isNotEmpty);
+      expect(payload['wd_t0_title'], '');
+    });
   });
 }

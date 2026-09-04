@@ -123,7 +123,7 @@ class _AssignmentCardState extends State<AssignmentCard> {
               Tap(
                 onTap: () => store.deleteTask(a, t),
                 semanticLabel: 'Remove task ${t.text}',
-                child: const Padding(
+                child: Padding(
                   padding: EdgeInsets.all(3),
                   child: CloseGlyph(color: C.rule, size: 16),
                 ),
@@ -165,7 +165,7 @@ class _AssignmentCardState extends State<AssignmentCard> {
                 Tap(
                   onTap: () => store.deleteSubtask(t, s),
                   semanticLabel: 'Remove step ${s.text}',
-                  child: const Padding(
+                  child: Padding(
                     padding: EdgeInsets.all(3),
                     child: CloseGlyph(color: C.rule, size: 14),
                   ),
@@ -259,7 +259,7 @@ class _AssignmentCardState extends State<AssignmentCard> {
                   ),
                   child: Text(
                     formatMinutes(m),
-                    style: T.chip(t.minutes == m ? C.ink : C.muted),
+                    style: T.chip(t.minutes == m ? C.onMark : C.muted),
                   ),
                 ),
               ),
@@ -497,7 +497,7 @@ class _AssignmentCardState extends State<AssignmentCard> {
             Tap(
               onTap: _confirmDelete,
               semanticLabel: 'Delete assignment',
-              child: const Padding(
+              child: Padding(
                 padding: EdgeInsets.all(6),
                 child: Icon(
                   Icons.delete_outline,
@@ -566,7 +566,7 @@ class _Dialog extends StatelessWidget {
                   color: destructive ? C.red : C.ink,
                   child: Text(
                     confirmLabel.toUpperCase(),
-                    style: T.ghost(Colors.white),
+                    style: T.ghost(C.onInk),
                   ),
                 ),
               ),

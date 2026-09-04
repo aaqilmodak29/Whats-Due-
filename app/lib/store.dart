@@ -42,6 +42,7 @@ class AppStore extends ChangeNotifier {
   static const storageKey = 'coursework:v2';
   static const legacyKey = 'coursework:v1';
   static const _remindersKey = 'coursework:reminders';
+  static const _darkKey = 'coursework:dark';
 
   SharedPreferences? _prefs;
 
@@ -62,10 +63,21 @@ class AppStore extends ChangeNotifier {
 
   bool remindersEnabled = true;
 
+  /// Whether the dark palette is in force.
+  ///
+  /// Deliberately a plain choice rather than following the system: the app is
+  /// read in libraries and lecture theatres where the right answer often is not
+  /// the phone's, and one switch is easier to reason about than three states.
+  bool darkMode = false;
+
   Future<void> init() async {
     try {
       _prefs = await SharedPreferences.getInstance();
       remindersEnabled = _prefs!.getBool(_remindersKey) ?? true;
+      darkMode = _prefs!.getBool(_darkKey) ?? false;
+      // Applied before the first frame, so the app never opens light and then
+      // flips.
+      C.palette = darkMode ? Palette.night : Palette.light;
 
       final raw = _prefs!.getString(storageKey);
       if (raw != null) {
@@ -82,7 +94,7 @@ class AppStore extends ChangeNotifier {
     }
     notifyListeners();
     unawaited(_syncReminders());
-    unawaited(WidgetBridge.push(items));
+    unawaited(WidgetBridge.push(items, subjects));
   }
 
   // ---------------------------------------------------------------- decoding
@@ -151,7 +163,7 @@ class AppStore extends ChangeNotifier {
     }
     notifyListeners();
     unawaited(_syncReminders());
-    unawaited(WidgetBridge.push(items));
+    unawaited(WidgetBridge.push(items, subjects));
     // Stamps the change and schedules a debounced push. Local storage is
     // already written by this point, so a failed or absent sync never costs the
     // user their edit.
@@ -177,7 +189,7 @@ class AppStore extends ChangeNotifier {
     }
     notifyListeners();
     unawaited(_syncReminders());
-    unawaited(WidgetBridge.push(items));
+    unawaited(WidgetBridge.push(items, subjects));
   }
 
   /// Item count for an arbitrary payload, so a conflict can be described
@@ -370,6 +382,19 @@ class AppStore extends ChangeNotifier {
     subjects = [];
     items = [];
     _commit();
+  }
+
+  void setDarkMode(bool value) {
+    darkMode = value;
+    C.palette = value ? Palette.night : Palette.light;
+    try {
+      _prefs?.setBool(_darkKey, value);
+    } catch (e) {
+      debugPrint('Store: could not persist the theme — $e');
+    }
+    // Notifies without touching the coursework, so this never counts as an
+    // edit to sync or re-arms a reminder.
+    notifyListeners();
   }
 
   void setRemindersEnabled(bool value) {

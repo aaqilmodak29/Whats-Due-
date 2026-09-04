@@ -7,13 +7,15 @@ class Eyebrow extends StatelessWidget {
   const Eyebrow(
     this.text, {
     super.key,
-    this.color = C.muted,
+    this.color,
     this.upper = true,
     this.maxLines,
   });
 
   final String text;
-  final Color color;
+
+  /// Defaults to muted, resolved when built so a palette swap reaches it.
+  final Color? color;
 
   /// The CSS applies `text-transform:uppercase`; a couple of places override it
   /// back to sentence case for prose.
@@ -23,7 +25,7 @@ class Eyebrow extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Text(
     upper ? text.toUpperCase() : text,
-    style: T.eyebrow(color),
+    style: T.eyebrow(color ?? C.muted),
     maxLines: maxLines,
     overflow: maxLines == null ? null : TextOverflow.ellipsis,
   );
@@ -130,7 +132,10 @@ class GhostButton extends StatelessWidget {
         color: filled ? C.mark : Colors.transparent,
         border: Border.all(color: C.ink, width: 1.5),
       ),
-      child: Text(label.toUpperCase(), style: T.ghost()),
+      child: Text(
+        label.toUpperCase(),
+        style: T.ghost(filled ? C.onMark : C.ink),
+      ),
     ),
   );
 }
@@ -170,7 +175,7 @@ class IconSquare extends StatelessWidget {
         color: open ? Colors.transparent : C.ink,
         border: Border.all(color: C.ink, width: 1.5),
       ),
-      child: Icon(icon, size: 22, color: open ? C.ink : Colors.white),
+      child: Icon(icon, size: 22, color: open ? C.ink : C.onInk),
     ),
   );
 }
@@ -178,14 +183,14 @@ class IconSquare extends StatelessWidget {
 /// The small dismiss/remove affordance used in task rows, subject rows and the
 /// date field. A Material icon rather than a `✕` glyph — see [IconSquare].
 class CloseGlyph extends StatelessWidget {
-  const CloseGlyph({super.key, this.color = C.muted, this.size = 16});
+  const CloseGlyph({super.key, this.color, this.size = 16});
 
-  final Color color;
+  final Color? color;
   final double size;
 
   @override
   Widget build(BuildContext context) =>
-      Icon(Icons.close, size: size, color: color);
+      Icon(Icons.close, size: size, color: color ?? C.muted);
 }
 
 /// A text button rendered in eyebrow type — the footer links.
@@ -194,12 +199,12 @@ class EyebrowButton extends StatelessWidget {
     super.key,
     required this.label,
     required this.onPressed,
-    this.color = C.muted,
+    this.color,
   });
 
   final String label;
   final VoidCallback onPressed;
-  final Color color;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) => Tap(
@@ -207,7 +212,7 @@ class EyebrowButton extends StatelessWidget {
     semanticLabel: label,
     child: Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Eyebrow(label, color: color),
+      child: Eyebrow(label, color: color ?? C.muted),
     ),
   );
 }
@@ -221,15 +226,15 @@ InputDecoration fieldDecoration({String? hint, bool mono = false}) =>
       fillColor: C.field,
       isDense: true,
       contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
-      border: const OutlineInputBorder(
+      border: OutlineInputBorder(
         borderRadius: BorderRadius.zero,
         borderSide: BorderSide(color: C.rule),
       ),
-      enabledBorder: const OutlineInputBorder(
+      enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.zero,
         borderSide: BorderSide(color: C.rule),
       ),
-      focusedBorder: const OutlineInputBorder(
+      focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.zero,
         borderSide: BorderSide(color: C.ink, width: 2),
       ),
@@ -246,7 +251,7 @@ class PageBody extends StatelessWidget {
     required this.title,
     required this.children,
     this.eyebrow,
-    this.eyebrowColor = C.muted,
+    this.eyebrowColor,
     this.action,
     this.controller,
   });
@@ -254,7 +259,7 @@ class PageBody extends StatelessWidget {
   final String title;
   final List<Widget> children;
   final String? eyebrow;
-  final Color eyebrowColor;
+  final Color? eyebrowColor;
 
   /// The square button in the top right, where a page has one.
   final Widget? action;
@@ -288,7 +293,7 @@ class PageBody extends StatelessWidget {
             ),
             if (eyebrow != null) ...[
               const SizedBox(height: 10),
-              Text(eyebrow!.toUpperCase(), style: T.eyebrow(eyebrowColor)),
+              Text(eyebrow!.toUpperCase(), style: T.eyebrow(eyebrowColor ?? C.muted)),
             ],
             const SizedBox(height: 18),
             ...children,
@@ -417,7 +422,7 @@ class DateField extends StatelessWidget {
       lastDate: DateTime(now.year + 6),
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
-          datePickerTheme: const DatePickerThemeData(
+          datePickerTheme: DatePickerThemeData(
             backgroundColor: C.card,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.zero),
             todayForegroundColor: WidgetStatePropertyAll(C.ink),
@@ -514,7 +519,7 @@ class _CheckMark extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final k = size.width / 24;
     final paint = Paint()
-      ..color = C.ink
+      ..color = C.onMark
       ..style = PaintingStyle.stroke
       ..strokeWidth = 4 * k
       ..strokeCap = StrokeCap.square;
@@ -586,7 +591,7 @@ class SubjectDropdown<TValue> extends StatelessWidget {
       items: items,
       onChanged: onChanged,
       isExpanded: true,
-      icon: const Icon(Icons.arrow_drop_down, color: C.ink, size: 20),
+      icon: Icon(Icons.arrow_drop_down, color: C.ink, size: 20),
       dropdownColor: C.card,
       borderRadius: BorderRadius.zero,
       style: TextStyle(

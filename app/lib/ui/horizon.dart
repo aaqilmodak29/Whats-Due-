@@ -228,7 +228,12 @@ class _DayColumn extends StatelessWidget {
             child: Text(
               _initials[date.weekday - 1],
               style: T.eyebrow(
-                selected || _isToday ? C.ink : C.muted,
+                // A selected day's label sits on the highlighter.
+                selected
+                    ? C.onMark
+                    : _isToday
+                    ? C.ink
+                    : C.muted,
               ).copyWith(
                 fontSize: 9,
                 letterSpacing: 0,
@@ -268,7 +273,7 @@ class _DayColumn extends StatelessWidget {
         // The selected day gets a highlighter collar rather than a colour
         // change, so the urgency channel keeps meaning only urgency.
         border: selected
-            ? const Border(
+            ? Border(
                 top: BorderSide(color: C.mark, width: 3),
                 left: BorderSide(color: C.mark, width: 3),
                 right: BorderSide(color: C.mark, width: 3),
@@ -281,7 +286,7 @@ class _DayColumn extends StatelessWidget {
       child: bucket.length > 1
           ? Text(
               '${bucket.length}',
-              style: T.eyebrow(Colors.white).copyWith(
+              style: T.eyebrow(C.onInk).copyWith(
                 fontSize: 9,
                 letterSpacing: 0,
                 fontWeight: FontWeight.w600,

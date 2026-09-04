@@ -74,7 +74,7 @@ class GradesPage extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      decoration: const BoxDecoration(color: C.card),
+      decoration: BoxDecoration(color: C.card),
       padding: const EdgeInsets.fromLTRB(14, 13, 14, 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -174,12 +174,26 @@ class GradesPage extends StatelessWidget {
         children: [
           Text(
             label,
-            style: T.flabel.copyWith(color: unreachable ? C.muted : C.ink),
+            style: T.flabel.copyWith(
+              color: unreachable
+                  ? C.muted
+                  : secured
+                  ? C.onMark
+                  : C.ink,
+            ),
           ),
           const SizedBox(height: 3),
           Text(
             text,
-            style: T.count(unreachable ? C.muted : C.ink),
+            // SAFE is painted on the highlighter, so it follows that ground
+            // rather than the page's.
+            style: T.count(
+              unreachable
+                  ? C.muted
+                  : secured
+                  ? C.onMark
+                  : C.ink,
+            ),
             maxLines: 1,
           ),
         ],

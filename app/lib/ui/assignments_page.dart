@@ -3,11 +3,14 @@ import 'package:flutter/material.dart';
 import '../models.dart';
 import '../store.dart';
 import '../theme.dart';
+import '../sync/sync_engine.dart';
 import 'add_panel.dart';
 import 'assignment_card.dart';
 import 'atoms.dart';
+import 'horizon.dart';
 import 'manage_subjects.dart';
 import 'today_view.dart';
+import 'update_section.dart';
 
 /// Filter sentinels, matching the web app's `filter` values.
 const filterAll = 'all';
@@ -71,12 +74,16 @@ class AssignmentsPage extends StatelessWidget {
     required this.view,
     required this.onView,
     required this.controller,
+    required this.onOpenSettings,
   });
 
   final AppStore store;
   final AssignmentsView view;
   final ScrollController controller;
   final ValueChanged<AssignmentsView> onView;
+
+  /// Both the update banner and the sync warning are pointers into Settings.
+  final VoidCallback onOpenSettings;
 
   bool get _showSubmitted => view.tab == AssignmentTab.submitted;
 
@@ -92,10 +99,24 @@ class AssignmentsPage extends StatelessWidget {
       return a.subjectId == view.filter;
     }).toList();
 
+    final overdue = active.where((a) {
+      final n = daysUntil(a.due);
+      return n != null && n < 0;
+    }).length;
+    final thisWeek = active.where((a) {
+      final n = daysUntil(a.due);
+      return n != null && n >= 0 && n <= 7;
+    }).length;
+
     return PageBody(
       controller: controller,
-      title: 'Assignments',
-      eyebrow: '${active.length} open · ${submitted.length} submitted',
+      title: "What's due",
+      eyebrow: [
+        if (overdue > 0) '$overdue overdue',
+        '$thisWeek due within 7 days',
+        '${active.length} open',
+      ].join(' · '),
+      eyebrowColor: overdue > 0 ? C.red : C.muted,
       action: IconSquare(
         icon: view.showAdd ? Icons.close : Icons.add,
         open: view.showAdd,
@@ -103,6 +124,25 @@ class AssignmentsPage extends StatelessWidget {
         onPressed: () => onView(view.copyWith(showAdd: !view.showAdd)),
       ),
       children: [
+        UpdateBanner(updater: store.updater, onTap: onOpenSettings),
+        _syncNotice(),
+
+        // Back on the page it filters, so tapping a day no longer means
+        // crossing a page boundary to see the result.
+        HorizonStrip(
+          active: active,
+          selectedDue: view.selectedDue,
+          onSelect: (due) => onView(
+            view.copyWith(
+              tab: AssignmentTab.open,
+              selectedDue: due,
+              clearSelectedDue: due == null,
+              clearOpenId: true,
+            ),
+          ),
+        ),
+        const SizedBox(height: 18),
+
         if (view.showAdd) ...[
           const SizedBox(height: 4),
           AddPanel(
@@ -178,7 +218,7 @@ class AssignmentsPage extends StatelessWidget {
         // ---- tabs ----
         const SizedBox(height: 14),
         Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             border: Border(bottom: BorderSide(color: C.rule)),
           ),
           // Scrolls rather than wraps: three labels plus their counts no longer
@@ -255,6 +295,40 @@ class AssignmentsPage extends StatelessWidget {
           ),
         ],
       ],
+    );
+  }
+
+  /// Only appears when sync needs a decision or has failed.
+  ///
+  /// A working sync says nothing: a permanent status line trains you to ignore
+  /// the spot where the failure will eventually appear.
+  Widget _syncNotice() {
+    final status = store.sync?.status;
+    if (status != SyncStatus.conflict && status != SyncStatus.error) {
+      return const SizedBox.shrink();
+    }
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Tap(
+        onTap: onOpenSettings,
+        semanticLabel: status == SyncStatus.conflict
+            ? 'Sync needs a decision, tap to open Settings'
+            : 'Sync failed, tap to open Settings',
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: C.card,
+            border: Border.all(color: C.red),
+          ),
+          child: Text(
+            status == SyncStatus.conflict
+                ? 'SYNC NEEDS A DECISION'
+                : 'SYNC FAILED',
+            style: T.count(C.red),
+          ),
+        ),
+      ),
     );
   }
 
@@ -362,7 +436,7 @@ class _Chip extends StatelessWidget {
       ),
       child: Container(
         decoration: on
-            ? const BoxDecoration(
+            ? BoxDecoration(
                 border: Border(bottom: BorderSide(color: C.mark, width: 2)),
               )
             : null,

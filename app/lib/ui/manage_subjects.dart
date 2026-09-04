@@ -137,7 +137,7 @@ class _SubjectRowState extends State<_SubjectRow> {
                   borderRadius: BorderRadius.zero,
                   borderSide: BorderSide(color: Colors.transparent),
                 ),
-                focusedBorder: const OutlineInputBorder(
+                focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.zero,
                   borderSide: BorderSide(color: C.rule),
                 ),

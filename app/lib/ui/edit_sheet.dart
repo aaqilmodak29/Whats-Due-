@@ -112,7 +112,7 @@ class _EditSheetState extends State<_EditSheet> {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 460),
         child: Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             border: Border(top: BorderSide(color: C.mark, width: 3)),
           ),
           padding: const EdgeInsets.all(16),
@@ -219,7 +219,7 @@ class _EditSheetState extends State<_EditSheet> {
                         color: C.ink,
                         child: Text(
                           'SAVE',
-                          style: T.ghost(Colors.white),
+                          style: T.ghost(C.onInk),
                         ),
                       ),
                     ),
