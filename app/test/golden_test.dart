@@ -324,6 +324,30 @@ void main() {
     );
   });
 
+  testWidgets('phone, edit sheet', (tester) async {
+    // The three marks boxes are the reason this snapshot exists: their labels
+    // are the only thing saying which number goes where.
+    final store = await _boot(tester, const Size(430, 932), seed: _seed());
+    store.setMarks(
+      store.items.firstWhere((a) => a.id == 'a2'),
+      weight: 20,
+      outOf: 40,
+      earned: 34,
+    );
+    await tester.pumpAndSettle();
+
+    await _goTo(tester, 'Assignments');
+    await tester.tap(find.text('Comparative essay'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('EDIT'));
+    await tester.pumpAndSettle();
+
+    await expectLater(
+      find.byType(WhatsDueApp),
+      matchesGoldenFile('goldens/phone-edit.png'),
+    );
+  });
+
   testWidgets('phone, settings', (tester) async {
     // Tall, so the whole merged page is in one snapshot: sync, reminders,
     // backup, restore, updates and erasing used to be spread over two screens.
