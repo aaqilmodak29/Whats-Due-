@@ -312,6 +312,18 @@ be useful before any effort is entered, or nobody enters any. Unestimated tasks
 are paced at a nominal 30 minutes so they cannot empty one assignment into a
 single day, and that figure is never added to a displayed total.
 
+Marks live on an assignment's **EDIT** sheet, as three boxes in the order you
+would say them out loud:
+
+| | |
+|---|---|
+| **Worth** | what the assignment is worth as a percentage of the whole subject |
+| **Marks** | what it is marked out of |
+| **Your score** | what you got, out of those marks |
+
+A score higher than the marks available is flagged rather than refused — bonus
+marks and marking errors both happen.
+
 **Grades** rolls weighted assignments up per subject. A weight is a share of one
 unit, so subjects are never summed — that would add percentages of different
 wholes. The page separates *secured* from *average so far*, because 40 of 100 in

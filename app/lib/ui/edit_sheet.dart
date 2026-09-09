@@ -71,28 +71,35 @@ class _EditSheetState extends State<_EditSheet> {
     Navigator.of(context).pop();
   }
 
-  /// Says what the three numbers currently add up to, so the difference
-  /// between "worth 20% of the unit" and "marked out of 40" stays obvious
-  /// while they are being typed.
+  /// Says what the three numbers currently add up to, so the difference between
+  /// "worth 20% of the unit" and "scored 34 out of 40" stays obvious while they
+  /// are being typed.
   String _marksNote() {
     final w = _weightValue;
-    final scored = (_earnedValue != null && (_outOfValue ?? 0) > 0)
-        ? _earnedValue! / _outOfValue!
-        : null;
+    final marks = _outOfValue;
+    final score = _earnedValue;
+
+    if (score != null && marks != null && score > marks) {
+      return 'A score of ${trimNumber(score)} is more than the '
+          '${trimNumber(marks)} marks available. Grades will still count it, '
+          'but check the numbers.';
+    }
+
+    final scored = (score != null && (marks ?? 0) > 0) ? score / marks! : null;
     if (w == null && scored == null) {
-      return 'Worth is this assignment\'s share of the unit. Leave it empty to '
-          'keep the assignment out of Grades.';
+      return "Worth is this assignment's share of the whole subject. Leave it "
+          'empty to keep the assignment out of Grades.';
     }
     if (scored == null) {
-      return 'Worth ${trimNumber(w!)}% of the unit. Add the mark when it comes '
-          'back.';
+      return 'Worth ${trimNumber(w!)}% of the subject. Add your score when it '
+          'comes back.';
     }
     if (w == null) {
       return 'Scored ${formatPercent(scored)}. Add a worth to count it towards '
-          'the unit.';
+          'the subject.';
     }
     return 'Scored ${formatPercent(scored)} — '
-        '${trimNumber(w * scored)} of the unit\'s ${trimNumber(w)}%.';
+        '${trimNumber(w * scored)} of the ${trimNumber(w)}% it is worth.';
   }
 
   @override
@@ -149,44 +156,45 @@ class _EditSheetState extends State<_EditSheet> {
               ),
 
               const SizedBox(height: 14),
+              // Worth, then marks, then score: the order you would say it out
+              // loud — "worth 20% of the unit, out of 40, I got 34". The
+              // previous labels were "Mark" and "Out of", which read as a pair
+              // but gave no clue which box was which.
               Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 spacing: 10,
                 children: [
                   Expanded(
-                    flex: 3,
                     child: LabelledField(
                       label: 'Worth',
                       child: NumberField(
                         controller: _weight,
                         suffix: '%',
                         hint: '20',
-                        semanticLabel: 'Percent of the unit grade',
+                        semanticLabel: 'Worth, as a percent of the unit',
                         onChanged: (v) => setState(() => _weightValue = v),
                       ),
                     ),
                   ),
                   Expanded(
-                    flex: 2,
                     child: LabelledField(
-                      label: 'Mark',
+                      label: 'Marks',
                       child: NumberField(
-                        controller: _earned,
-                        hint: '34',
-                        semanticLabel: 'Marks earned',
-                        onChanged: (v) => setState(() => _earnedValue = v),
+                        controller: _outOf,
+                        hint: '40',
+                        semanticLabel: 'Marks the assignment is out of',
+                        onChanged: (v) => setState(() => _outOfValue = v),
                       ),
                     ),
                   ),
                   Expanded(
-                    flex: 2,
                     child: LabelledField(
-                      label: 'Out of',
+                      label: 'Your score',
                       child: NumberField(
-                        controller: _outOf,
-                        hint: '40',
-                        semanticLabel: 'Marks available',
-                        onChanged: (v) => setState(() => _outOfValue = v),
+                        controller: _earned,
+                        hint: '34',
+                        semanticLabel: 'Your score',
+                        onChanged: (v) => setState(() => _earnedValue = v),
                       ),
                     ),
                   ),

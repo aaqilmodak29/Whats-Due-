@@ -811,11 +811,14 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.enterText(
-        find.bySemanticsLabel('Percent of the unit grade'),
+        find.bySemanticsLabel('Worth, as a percent of the unit'),
         '25',
       );
-      await tester.enterText(find.bySemanticsLabel('Marks earned'), '18');
-      await tester.enterText(find.bySemanticsLabel('Marks available'), '20');
+      await tester.enterText(find.bySemanticsLabel('Your score'), '18');
+      await tester.enterText(
+        find.bySemanticsLabel('Marks the assignment is out of'),
+        '20',
+      );
       await tester.pumpAndSettle();
       await tester.tap(find.text('SAVE'));
       await tester.pumpAndSettle();
@@ -823,6 +826,56 @@ void main() {
       final a = store.items.firstWhere((x) => x.id == 'a2');
       expect(a.weight, 25);
       expect(a.contribution, closeTo(22.5, 1e-9));
+    }, seed: _seed(), tab: 'Assignments');
+
+    appTest('the three fields read in the order you would say them', (
+      tester,
+      store,
+    ) async {
+      await tester.tap(find.text('Comparative essay'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('EDIT'));
+      await tester.pumpAndSettle();
+
+      // "Worth 20% of the subject, out of 40, I got 34." The old pair of
+      // "Mark" and "Out of" gave no clue which box was which.
+      final labels = tester
+          .widgetList<Text>(
+            find.descendant(
+              of: find.byType(Dialog),
+              matching: find.byType(Text),
+            ),
+          )
+          .map((w) => w.data)
+          .whereType<String>()
+          .where((s) => const {'WORTH', 'MARKS', 'YOUR SCORE'}.contains(s))
+          .toList();
+      expect(labels, ['WORTH', 'MARKS', 'YOUR SCORE']);
+    }, seed: _seed(), tab: 'Assignments');
+
+    appTest('a score above the marks available is flagged, not blocked', (
+      tester,
+      store,
+    ) async {
+      await tester.tap(find.text('Comparative essay'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('EDIT'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.bySemanticsLabel('Marks the assignment is out of'),
+        '40',
+      );
+      await tester.enterText(find.bySemanticsLabel('Your score'), '45');
+      await tester.pumpAndSettle();
+
+      // Bonus marks and marking errors both happen, so this is a warning
+      // rather than a refusal.
+      expect(find.textContaining('more than the 40 marks'), findsOne);
+
+      await tester.tap(find.text('SAVE'));
+      await tester.pumpAndSettle();
+      expect(store.items.firstWhere((x) => x.id == 'a2').earned, 45);
     }, seed: _seed(), tab: 'Assignments');
 
     appTest('a task carries marks and an estimate', (tester, store) async {
