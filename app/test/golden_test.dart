@@ -11,6 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:whats_due/main.dart';
 import 'package:whats_due/models.dart';
 import 'package:whats_due/store.dart';
+import 'package:whats_due/updater.dart';
 import 'package:whats_due/theme.dart';
 
 /// Rendered snapshots of the design.
@@ -345,6 +346,47 @@ void main() {
     await expectLater(
       find.byType(WhatsDueApp),
       matchesGoldenFile('goldens/phone-edit.png'),
+    );
+  });
+
+  testWidgets('phone, date picker', (tester) async {
+    // Never had a snapshot, which is how "today" managed to render ink on ink
+    // in both palettes without anything noticing.
+    await _boot(tester, const Size(430, 932), seed: _seed());
+    await tester.tap(find.byIcon(Icons.add));
+    await tester.pumpAndSettle();
+    // The empty date field shows its placeholder; tapping it opens the
+    // calendar on today.
+    await tester.tap(find.text('yyyy-mm-dd'));
+    await tester.pumpAndSettle();
+    await expectLater(
+      find.byType(WhatsDueApp),
+      matchesGoldenFile('goldens/phone-datepicker.png'),
+    );
+  });
+
+  testWidgets('phone, dark update banner', (tester) async {
+    // The banner is highlighter-filled, and painted its text with ink — which
+    // is near-white after dark, so the whole bar was unreadable.
+    final store = await _boot(
+      tester,
+      const Size(430, 932),
+      seed: _seed(),
+      dark: true,
+    );
+    store.updater.offerForTest(
+      const Release(
+        tag: 'v1.9.9',
+        version: '1.9.9',
+        notes: '',
+        apkUrl: 'https://example.invalid/whats-due.apk',
+        apkBytes: 0,
+      ),
+    );
+    await tester.pumpAndSettle();
+    await expectLater(
+      find.byType(WhatsDueApp),
+      matchesGoldenFile('goldens/phone-dark-banner.png'),
     );
   });
 

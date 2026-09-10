@@ -1015,6 +1015,35 @@ void main() {
     }, seed: _seed(), tab: 'Assignments');
   });
 
+  group('the date picker', () {
+    appTest('opens with today readable, not ink on ink', (
+      tester,
+      store,
+    ) async {
+      await tester.tap(find.bySemanticsLabel('Add assignment'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.bySemanticsLabel('Pick a due date'));
+      await tester.pumpAndSettle();
+
+      // The calendar is up, and today is the selection it opened on.
+      expect(find.byType(DatePickerDialog), findsOne);
+
+      // Proves the themed properties are actually reaching the dialog, not
+      // merely correct in isolation: a perfect theme nothing calls would look
+      // identical to every unit test.
+      final theme = Theme.of(
+        tester.element(find.byType(DatePickerDialog)),
+      ).datePickerTheme;
+      const selected = {WidgetState.selected};
+      expect(
+        theme.todayForegroundColor!.resolve(selected),
+        C.onInk,
+        reason: 'today, while selected, must not be painted ink on ink',
+      );
+      expect(theme.todayBackgroundColor!.resolve(selected), C.ink);
+    }, seed: _seed());
+  });
+
   group('dark mode', () {
     // The palette is global mutable state, so a test that leaves it dark would
     // silently change what every later test renders.
