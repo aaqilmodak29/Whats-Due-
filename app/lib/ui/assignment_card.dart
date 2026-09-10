@@ -357,10 +357,6 @@ class _AssignmentCardState extends State<AssignmentCard> {
                                       maxLines: 1,
                                     ),
                                   ),
-                                  // Importance, at a glance, without spending a
-                                  // line or a third colour on it.
-                                  if (a.weight != null)
-                                    Eyebrow('· ${trimNumber(a.weight!)}%'),
                                 ],
                               ),
                             ),

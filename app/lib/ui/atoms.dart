@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../models.dart';
 import '../theme.dart';
 
 /// A mono, uppercase, wide-tracked label. CSS `.eyebrow`.
@@ -412,7 +413,9 @@ class DateField extends StatelessWidget {
   final String? label;
 
   Future<void> _pick(BuildContext context) async {
-    final now = DateTime.now();
+    // Through the clock seam, not DateTime.now(): a snapshot of the calendar
+    // would otherwise capture the real date and fail the following day.
+    final now = midnight();
     final current = value.isEmpty ? null : DateTime.tryParse(value);
     final picked = await showDatePicker(
       context: context,
@@ -422,11 +425,7 @@ class DateField extends StatelessWidget {
       lastDate: DateTime(now.year + 6),
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
-          datePickerTheme: DatePickerThemeData(
-            backgroundColor: C.card,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-            todayForegroundColor: WidgetStatePropertyAll(C.ink),
-          ),
+          datePickerTheme: buildDatePickerTheme(),
         ),
         child: child!,
       ),

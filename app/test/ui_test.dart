@@ -737,6 +737,39 @@ void main() {
   });
 
   group('settings', () {
+    appTest('orders the sections version-first', (tester, store) async {
+      // The order is the whole point of the page's layout, and nothing else
+      // would notice it drifting: every section renders fine in any position.
+      const titles = {
+        'VERSION',
+        'HOW IT WORKS',
+        'APPEARANCE',
+        'NOT CONFIGURED',
+        'REMINDERS',
+        'EXPORT',
+        'IMPORT',
+        'DANGER',
+      };
+      final rendered = tester
+          .widgetList<Text>(find.byType(Text))
+          .map((w) => w.data)
+          .whereType<String>()
+          .where(titles.contains)
+          .toList();
+
+      // HOW IT WORKS explains sync, so it is absent with no project
+      // configured — there is nothing to explain.
+      expect(rendered, [
+        'VERSION',
+        'APPEARANCE',
+        'NOT CONFIGURED',
+        'REMINDERS',
+        'EXPORT',
+        'IMPORT',
+        'DANGER',
+      ]);
+    }, seed: _seed(), size: const Size(430, 2000), tab: 'Settings');
+
     appTest('gathers sync, reminders, backup and updates on one page', (
       tester,
       store,
@@ -788,15 +821,8 @@ void main() {
   });
 
   group('marks', () {
-    appTest('a weight shows on the card, a mark replaces the countdown', (
-      tester,
-      store,
-    ) async {
+    appTest('a returned mark replaces the countdown', (tester, store) async {
       final a = store.items.firstWhere((x) => x.id == 'a3');
-      store.setMarks(a, weight: 20.0);
-      await tester.pumpAndSettle();
-      expect(find.text('· 20%'), findsOne);
-
       store.setMarks(a, earned: 34.0, outOf: 40.0);
       await tester.pumpAndSettle();
       // Once a result is in it is the only thing left worth reading, so it
@@ -810,10 +836,6 @@ void main() {
       await tester.tap(find.text('EDIT'));
       await tester.pumpAndSettle();
 
-      await tester.enterText(
-        find.bySemanticsLabel('Worth, as a percent of the unit'),
-        '25',
-      );
       await tester.enterText(find.bySemanticsLabel('Your score'), '18');
       await tester.enterText(
         find.bySemanticsLabel('Marks the assignment is out of'),
@@ -824,11 +846,39 @@ void main() {
       await tester.pumpAndSettle();
 
       final a = store.items.firstWhere((x) => x.id == 'a2');
-      expect(a.weight, 25);
-      expect(a.contribution, closeTo(22.5, 1e-9));
+      expect(a.earned, 18);
+      expect(a.outOf, 20);
+      expect(a.scored, closeTo(0.9, 1e-9));
     }, seed: _seed(), tab: 'Assignments');
 
-    appTest('the three fields read in the order you would say them', (
+    appTest('marks can be set while adding an assignment', (
+      tester,
+      store,
+    ) async {
+      // The spec says what it is out of, so it is known at the point of
+      // adding — the score arrives weeks later from the EDIT sheet.
+      await tester.tap(find.bySemanticsLabel('Add assignment'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.widgetWithText(TextField, 'e.g. Comparative essay'),
+        'Week 5 quiz',
+      );
+      await tester.enterText(
+        find.bySemanticsLabel('Marks the assignment is out of'),
+        '25',
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('TRACK IT'));
+      await tester.pumpAndSettle();
+
+      final created = store.items.firstWhere((x) => x.title == 'Week 5 quiz');
+      expect(created.outOf, 25);
+      expect(created.earned, isNull, reason: 'not marked yet');
+      expect(created.graded, isFalse);
+    }, seed: _seed(), tab: 'Assignments');
+
+    appTest('the two fields read in the order you would say them', (
       tester,
       store,
     ) async {
@@ -837,8 +887,8 @@ void main() {
       await tester.tap(find.text('EDIT'));
       await tester.pumpAndSettle();
 
-      // "Worth 20% of the subject, out of 40, I got 34." The old pair of
-      // "Mark" and "Out of" gave no clue which box was which.
+      // "Out of 40, I got 34." The old pair of "Mark" and "Out of" gave no
+      // clue which box was which.
       final labels = tester
           .widgetList<Text>(
             find.descendant(
@@ -850,7 +900,8 @@ void main() {
           .whereType<String>()
           .where((s) => const {'WORTH', 'MARKS', 'YOUR SCORE'}.contains(s))
           .toList();
-      expect(labels, ['WORTH', 'MARKS', 'YOUR SCORE']);
+      // Worth is gone entirely: weighting is not tracked for now.
+      expect(labels, ['MARKS', 'YOUR SCORE']);
     }, seed: _seed(), tab: 'Assignments');
 
     appTest('a score above the marks available is flagged, not blocked', (
@@ -901,42 +952,40 @@ void main() {
       expect(t.minutes, isNull);
     }, seed: _seed(), tab: 'Assignments');
 
-    appTest('the grades page reports where a unit stands', (
-      tester,
-      store,
-    ) async {
-      final a = store.items.firstWhere((x) => x.id == 'a1');
-      store.setMarks(a, weight: 50.0, earned: 40.0, outOf: 50.0);
-      await tester.pumpAndSettle();
-
-      expect(find.text('80%'), findsOne, reason: 'average across what is in');
-      // Half the unit is untracked, which every projection depends on.
-      expect(find.textContaining('50% of this unit'), findsOne);
-      // Against half a unit every target computes as already lost, which is
-      // arithmetic rather than truth, so the table is withheld.
-      expect(find.text('TO FINISH ON'), findsNothing);
-      expect(find.text('GONE'), findsNothing);
-    }, seed: _seed(), tab: 'Grades');
-
-    appTest('projects the rest once a whole unit is weighted', (
+    appTest('the grades page totals the marks that came back', (
       tester,
       store,
     ) async {
       store.setMarks(
         store.items.firstWhere((x) => x.id == 'a1'),
-        weight: 40,
-        earned: 30,
-        outOf: 40,
+        earned: 40.0,
+        outOf: 50.0,
       );
       store.setMarks(
         store.items.firstWhere((x) => x.id == 'a4'),
-        weight: 60,
+        earned: 8.0,
+        outOf: 10.0,
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('TO FINISH ON'), findsOne);
-      // 30 secured with 60% of the unit left: (50 - 30) / 60 = 33.3%.
-      expect(find.text('33.3%'), findsOne);
+      // Both are Organic Chemistry: 48 of 60, added as marks rather than
+      // averaged as percentages.
+      expect(find.text('80%'), findsOne);
+      expect(find.text('48 of 60 marks · 2 results'), findsOne);
+    }, seed: _seed(), tab: 'Grades');
+
+    appTest('an assignment with no result yet stays out of Grades', (
+      tester,
+      store,
+    ) async {
+      // A marks total on its own is what it will be marked out of, not a
+      // result.
+      store.setMarks(
+        store.items.firstWhere((x) => x.id == 'a1'),
+        outOf: 50.0,
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Nothing marked yet'), findsWidgets);
     }, seed: _seed(), tab: 'Grades');
   });
 
@@ -1013,6 +1062,35 @@ void main() {
 
       expect(find.text('No tasks yet'), findsOne);
     }, seed: _seed(), tab: 'Assignments');
+  });
+
+  group('the date picker', () {
+    appTest('opens with today readable, not ink on ink', (
+      tester,
+      store,
+    ) async {
+      await tester.tap(find.bySemanticsLabel('Add assignment'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.bySemanticsLabel('Pick a due date'));
+      await tester.pumpAndSettle();
+
+      // The calendar is up, and today is the selection it opened on.
+      expect(find.byType(DatePickerDialog), findsOne);
+
+      // Proves the themed properties are actually reaching the dialog, not
+      // merely correct in isolation: a perfect theme nothing calls would look
+      // identical to every unit test.
+      final theme = Theme.of(
+        tester.element(find.byType(DatePickerDialog)),
+      ).datePickerTheme;
+      const selected = {WidgetState.selected};
+      expect(
+        theme.todayForegroundColor!.resolve(selected),
+        C.onInk,
+        reason: 'today, while selected, must not be painted ink on ink',
+      );
+      expect(theme.todayBackgroundColor!.resolve(selected), C.ink);
+    }, seed: _seed());
   });
 
   group('dark mode', () {

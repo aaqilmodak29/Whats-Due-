@@ -1,16 +1,19 @@
 import 'models.dart';
 
-/// Where a subject's grade stands, rolled up from its weighted assignments.
+/// Where a subject stands, totalled from the marks its assignments came back
+/// with.
 ///
-/// A weight is a share of one unit's final grade, so every figure here is
-/// per-subject. Summing across subjects would add percentages of different
-/// wholes and produce a number that looks meaningful and is not.
+/// Deliberately unweighted. Weighting was removed pending a decision on how to
+/// handle it, so this adds raw marks: 34/40 and 8/10 become 42 out of 50. That
+/// is an honest answer to "how am I going" and needs nothing set up beyond the
+/// marks themselves — but it is not the unit's final grade, because a quiz and
+/// a major report count here in proportion to their marks rather than their
+/// actual worth.
 class SubjectGrade {
   const SubjectGrade({
     required this.subjectId,
-    required this.secured,
-    required this.gradedWeight,
-    required this.trackedWeight,
+    required this.earned,
+    required this.outOf,
     required this.gradedCount,
   });
 
@@ -18,82 +21,51 @@ class SubjectGrade {
   /// marks are not silently dropped.
   final String? subjectId;
 
-  /// Percentage points of the final grade already banked.
-  final double secured;
-
-  /// Weight of the assignments that have come back.
-  final double gradedWeight;
-
-  /// Weight of every assignment carrying one, graded or not.
-  final double trackedWeight;
+  /// Marks scored, and marks available, across everything returned so far.
+  final double earned;
+  final double outOf;
 
   final int gradedCount;
 
-  /// Weight still to be decided.
-  double get remainingWeight => trackedWeight - gradedWeight;
-
-  /// Average across what has been graded, 0..1. Null before anything is.
-  ///
-  /// This is the honest "how am I doing" number: [secured] alone reads as a
-  /// failing grade all semester, because most of the unit has not happened yet.
-  double? get average => gradedWeight <= 0 ? null : secured / gradedWeight;
-
-  /// The unit is normally marked out of 100. Anything short of that means
-  /// assessments have not been entered, and every projection below is only as
-  /// complete as what has been.
-  bool get isPartiallyTracked => trackedWeight < 99.5;
-
-  /// Average needed across everything still outstanding to finish on [target]
-  /// percent overall, as a fraction 0..1.
-  ///
-  /// Can exceed 1 when the target is already out of reach, and go below 0 when
-  /// it is already secured; both are useful answers, so neither is clamped.
-  /// Null when nothing is outstanding to score on.
-  double? neededFor(double target) =>
-      remainingWeight <= 0 ? null : (target - secured) / remainingWeight;
+  /// 0..1, or null when nothing has come back yet.
+  double? get average => outOf <= 0 ? null : earned / outOf;
 }
 
-/// Rolls every weighted assignment up by subject.
+/// Rolls every returned mark up by subject.
 ///
-/// Submitted and open work both count: an assignment carries a weight from the
-/// day it is set, and its result arrives independently of whether it has been
-/// ticked off. Only [Assignment.weight] decides whether it appears at all.
+/// Submitted and open work both count: a result arrives independently of
+/// whether the assignment has been ticked off. Only [Assignment.graded] decides
+/// whether it appears at all, so an assignment carrying a marks total but no
+/// score yet stays out until it is marked.
 List<SubjectGrade> gradesBySubject(List<Assignment> items) {
   final byId = <String?, List<Assignment>>{};
   for (final a in items) {
-    if (a.weight == null || a.weight! <= 0) continue;
+    if (!a.graded) continue;
     byId.putIfAbsent(a.subjectId, () => []).add(a);
   }
 
   final out = <SubjectGrade>[];
   byId.forEach((subjectId, list) {
-    var secured = 0.0;
-    var gradedWeight = 0.0;
-    var trackedWeight = 0.0;
-    var gradedCount = 0;
+    var earned = 0.0;
+    var outOf = 0.0;
     for (final a in list) {
-      trackedWeight += a.weight!;
-      final c = a.contribution;
-      if (c == null) continue;
-      secured += c;
-      gradedWeight += a.weight!;
-      gradedCount++;
+      earned += a.earned!;
+      outOf += a.outOf!;
     }
     out.add(
       SubjectGrade(
         subjectId: subjectId,
-        secured: secured,
-        gradedWeight: gradedWeight,
-        trackedWeight: trackedWeight,
-        gradedCount: gradedCount,
+        earned: earned,
+        outOf: outOf,
+        gradedCount: list.length,
       ),
     );
   });
   return out;
 }
 
-/// Trims the pointless decimal so a weight reads `20%`, not `20.0%`, while
-/// still allowing `12.5`.
+/// Trims the pointless decimal so a mark reads `20`, not `20.0`, while still
+/// allowing `12.5`.
 String trimNumber(double v) {
   final r = v.round();
   if ((v - r).abs() < 0.005) return '$r';

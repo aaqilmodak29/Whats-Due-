@@ -76,6 +76,17 @@ class Updater extends ChangeNotifier {
   double get progress => _progress;
   String get currentVersion => _currentVersion;
 
+  /// Stages an available update, so snapshot tests can render the banner.
+  ///
+  /// It otherwise only appears after a real network round-trip, which is how
+  /// the banner reached production painting near-white text on the highlighter
+  /// after dark: no snapshot had ever included it.
+  @visibleForTesting
+  void offerForTest(Release release) {
+    _release = release;
+    _set(UpdateStatus.available);
+  }
+
   void _set(UpdateStatus status, [String? message]) {
     _status = status;
     _message = message;

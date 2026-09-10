@@ -195,14 +195,15 @@ class Assignment {
 
   List<Task> tasks;
 
-  /// Share of the unit's final grade, as a percentage. Null when untracked.
+  /// Share of the subject's final grade, as a percentage.
   ///
-  /// A percentage of the *unit*, not of this assignment — 20 means "this is
-  /// worth 20% of the subject". [earned] and [outOf] are the raw marks it was
-  /// returned with, which is how results actually come back (34 out of 40), and
-  /// the two scales are reconciled once in [scored].
+  /// **Not used by anything.** Weighting was removed from the app pending a
+  /// decision on how to handle it, and this is kept only so the values already
+  /// recorded against it survive: dropping the field would have every device
+  /// quietly discard them on its next write. Read and written, never shown.
   double? weight;
 
+  /// Marks the assignment is out of, and what was scored against them.
   double? earned;
   double? outOf;
 
@@ -229,11 +230,6 @@ class Assignment {
 
   /// Fraction of the available marks achieved, 0..1. Null until graded.
   double? get scored => graded ? earned! / outOf! : null;
-
-  /// Percentage points of the final unit grade this assignment has actually
-  /// secured. Null unless both weighted and graded.
-  double? get contribution =>
-      (weight == null || !graded) ? null : weight! * scored!;
 
   Map<String, dynamic> toJson() => {
     'id': id,

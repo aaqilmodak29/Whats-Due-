@@ -28,11 +28,17 @@ const _newSubject = '__new';
 class _AddPanelState extends State<AddPanel> {
   final _title = TextEditingController();
   final _subjectName = TextEditingController();
+  final _outOf = TextEditingController();
   final _titleFocus = FocusNode();
   final _subjectFocus = FocusNode();
 
   String _subjectId = '';
   String _due = '';
+
+  /// What the assignment is marked out of, when it is known at the time it is
+  /// added — which it usually is, since the spec says so. The score itself
+  /// arrives weeks later, from the card's EDIT sheet.
+  double? _outOfValue;
   late String _picked = widget.store.nextColor;
 
   @override
@@ -45,6 +51,7 @@ class _AddPanelState extends State<AddPanel> {
   void dispose() {
     _title.dispose();
     _subjectName.dispose();
+    _outOf.dispose();
     _titleFocus.dispose();
     _subjectFocus.dispose();
     super.dispose();
@@ -71,11 +78,14 @@ class _AddPanelState extends State<AddPanel> {
       title: title,
       subjectId: subjectId,
       due: _due,
+      outOf: _outOfValue,
     );
 
     setState(() {
       _title.clear();
       _subjectName.clear();
+      _outOf.clear();
+      _outOfValue = null;
       _due = '';
       _subjectId = subjectId ?? '';
       _picked = widget.store.nextColor;
@@ -133,21 +143,37 @@ class _AddPanelState extends State<AddPanel> {
                 value: _due,
                 onChanged: (v) => setState(() => _due = v),
               );
+              final marks = LabelledField(
+                label: 'Marks',
+                child: NumberField(
+                  controller: _outOf,
+                  hint: '40',
+                  semanticLabel: 'Marks the assignment is out of',
+                  onChanged: (v) => setState(() => _outOfValue = v),
+                ),
+              );
               // Narrow phones cannot fit a dropdown and a date side by side
               // without truncating subject names, so stack below ~360px.
               if (constraints.maxWidth < 360) {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   spacing: 10,
-                  children: [subject, date],
+                  children: [subject, date, marks],
                 );
               }
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                spacing: 8,
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                spacing: 10,
                 children: [
-                  Expanded(child: subject),
-                  Expanded(child: date),
+                  subject,
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    spacing: 8,
+                    children: [
+                      Expanded(flex: 3, child: date),
+                      Expanded(flex: 2, child: marks),
+                    ],
+                  ),
                 ],
               );
             },

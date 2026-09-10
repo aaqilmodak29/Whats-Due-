@@ -228,17 +228,20 @@ class UpdateBanner extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
               color: C.mark,
-              border: Border(left: BorderSide(color: C.ink, width: 6)),
+              // Everything here sits on the highlighter, which does not move
+              // between palettes — so it follows onMark, not ink. Using ink
+              // painted this near-white on yellow after dark.
+              border: Border(left: BorderSide(color: C.onMark, width: 6)),
             ),
             child: Row(
               children: [
                 Expanded(
                   child: Text(
                     'Version ${release.version} available'.toUpperCase(),
-                    style: T.count(C.ink),
+                    style: T.count(C.onMark),
                   ),
                 ),
-                Text('UPDATE', style: T.ghost()),
+                Text('UPDATE', style: T.ghost(C.onMark)),
               ],
             ),
           ),

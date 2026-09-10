@@ -36,11 +36,9 @@ class _EditSheetState extends State<_EditSheet> {
   );
   late String _due = widget.assignment.due;
 
-  late final _weight = _numberController(widget.assignment.weight);
   late final _earned = _numberController(widget.assignment.earned);
   late final _outOf = _numberController(widget.assignment.outOf);
 
-  late double? _weightValue = widget.assignment.weight;
   late double? _earnedValue = widget.assignment.earned;
   late double? _outOfValue = widget.assignment.outOf;
 
@@ -52,7 +50,6 @@ class _EditSheetState extends State<_EditSheet> {
   @override
   void dispose() {
     _title.dispose();
-    _weight.dispose();
     _earned.dispose();
     _outOf.dispose();
     super.dispose();
@@ -64,18 +61,15 @@ class _EditSheetState extends State<_EditSheet> {
     widget.store.editAssignment(widget.assignment, title: title, due: _due);
     widget.store.setMarks(
       widget.assignment,
-      weight: _weightValue,
       earned: _earnedValue,
       outOf: _outOfValue,
     );
     Navigator.of(context).pop();
   }
 
-  /// Says what the three numbers currently add up to, so the difference between
-  /// "worth 20% of the unit" and "scored 34 out of 40" stays obvious while they
-  /// are being typed.
+  /// Says what the two numbers currently mean, so a half-filled pair does not
+  /// look like a recorded result.
   String _marksNote() {
-    final w = _weightValue;
     final marks = _outOfValue;
     final score = _earnedValue;
 
@@ -84,22 +78,19 @@ class _EditSheetState extends State<_EditSheet> {
           '${trimNumber(marks)} marks available. Grades will still count it, '
           'but check the numbers.';
     }
-
-    final scored = (score != null && (marks ?? 0) > 0) ? score / marks! : null;
-    if (w == null && scored == null) {
-      return "Worth is this assignment's share of the whole subject. Leave it "
-          'empty to keep the assignment out of Grades.';
+    if (marks == null && score == null) {
+      return 'Set what this is marked out of, and your score once it comes '
+          'back. Both are needed before it counts towards Grades.';
     }
-    if (scored == null) {
-      return 'Worth ${trimNumber(w!)}% of the subject. Add your score when it '
-          'comes back.';
+    if (score == null) {
+      return 'Out of ${trimNumber(marks!)}. Add your score when it comes back.';
     }
-    if (w == null) {
-      return 'Scored ${formatPercent(scored)}. Add a worth to count it towards '
-          'the subject.';
+    if (marks == null) {
+      return 'Add what it is marked out of, or the score cannot be read as a '
+          'percentage.';
     }
-    return 'Scored ${formatPercent(scored)} — '
-        '${trimNumber(w * scored)} of the ${trimNumber(w)}% it is worth.';
+    return 'Scored ${formatPercent(score / marks)} — '
+        '${trimNumber(score)} out of ${trimNumber(marks)}.';
   }
 
   @override
@@ -108,7 +99,6 @@ class _EditSheetState extends State<_EditSheet> {
     final unchanged =
         _title.text.trim() == a.title &&
         _due == a.due &&
-        _weightValue == a.weight &&
         _earnedValue == a.earned &&
         _outOfValue == a.outOf;
 
@@ -156,26 +146,13 @@ class _EditSheetState extends State<_EditSheet> {
               ),
 
               const SizedBox(height: 14),
-              // Worth, then marks, then score: the order you would say it out
-              // loud — "worth 20% of the unit, out of 40, I got 34". The
-              // previous labels were "Mark" and "Out of", which read as a pair
-              // but gave no clue which box was which.
+              // Marks then score: "out of 40, I got 34". Weighting used to sit
+              // in front of these and has been removed for now, so what an
+              // assignment is worth towards the subject is not tracked.
               Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 spacing: 10,
                 children: [
-                  Expanded(
-                    child: LabelledField(
-                      label: 'Worth',
-                      child: NumberField(
-                        controller: _weight,
-                        suffix: '%',
-                        hint: '20',
-                        semanticLabel: 'Worth, as a percent of the unit',
-                        onChanged: (v) => setState(() => _weightValue = v),
-                      ),
-                    ),
-                  ),
                   Expanded(
                     child: LabelledField(
                       label: 'Marks',

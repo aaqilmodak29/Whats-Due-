@@ -297,3 +297,60 @@ ThemeData buildTheme() {
     ),
   );
 }
+
+/// The date picker, dressed to match the rest of the app.
+///
+/// Named and returned rather than built inline so its state resolution can be
+/// tested: the properties below are [WidgetStateProperty]s, and getting one
+/// wrong fails silently as an invisible number rather than as an exception.
+///
+/// That is not hypothetical. `todayForegroundColor` was once a flat
+/// `WidgetStatePropertyAll(C.ink)`, which also applied while today was
+/// *selected* — and the selected fill is ink too, so the current date rendered
+/// ink-on-ink and simply was not there when the picker opened.
+DatePickerThemeData buildDatePickerTheme() {
+  WidgetStateProperty<Color?> byState({
+    required Color selected,
+    required Color normal,
+    Color? disabled,
+  }) => WidgetStateProperty.resolveWith((states) {
+    if (states.contains(WidgetState.disabled)) return disabled ?? C.muted;
+    if (states.contains(WidgetState.selected)) return selected;
+    return normal;
+  });
+
+  return DatePickerThemeData(
+    backgroundColor: C.card,
+    surfaceTintColor: Colors.transparent,
+    shadowColor: Colors.transparent,
+    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+    // Square cells, like every other surface in the app.
+    dayShape: const WidgetStatePropertyAll(
+      RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+    ),
+
+    headerBackgroundColor: C.ink,
+    headerForegroundColor: C.onInk,
+
+    dayForegroundColor: byState(selected: C.onInk, normal: C.ink),
+    dayBackgroundColor: byState(selected: C.ink, normal: Colors.transparent),
+    dayOverlayColor: WidgetStatePropertyAll(C.mark.withValues(alpha: .35)),
+
+    // Today is marked by an outline when it is not the selection, and follows
+    // the selection's colours when it is.
+    todayForegroundColor: byState(selected: C.onInk, normal: C.ink),
+    todayBackgroundColor: byState(
+      selected: C.ink,
+      normal: Colors.transparent,
+    ),
+    todayBorder: BorderSide(color: C.ink, width: 1.5),
+
+    yearForegroundColor: byState(selected: C.onInk, normal: C.ink),
+    yearBackgroundColor: byState(selected: C.ink, normal: Colors.transparent),
+
+    weekdayStyle: T.flabel,
+    dividerColor: C.rule,
+    cancelButtonStyle: TextButton.styleFrom(foregroundColor: C.ink),
+    confirmButtonStyle: TextButton.styleFrom(foregroundColor: C.ink),
+  );
+}
