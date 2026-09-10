@@ -312,25 +312,29 @@ be useful before any effort is entered, or nobody enters any. Unestimated tasks
 are paced at a nominal 30 minutes so they cannot empty one assignment into a
 single day, and that figure is never added to a displayed total.
 
-Marks live on an assignment's **EDIT** sheet, as three boxes in the order you
-would say them out loud:
+Marks are set in two places. **What it is out of** goes in when you add the
+assignment, because the spec already says so; **your score** goes in from the
+card's **EDIT** sheet weeks later, when it comes back.
 
 | | |
 |---|---|
-| **Worth** | what the assignment is worth as a percentage of the whole subject |
-| **Marks** | what it is marked out of |
+| **Marks** | what the assignment is marked out of |
 | **Your score** | what you got, out of those marks |
 
 A score higher than the marks available is flagged rather than refused — bonus
 marks and marking errors both happen.
 
-**Grades** rolls weighted assignments up per subject. A weight is a share of one
-unit, so subjects are never summed — that would add percentages of different
-wholes. The page separates *secured* from *average so far*, because 40 of 100 in
-week six is not a failing grade, it is half a semester that has not happened
-yet. Where a whole unit is weighted it works out what the remaining assessments
-have to average for each band; where it is not, it withholds that table, since
-against a quarter of a unit every target computes as already lost.
+**Grades** totals those marks per subject: 34/40 and 8/10 become 42 out of 50.
+
+That is deliberately **unweighted**. Weighting — what each assignment is worth
+towards the subject — was removed pending a decision on how to handle it, so a
+quiz out of 10 and a report out of 100 count here in proportion to their marks
+rather than to what they are actually worth. The page says so rather than
+implying the number is a predicted grade.
+
+The `weight` field is still read and written by the storage layer even though
+nothing uses it. Dropping it would have every device quietly discard whatever
+had already been recorded against it on its next write.
 
 ---
 
@@ -539,7 +543,7 @@ key, migrate forward, leave the old key in place as an accidental backup.
   obvious gap in it.
 - **Real scheduled notifications** (see above).
 - **Sub-tasks**, one level under a task.
-- **Marks and weighting**, with a Grades page per subject (see below).
+- **Marks**, with a Grades page per subject (see below).
 - **Effort estimates and a Today plan**, which paces the day rather than
   listing deadlines.
 - **An Android home-screen widget** (see below).
@@ -549,8 +553,9 @@ key, migrate forward, leave the old key in place as an accidental backup.
 - Native window, native install, no hosting dependency, no cache-busting
   `?v=N` dance.
 
-Still not built, in either: recurring assignments, search, a link or attachment
-per assignment, archiving by term, sorting other than due-date ascending, and
+Still not built, in either: weighting (what each assignment is worth towards
+the subject), recurring assignments, search, a link or attachment per
+assignment, archiving by term, sorting other than due-date ascending, and
 bulk `.ics` export for a whole semester.
 
 ---

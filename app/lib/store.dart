@@ -273,12 +273,14 @@ class AppStore extends ChangeNotifier {
     required String title,
     String? subjectId,
     String due = '',
+    double? outOf,
   }) {
     final a = Assignment(
       id: uid(),
       title: title,
       subjectId: subjectId,
       due: due,
+      outOf: outOf,
     );
     items.insert(0, a);
     _commit();
@@ -298,20 +300,18 @@ class AppStore extends ChangeNotifier {
     _commit();
   }
 
-  /// Sets the weighting and the returned result.
+  /// Sets what the assignment is marked out of, and what was scored.
   ///
-  /// Every field is nullable and every argument is a double-wrapped option, so
-  /// that "leave this alone" and "clear this back to untracked" stay
-  /// distinguishable — passing null for either directly would collapse them.
+  /// Both arguments are double-wrapped options so that "leave this alone" and
+  /// "clear this back to untracked" stay distinguishable — passing null for
+  /// either directly would collapse them.
   void setMarks(
     Assignment a, {
-    Object? weight = _unchanged,
     Object? earned = _unchanged,
     Object? outOf = _unchanged,
   }) {
     // Coerced rather than cast: the arguments are untyped to make the sentinel
     // work, so an int literal would otherwise fail the cast at runtime.
-    if (!identical(weight, _unchanged)) a.weight = (weight as num?)?.toDouble();
     if (!identical(earned, _unchanged)) a.earned = (earned as num?)?.toDouble();
     if (!identical(outOf, _unchanged)) a.outOf = (outOf as num?)?.toDouble();
     _commit();
