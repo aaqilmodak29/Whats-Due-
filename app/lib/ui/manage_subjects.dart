@@ -6,14 +6,53 @@ import '../theme.dart';
 import 'assignment_card.dart' show confirm;
 import 'atoms.dart';
 
-/// The subjects panel: recolour, rename, delete.
+/// The subjects panel: add, recolour, rename, delete.
 ///
 /// Deleting a subject unfiles its assignments rather than cascading a delete —
 /// losing a subject should never lose work.
-class ManageSubjects extends StatelessWidget {
+class ManageSubjects extends StatefulWidget {
   const ManageSubjects({super.key, required this.store});
 
   final AppStore store;
+
+  @override
+  State<ManageSubjects> createState() => _ManageSubjectsState();
+}
+
+class _ManageSubjectsState extends State<ManageSubjects> {
+  final _name = TextEditingController();
+  final _focus = FocusNode();
+
+  /// Null until a swatch is tapped, so the default follows the palette as
+  /// subjects are added rather than sticking on whatever was offered first.
+  String? _picked;
+
+  AppStore get store => widget.store;
+
+  String get _colour => _picked ?? store.nextColor;
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  void _add() {
+    final name = _name.text.trim();
+    if (name.isEmpty) {
+      _focus.requestFocus();
+      return;
+    }
+    store.addSubject(name, _colour);
+    setState(() {
+      _name.clear();
+      // Back to following the palette, so the next one differs again.
+      _picked = null;
+    });
+    // Keep focus, so several subjects can be typed in a row.
+    _focus.requestFocus();
+  }
 
   @override
   Widget build(BuildContext context) => Surface(
@@ -25,10 +64,10 @@ class ManageSubjects extends StatelessWidget {
         const SizedBox(height: 6),
         if (store.subjects.isEmpty)
           Padding(
-            padding: const EdgeInsets.only(top: 4),
+            padding: const EdgeInsets.only(top: 4, bottom: 4),
             child: Text(
-              'No subjects yet. Add one from the + button when you create an '
-              'assignment.',
+              'No subjects yet. Name one below, or create it inline when you '
+              'add an assignment.',
               style: T.note,
             ),
           )
@@ -43,6 +82,64 @@ class ManageSubjects extends StatelessWidget {
             ),
           ),
         ],
+
+        // Adding lives here as well as in the add-assignment panel. Creating a
+        // subject inline while adding an assignment only works when you happen
+        // to be adding one; setting a semester up in advance is its own job.
+        const SizedBox(height: 14),
+        Container(height: 1, color: C.rule),
+        const SizedBox(height: 12),
+        Text('ADD A SUBJECT', style: T.flabel),
+        const SizedBox(height: 5),
+        Row(
+          spacing: 6,
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _name,
+                focusNode: _focus,
+                style: T.body,
+                textInputAction: TextInputAction.done,
+                decoration: fieldDecoration(hint: 'e.g. Organic Chemistry'),
+                onSubmitted: (_) => _add(),
+              ),
+            ),
+            Tap(
+              onTap: _add,
+              semanticLabel: 'Add subject',
+              child: Container(
+                height: 42,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                color: C.ink,
+                alignment: Alignment.center,
+                child: Text('ADD', style: T.primary.copyWith(fontSize: 11)),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            for (final c in kPalette)
+              Tap(
+                onTap: () => setState(() => _picked = c),
+                semanticLabel: 'Use this colour for the new subject',
+                child: Container(
+                  width: 26,
+                  height: 26,
+                  decoration: BoxDecoration(
+                    color: hexToColor(c),
+                    border: Border.all(
+                      color: c == _colour ? C.ink : Colors.transparent,
+                      width: 2,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ],
     ),
   );

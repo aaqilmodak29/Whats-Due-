@@ -245,7 +245,7 @@ Three destinations in a bottom bar.
 
 | | |
 |---|---|
-| **Assignments** | The landing page. Triage counts, the 14-day strip, subject chips, Manage subjects, and the Today / Open / Submitted tabs. |
+| **Assignments** | The landing page. Triage counts, the 14-day strip, subject chips, Manage subjects (add, rename, recolour, delete), and the Today / Open / Submitted tabs. |
 | **Grades** | Per-subject standing and what the rest has to average. |
 | **Settings** | Appearance, sync, version, reminders, export, import and erasing — one scroll. |
 
