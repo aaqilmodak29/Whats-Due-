@@ -307,6 +307,18 @@ void main() {
     );
   });
 
+  testWidgets('phone, manage subjects', (tester) async {
+    // Adding lives here now as well as in the add-assignment panel.
+    await _boot(tester, const Size(430, 1500), seed: _seed());
+    await _goTo(tester, 'Assignments');
+    await tester.tap(find.text('MANAGE SUBJECTS'));
+    await tester.pumpAndSettle();
+    await expectLater(
+      find.byType(WhatsDueApp),
+      matchesGoldenFile('goldens/phone-subjects.png'),
+    );
+  });
+
   testWidgets('phone, empty', (tester) async {
     await _boot(tester, const Size(430, 932));
     await expectLater(

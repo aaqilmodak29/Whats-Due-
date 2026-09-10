@@ -691,6 +691,87 @@ void main() {
   });
 
   group('subjects', () {
+    appTest('a subject can be added from the manage panel', (
+      tester,
+      store,
+    ) async {
+      await tester.tap(find.text('MANAGE SUBJECTS'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+        find.widgetWithText(TextField, 'e.g. Organic Chemistry'),
+        'Reinforcement Learning',
+      );
+      await tester.tap(find.bySemanticsLabel('Add subject'));
+      await tester.pumpAndSettle();
+
+      expect(store.subjects.map((s) => s.name), contains('Reinforcement Learning'));
+      // The field clears so the next one can be typed straight away.
+      expect(
+        tester
+            .widget<TextField>(
+              find.widgetWithText(TextField, 'e.g. Organic Chemistry'),
+            )
+            .controller!
+            .text,
+        isEmpty,
+      );
+      // And it shows up as a filter chip immediately.
+      expect(find.text('REINFORCEMENT LEARNING 0'), findsOne);
+    }, seed: _seed(), size: const Size(430, 2000), tab: 'Assignments');
+
+    appTest('a blank name is refused rather than creating a subject', (
+      tester,
+      store,
+    ) async {
+      await tester.tap(find.text('MANAGE SUBJECTS'));
+      await tester.pumpAndSettle();
+
+      final before = store.subjects.length;
+      await tester.enterText(
+        find.widgetWithText(TextField, 'e.g. Organic Chemistry'),
+        '   ',
+      );
+      await tester.tap(find.bySemanticsLabel('Add subject'));
+      await tester.pumpAndSettle();
+
+      expect(store.subjects.length, before);
+    }, seed: _seed(), size: const Size(430, 2000), tab: 'Assignments');
+
+    appTest('the chosen colour is the one the subject gets', (
+      tester,
+      store,
+    ) async {
+      await tester.tap(find.text('MANAGE SUBJECTS'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.bySemanticsLabel('Use this colour for the new subject').at(5),
+      );
+      await tester.enterText(
+        find.widgetWithText(TextField, 'e.g. Organic Chemistry'),
+        'Networks',
+      );
+      await tester.tap(find.bySemanticsLabel('Add subject'));
+      await tester.pumpAndSettle();
+
+      expect(
+        store.subjects.firstWhere((s) => s.name == 'Networks').color,
+        kPalette[5],
+      );
+    }, seed: _seed(), size: const Size(430, 2000), tab: 'Assignments');
+
+    appTest('the panel says how to add one when there are none', (
+      tester,
+      store,
+    ) async {
+      await tester.tap(find.text('MANAGE SUBJECTS'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Name one below'), findsOne);
+      // The field is there even with nothing to list.
+      expect(find.bySemanticsLabel('Add subject'), findsOne);
+    }, size: const Size(430, 2000), tab: 'Assignments');
+
     appTest('the manage panel lists subjects', (tester, store) async {
       await tester.tap(find.text('MANAGE SUBJECTS'));
       await tester.pumpAndSettle();
