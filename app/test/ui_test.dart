@@ -737,6 +737,39 @@ void main() {
   });
 
   group('settings', () {
+    appTest('orders the sections version-first', (tester, store) async {
+      // The order is the whole point of the page's layout, and nothing else
+      // would notice it drifting: every section renders fine in any position.
+      const titles = {
+        'VERSION',
+        'HOW IT WORKS',
+        'APPEARANCE',
+        'NOT CONFIGURED',
+        'REMINDERS',
+        'EXPORT',
+        'IMPORT',
+        'DANGER',
+      };
+      final rendered = tester
+          .widgetList<Text>(find.byType(Text))
+          .map((w) => w.data)
+          .whereType<String>()
+          .where(titles.contains)
+          .toList();
+
+      // HOW IT WORKS explains sync, so it is absent with no project
+      // configured — there is nothing to explain.
+      expect(rendered, [
+        'VERSION',
+        'APPEARANCE',
+        'NOT CONFIGURED',
+        'REMINDERS',
+        'EXPORT',
+        'IMPORT',
+        'DANGER',
+      ]);
+    }, seed: _seed(), size: const Size(430, 2000), tab: 'Settings');
+
     appTest('gathers sync, reminders, backup and updates on one page', (
       tester,
       store,

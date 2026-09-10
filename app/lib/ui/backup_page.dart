@@ -7,7 +7,6 @@ import '../store.dart';
 import '../theme.dart';
 import 'assignment_card.dart' show confirm;
 import 'atoms.dart';
-import 'update_section.dart';
 
 /// Backup and reminder settings.
 ///
@@ -120,9 +119,6 @@ class _BackupSectionsState extends State<BackupSections> {
 
     return Column(
               children: [
-                UpdateSection(updater: store.updater),
-                const SizedBox(height: 16),
-
                 _Section(
                   accent: C.mark,
                   title: 'Reminders',

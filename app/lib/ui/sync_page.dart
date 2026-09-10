@@ -146,22 +146,6 @@ class _SyncSectionState extends State<SyncSection> {
             ),
           ],
         ),
-        const SizedBox(height: 16),
-        _Section(
-          accent: C.ink,
-          title: 'How it works',
-          children: [
-            Text(
-              'The whole list syncs as one document, newest wins. It pushes a '
-              'few seconds after you change something, and pulls when the app '
-              'starts or comes back to the foreground.\n\n'
-              'Editing on two devices without a sync in between is the one case '
-              'this cannot merge. It will stop and ask you which to keep rather '
-              'than quietly discarding either.',
-              style: T.note,
-            ),
-          ],
-        ),
       ],
     );
   }
@@ -330,4 +314,39 @@ class _Section extends StatelessWidget {
       ],
     ),
   );
+}
+
+/// How sync behaves, as its own placeable section.
+///
+/// Lifted out of the signed-in panel so Settings can order it independently:
+/// it explains the feature rather than reporting on it, which is why it reads
+/// near the top rather than beside the status.
+///
+/// Shows whenever sync is configured, signed in or not — the explanation is
+/// what tells you what signing in would get you. A build with no Firebase
+/// project says nothing, because there is nothing to explain.
+class SyncHowItWorks extends StatelessWidget {
+  const SyncHowItWorks({super.key, required this.store});
+
+  final AppStore store;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!(store.sync?.isConfigured ?? false)) return const SizedBox.shrink();
+    return _Section(
+      accent: C.ink,
+      title: 'How it works',
+      children: [
+        Text(
+          'The whole list syncs as one document, newest wins. It pushes a few '
+          'seconds after you change something, and pulls when the app starts '
+          'or comes back to the foreground.\n\n'
+          'Editing on two devices without a sync in between is the one case '
+          'this cannot merge. It will stop and ask you which to keep rather '
+          'than quietly discarding either.',
+          style: T.note,
+        ),
+      ],
+    );
+  }
 }
