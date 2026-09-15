@@ -83,7 +83,6 @@ void main() {
     });
   });
 
-
   group('serialisation', () {
     test('an assignment round-trips through JSON', () {
       final a = Assignment(
@@ -117,6 +116,16 @@ void main() {
     test('ids are unique across a realistic number of draws', () {
       final seen = {for (var i = 0; i < 5000; i++) uid()};
       expect(seen.length, 5000);
+    });
+  });
+
+  group('estimates', () {
+    test('read as hours and minutes', () {
+      expect(formatMinutes(45), '45m');
+      expect(formatMinutes(60), '1h');
+      expect(formatMinutes(90), '1h 30m');
+      expect(formatMinutes(0), '0m');
+      expect(formatMinutes(-5), '0m');
     });
   });
 }
