@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../grades.dart';
 import '../models.dart';
 import '../planner.dart';
 import '../store.dart';
@@ -362,17 +361,8 @@ class _AssignmentCardState extends State<AssignmentCard> {
                             ),
                             const SizedBox(width: 10),
                             Text(
-                              // A returned mark outranks the word SUBMITTED:
-                              // once the result is in, it is the only thing
-                              // left worth reading on a finished card.
-                              a.graded
-                                  ? '${trimNumber(a.earned!)}/'
-                                        '${trimNumber(a.outOf!)}'
-                                        ' · ${formatPercent(a.scored!)}'
-                                  : a.done
-                                  ? 'SUBMITTED'
-                                  : countdown(n),
-                              style: T.count(a.graded ? C.green : spine),
+                              a.done ? 'SUBMITTED' : countdown(n),
+                              style: T.count(spine),
                             ),
                           ],
                         ),
@@ -401,6 +391,18 @@ class _AssignmentCardState extends State<AssignmentCard> {
                             Text(
                               total == 0 ? 'no tasks' : '$finished/$total',
                               style: T.frac,
+                            ),
+                            // A hairline keeps the two fractions from reading
+                            // as one: 1/2 is tasks done, 30/40 is marks.
+                            Container(width: 1, height: 11, color: C.rule),
+                            Text(
+                              a.markLabel,
+                              style: T.frac.copyWith(
+                                // Ink once a real result is in, so a graded
+                                // card is distinguishable at a glance from one
+                                // still showing placeholders.
+                                color: a.graded ? C.ink : C.muted,
+                              ),
                             ),
                           ],
                         ),

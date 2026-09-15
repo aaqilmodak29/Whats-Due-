@@ -16,8 +16,8 @@ import 'theme.dart';
 ///
 /// Everything here is best-effort: the widget is a convenience, and failing to
 /// update it must never surface as an error in an app that is otherwise
-/// working. On any platform but Android this is a no-op, so the Windows build
-/// never reaches a plugin that has no Windows implementation.
+/// working. It is a no-op anywhere but Android, which is what keeps the test
+/// suite from reaching a plugin that has no implementation for the host.
 class WidgetBridge {
   WidgetBridge._();
 
@@ -30,8 +30,8 @@ class WidgetBridge {
   /// The horizon the widget covers.
   static const withinDays = 7;
 
-  /// Guards every call. Tests and the Windows build both land here and stop,
-  /// so neither ever reaches a plugin with no implementation for them.
+  /// Guards every call, so the test suite never reaches a plugin that has no
+  /// implementation for the machine it is running on.
   static bool get _supported => !kIsWeb && Platform.isAndroid;
 
   static Future<void> push(List<Assignment> items, List<Subject> subjects)

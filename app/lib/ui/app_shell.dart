@@ -32,6 +32,8 @@ class _AppShellState extends State<AppShell> {
   AppTab _tab = AppTab.assignments;
   AssignmentsView _assignments = const AssignmentsView();
 
+  late final _pages = PageController(initialPage: _tab.index);
+
   /// One controller per destination, so each keeps its own scroll position
   /// across tab switches.
   final _controllers = {
@@ -42,25 +44,40 @@ class _AppShellState extends State<AppShell> {
 
   @override
   void dispose() {
+    _pages.dispose();
     for (final c in _controllers.values) {
       c.dispose();
     }
     super.dispose();
   }
 
+  /// Nav taps animate rather than jump, so the direction of travel is the same
+  /// whether you tapped or swiped.
+  void _go(AppTab tab) {
+    setState(() => _tab = tab);
+    _pages.animateToPage(
+      tab.index,
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
-    // IndexedStack rather than a swap: every destination stays alive, so its
-    // scroll offset and any half-typed field survive a trip to another tab.
-    body: IndexedStack(
-      index: _tab.index,
+    // A PageView rather than an IndexedStack, so the destinations can be swiped
+    // between as well as tapped. Each page keeps its own scroll controller, and
+    // the view state they render from lives in this State, so swiping away and
+    // back costs nothing.
+    body: PageView(
+      controller: _pages,
+      onPageChanged: (i) => setState(() => _tab = AppTab.values[i]),
       children: [
         AssignmentsPage(
           store: store,
           view: _assignments,
           controller: _controllers[AppTab.assignments]!,
           onView: (v) => setState(() => _assignments = v),
-          onOpenSettings: () => setState(() => _tab = AppTab.settings),
+          onOpenSettings: () => _go(AppTab.settings),
         ),
         GradesPage(
           store: store,
@@ -72,10 +89,7 @@ class _AppShellState extends State<AppShell> {
         ),
       ],
     ),
-    bottomNavigationBar: _NavBar(
-      current: _tab,
-      onSelect: (t) => setState(() => _tab = t),
-    ),
+    bottomNavigationBar: _NavBar(current: _tab, onSelect: _go),
   );
 }
 

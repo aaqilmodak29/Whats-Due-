@@ -12,7 +12,7 @@ import 'atoms.dart';
 ///
 /// Sync keeps the devices in step, so import and export are no longer how data
 /// travels between them. They remain the escape hatch: a copy that survives
-/// signing out, uninstalling, or deciding to stop using the app.
+/// uninstalling, a lost device, or deciding to stop using the app.
 class BackupSections extends StatefulWidget {
   const BackupSections({super.key, required this.store});
 
@@ -204,8 +204,10 @@ class _BackupSectionsState extends State<BackupSections> {
                       '${store.items.length == 1 ? '' : 's'} across '
                       '${store.subjects.length} subject'
                       '${store.subjects.length == 1 ? '' : 's'}. '
-                      'Sync already keeps your devices in step; a saved backup '
-                      'is what survives signing out or uninstalling.',
+                      'Everything lives on this device and nowhere else. A '
+                      'saved backup is the only copy that survives '
+                      'uninstalling, a wiped phone or a lost one — keep a '
+                      'recent one somewhere else.',
                       style: T.note,
                     ),
                     const SizedBox(height: 12),
