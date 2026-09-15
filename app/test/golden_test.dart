@@ -305,6 +305,31 @@ void main() {
     );
   }, skip: false);
 
+  testWidgets('phone, grades opened', (tester) async {
+    // The dropdown is the point of this one: totals alone answer "how am I
+    // going" but not "why".
+    final store = await _boot(tester, const Size(430, 932), seed: _seed());
+    store.setMarks(
+      store.items.firstWhere((a) => a.id == 'a1'),
+      earned: 30,
+      outOf: 40,
+    );
+    store.setMarks(
+      store.items.firstWhere((a) => a.id == 'a4'),
+      earned: 8,
+      outOf: 10,
+    );
+    await tester.pumpAndSettle();
+
+    await _goTo(tester, 'Grades');
+    await tester.tap(find.text('ORGANIC CHEMISTRY'));
+    await tester.pumpAndSettle();
+    await expectLater(
+      find.byType(WhatsDueApp),
+      matchesGoldenFile('goldens/phone-grades-open.png'),
+    );
+  });
+
   testWidgets('phone, add panel with marks', (tester) async {
     await _boot(tester, const Size(430, 932), seed: _seed());
     await _goTo(tester, 'Assignments');

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../grades.dart';
+import '../models.dart';
 import '../store.dart';
 import '../theme.dart';
 import 'atoms.dart';
@@ -9,7 +10,7 @@ import 'atoms.dart';
 ///
 /// Its own destination rather than a strip on the list: grades are something
 /// you go and check, not something you need while triaging deadlines.
-class GradesPage extends StatelessWidget {
+class GradesPage extends StatefulWidget {
   const GradesPage({
     super.key,
     required this.store,
@@ -20,13 +21,24 @@ class GradesPage extends StatelessWidget {
   final ScrollController controller;
 
   @override
+  State<GradesPage> createState() => _GradesPageState();
+}
+
+class _GradesPageState extends State<GradesPage> {
+  /// Which subject has its results showing. One at a time, so the page cannot
+  /// grow into a wall of every mark ever recorded.
+  String? _openId;
+
+  AppStore get store => widget.store;
+
+  @override
   Widget build(BuildContext context) {
     final grades = gradesBySubject(store.items)
       ..sort((a, b) => _name(a.subjectId).compareTo(_name(b.subjectId)));
     final results = grades.fold<int>(0, (n, g) => n + g.gradedCount);
 
     return PageBody(
-      controller: controller,
+      controller: widget.controller,
       title: 'Grades',
       eyebrow: grades.isEmpty
           ? 'Nothing marked yet'
@@ -60,8 +72,15 @@ class GradesPage extends StatelessWidget {
       store.subjects.where((s) => s.id == subjectId).firstOrNull?.swatch ??
       C.muted;
 
+  /// A subject's totals, and its working when opened.
+  ///
+  /// The totals alone answer "how am I going" but not "why", and a percentage
+  /// with no sight of what went into it is the kind of number you end up
+  /// recomputing by hand against the marks on the cards.
   Widget _subjectCard(SubjectGrade g) {
     final average = g.average!;
+    final key = g.subjectId ?? '';
+    final open = _openId == key;
 
     return Container(
       width: double.infinity,
@@ -70,37 +89,92 @@ class GradesPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            spacing: 6,
-            children: [
-              Dot(_swatch(g.subjectId)),
-              Expanded(child: Eyebrow(_name(g.subjectId), maxLines: 1)),
-              Text(formatPercent(average), style: T.count(C.ink)),
-            ],
-          ),
-          const SizedBox(height: 8),
-          SizedBox(
-            height: 6,
-            child: Stack(
+          Tap(
+            onTap: () => setState(() => _openId = open ? null : key),
+            semanticLabel:
+                '${_name(g.subjectId)}, ${formatPercent(average)}, '
+                '${trimNumber(g.earned)} of ${trimNumber(g.outOf)} marks '
+                'across ${g.gradedCount} '
+                '${g.gradedCount == 1 ? 'result' : 'results'}, tap to '
+                '${open ? 'hide' : 'show'} each one',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(color: C.rule),
-                FractionallySizedBox(
-                  widthFactor: average.clamp(0.0, 1.0),
-                  child: Container(color: C.ink),
+                Row(
+                  spacing: 6,
+                  children: [
+                    Dot(_swatch(g.subjectId)),
+                    Expanded(child: Eyebrow(_name(g.subjectId), maxLines: 1)),
+                    Text(formatPercent(average), style: T.count(C.ink)),
+                    Icon(
+                      open ? Icons.expand_less : Icons.expand_more,
+                      size: 16,
+                      color: C.rule,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  height: 6,
+                  child: Stack(
+                    children: [
+                      Container(color: C.rule),
+                      FractionallySizedBox(
+                        widthFactor: average.clamp(0.0, 1.0),
+                        child: Container(color: C.ink),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 7),
+                Text(
+                  '${trimNumber(g.earned)} of ${trimNumber(g.outOf)} marks · '
+                  '${g.gradedCount} '
+                  '${g.gradedCount == 1 ? 'result' : 'results'}',
+                  style: T.frac,
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 7),
-          Text(
-            '${trimNumber(g.earned)} of ${trimNumber(g.outOf)} marks · '
-            '${g.gradedCount} ${g.gradedCount == 1 ? 'result' : 'results'}',
-            style: T.frac,
-          ),
+          if (open) ...[
+            const SizedBox(height: 12),
+            Container(height: 1, color: C.rule),
+            for (final a in g.results) _resultRow(a),
+          ],
         ],
       ),
     );
   }
+
+  Widget _resultRow(Assignment a) => Padding(
+    padding: const EdgeInsets.only(top: 10),
+    child: Row(
+      spacing: 8,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(a.title, style: T.task(done: false).copyWith(fontSize: 13)),
+              if (a.due.isNotEmpty) ...[
+                const SizedBox(height: 2),
+                Text(longDate(a.due), style: T.frac),
+              ],
+            ],
+          ),
+        ),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(a.markLabel, style: T.count(C.ink)),
+            const SizedBox(height: 2),
+            Text(formatPercent(a.scored!), style: T.frac),
+          ],
+        ),
+      ],
+    ),
+  );
 
   Widget _empty() => const EmptyState(
     head: 'Nothing marked yet',

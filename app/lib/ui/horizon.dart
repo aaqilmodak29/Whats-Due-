@@ -6,7 +6,7 @@ import '../models.dart';
 import '../theme.dart';
 import 'atoms.dart';
 
-/// The signature element: 14 columns for the next 14 days, one per day.
+/// The signature element: a fortnight of columns, one per day.
 ///
 /// A day with deadlines gets a filled block whose height grows with the number
 /// due and whose colour comes from [urgency]. Empty days get a hairline. It
@@ -21,7 +21,13 @@ import 'atoms.dart';
 /// row of weekday initials, a tint behind weekends so weeks read at a glance,
 /// and a count on any bar holding more than one. Tapping a bar filters the list
 /// to that day.
-class HorizonStrip extends StatelessWidget {
+///
+/// **Paged by the fortnight, aligned to Monday.** It used to start at today and
+/// run fourteen days forward, so the Monday just gone was invisible, every page
+/// began on a different weekday, and the weekend tints never sat in the same
+/// place twice. Each page is two whole weeks now, Monday to Sunday twice, and a
+/// swipe moves a full fortnight.
+class HorizonStrip extends StatefulWidget {
   const HorizonStrip({
     super.key,
     required this.active,
@@ -43,10 +49,36 @@ class HorizonStrip extends StatelessWidget {
   static const _barsHeight = 46.0;
   static const _labelHeight = 16.0;
 
+  /// Pages either side of the current fortnight — about seven years each way.
+  /// Unbounded in every sense that matters for coursework, without an infinite
+  /// builder that can never say how far it goes.
+  static const reach = 180;
+
+  @override
+  State<HorizonStrip> createState() => _HorizonStripState();
+}
+
+class _HorizonStripState extends State<HorizonStrip> {
+  late final _pages = PageController(initialPage: HorizonStrip.reach);
+  int _page = HorizonStrip.reach;
+
+  @override
+  void dispose() {
+    _pages.dispose();
+    super.dispose();
+  }
+
+  /// The Monday page [i] starts on.
+  DateTime _startOf(int i) => mondayOf(midnight()).add(
+    Duration(days: (i - HorizonStrip.reach) * HorizonStrip._days),
+  );
+
+  bool get _onCurrent => _page == HorizonStrip.reach;
+
   @override
   Widget build(BuildContext context) {
-    final start = midnight();
-    final end = start.add(const Duration(days: _days - 1));
+    final start = _startOf(_page);
+    final end = start.add(const Duration(days: HorizonStrip._days - 1));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -58,12 +90,28 @@ class HorizonStrip extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Flexible(
-              child: Text(
-                'Next 14 days'.toUpperCase(),
-                style: T.eyebrow(),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
+              // The way back only appears once you have moved off the current
+              // fortnight, so the common case carries no control at all.
+              child: _onCurrent
+                  ? Text(
+                      'This fortnight'.toUpperCase(),
+                      style: T.eyebrow(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    )
+                  : Tap(
+                      onTap: () => _pages.animateToPage(
+                        HorizonStrip.reach,
+                        duration: const Duration(milliseconds: 260),
+                        curve: Curves.easeOutCubic,
+                      ),
+                      semanticLabel: 'Back to this fortnight',
+                      child: Text(
+                        'Back to today'.toUpperCase(),
+                        style: T.eyebrow(C.ink),
+                        maxLines: 1,
+                      ),
+                    ),
             ),
             const SizedBox(width: 8),
             // Real dates rather than "Today → +14", which named neither end.
@@ -80,19 +128,24 @@ class HorizonStrip extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         SizedBox(
-          height: _barsHeight + 1 + _labelHeight,
-          child: Stack(
-            children: [
-              Row(children: _columns(start)),
-              // Drawn over the columns so the baseline is continuous rather
-              // than broken by the 3px gaps between them.
-              Positioned(
-                left: 0,
-                right: 0,
-                top: _barsHeight,
-                child: Container(height: 1, color: C.ink),
-              ),
-            ],
+          height: HorizonStrip._barsHeight + 1 + HorizonStrip._labelHeight,
+          child: PageView.builder(
+            controller: _pages,
+            itemCount: HorizonStrip.reach * 2 + 1,
+            onPageChanged: (i) => setState(() => _page = i),
+            itemBuilder: (context, i) => Stack(
+              children: [
+                Row(children: _columns(_startOf(i))),
+                // Drawn over the columns so the baseline is continuous rather
+                // than broken by the 3px gaps between them.
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  top: HorizonStrip._barsHeight,
+                  child: Container(height: 1, color: C.ink),
+                ),
+              ],
+            ),
           ),
         ),
       ],
@@ -112,7 +165,7 @@ class HorizonStrip extends StatelessWidget {
 
   List<Widget> _columns(DateTime start) {
     final children = <Widget>[];
-    for (var day = 0; day < _days; day++) {
+    for (var day = 0; day < HorizonStrip._days; day++) {
       final date = start.add(Duration(days: day));
 
       if (day > 0) {
@@ -138,11 +191,14 @@ class HorizonStrip extends StatelessWidget {
         Expanded(
           child: _DayColumn(
             date: date,
-            daysAway: day,
-            bucket: _bucket(day),
-            selected:
-                selectedDue != null && selectedDue == formatIsoDate(date),
-            onSelect: onSelect,
+            // Measured against today, not against the page: a column in a
+            // fortnight already gone has to colour as overdue, and the one
+            // that is today has to know it.
+            daysAway: daysUntil(formatIsoDate(date)) ?? 0,
+            bucket: _bucket(date),
+            selected: widget.selectedDue != null &&
+                widget.selectedDue == formatIsoDate(date),
+            onSelect: widget.onSelect,
           ),
         ),
       );
@@ -150,8 +206,10 @@ class HorizonStrip extends StatelessWidget {
     return children;
   }
 
-  List<Assignment> _bucket(int day) =>
-      active.where((a) => daysUntil(a.due) == day).toList();
+  List<Assignment> _bucket(DateTime date) {
+    final iso = formatIsoDate(date);
+    return widget.active.where((a) => a.due == iso).toList();
+  }
 
   static const _months = [
     'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',

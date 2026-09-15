@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../filters.dart';
 import '../models.dart';
 import '../store.dart';
 import '../theme.dart';
@@ -32,6 +33,8 @@ class AssignmentsView {
     this.openId,
     this.showManage = false,
     this.showAdd = false,
+    this.query = '',
+    this.window,
   });
 
   final AssignmentTab tab;
@@ -46,6 +49,12 @@ class AssignmentsView {
   final bool showManage;
   final bool showAdd;
 
+  /// Free text matched against assignment titles.
+  final String query;
+
+  /// How far out to look, or null for no limit.
+  final DueWindow? window;
+
   AssignmentsView copyWith({
     AssignmentTab? tab,
     String? filter,
@@ -53,8 +62,11 @@ class AssignmentsView {
     String? openId,
     bool? showManage,
     bool? showAdd,
+    String? query,
+    DueWindow? window,
     bool clearSelectedDue = false,
     bool clearOpenId = false,
+    bool clearWindow = false,
   }) => AssignmentsView(
     tab: tab ?? this.tab,
     filter: filter ?? this.filter,
@@ -62,6 +74,8 @@ class AssignmentsView {
     openId: clearOpenId ? null : (openId ?? this.openId),
     showManage: showManage ?? this.showManage,
     showAdd: showAdd ?? this.showAdd,
+    query: query ?? this.query,
+    window: clearWindow ? null : (window ?? this.window),
   );
 }
 
@@ -91,12 +105,16 @@ class AssignmentsPage extends StatelessWidget {
     final active = store.active;
     final submitted = store.submitted;
 
-    final shown = (_showSubmitted ? submitted : active).where((a) {
-      if (view.selectedDue != null && a.due != view.selectedDue) return false;
-      if (view.filter == filterAll) return true;
-      if (view.filter == filterUnfiled) return a.subjectId == null;
-      return a.subjectId == view.filter;
-    }).toList();
+    final shown = applyFilters(
+      (_showSubmitted ? submitted : active).where((a) {
+        if (view.selectedDue != null && a.due != view.selectedDue) return false;
+        if (view.filter == filterAll) return true;
+        if (view.filter == filterUnfiled) return a.subjectId == null;
+        return a.subjectId == view.filter;
+      }).toList(),
+      query: view.query,
+      window: view.window,
+    );
 
     final overdue = active.where((a) {
       final n = daysUntil(a.due);
@@ -163,6 +181,44 @@ class AssignmentsPage extends StatelessWidget {
           ),
           const SizedBox(height: 14),
         ],
+
+        // ---- search ----
+        _SearchField(
+          value: view.query,
+          onChanged: (q) => onView(view.copyWith(query: q, clearOpenId: true)),
+        ),
+        const SizedBox(height: 10),
+
+        // ---- due window chips ----
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            spacing: 6,
+            children: [
+              _Chip(
+                label: 'Any time',
+                count: active.length,
+                on: view.window == null,
+                onTap: () => onView(
+                  view.copyWith(clearWindow: true, clearOpenId: true),
+                ),
+              ),
+              for (final w in DueWindow.values)
+                _Chip(
+                  label: w.label,
+                  count: active.where((a) => matchesWindow(a, w)).length,
+                  on: view.window == w,
+                  onTap: () => onView(
+                    view.window == w
+                        ? view.copyWith(clearWindow: true, clearOpenId: true)
+                        : view.copyWith(window: w, clearOpenId: true),
+                  ),
+                  semanticLabel: w.semanticLabel,
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
 
         // ---- subject filter chips ----
         if (store.subjects.isNotEmpty) ...[
@@ -342,6 +398,20 @@ class AssignmentsPage extends StatelessWidget {
   }
 
   Widget _empty() {
+    if (view.query.trim().isNotEmpty) {
+      return EmptyState(
+        head: 'Nothing here',
+        body: 'No assignment matches “${view.query.trim()}”. '
+            'Clear the search to see everything again.',
+      );
+    }
+    if (view.window != null) {
+      return EmptyState(
+        head: 'Nothing here',
+        body: 'Nothing is due within ${view.window!.label.toLowerCase()}. '
+            'Tap ANY TIME to widen it.',
+      );
+    }
     final (head, body) = switch ((
       view.selectedDue != null,
       view.filter != filterAll,
@@ -381,6 +451,7 @@ class _Chip extends StatelessWidget {
     required this.on,
     required this.onTap,
     this.dot,
+    this.semanticLabel,
   });
 
   final String label;
@@ -389,10 +460,14 @@ class _Chip extends StatelessWidget {
   final VoidCallback onTap;
   final Color? dot;
 
+  /// Overrides the spoken text. A due window reads as `7 DAYS`, which on its
+  /// own is indistinguishable from a countdown.
+  final String? semanticLabel;
+
   @override
   Widget build(BuildContext context) => Tap(
     onTap: onTap,
-    semanticLabel: 'Filter by $label, $count open',
+    semanticLabel: semanticLabel ?? 'Filter by $label, $count open',
     child: DecoratedBox(
       decoration: BoxDecoration(
         color: C.card,
@@ -443,6 +518,61 @@ class _Tab extends StatelessWidget {
         ),
       ),
       child: Text(label.toUpperCase(), style: T.tab(on ? C.ink : C.muted)),
+    ),
+  );
+}
+
+/// The title search.
+///
+/// Stateful only to hold its own controller: rebuilding a [TextField] with a
+/// freshly constructed one on every keystroke resets the cursor to the start,
+/// which makes the field unusable after the second character.
+class _SearchField extends StatefulWidget {
+  const _SearchField({required this.value, required this.onChanged});
+
+  final String value;
+  final ValueChanged<String> onChanged;
+
+  @override
+  State<_SearchField> createState() => _SearchFieldState();
+}
+
+class _SearchFieldState extends State<_SearchField> {
+  late final _controller = TextEditingController(text: widget.value);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => TextField(
+    controller: _controller,
+    style: T.input,
+    textInputAction: TextInputAction.search,
+    onChanged: widget.onChanged,
+    // No wrapping Semantics here. An ExcludeSemantics around the field takes
+    // the clear button's label with it, leaving a control a screen reader
+    // cannot name — the hint is what the field announces anyway.
+    decoration: fieldDecoration(hint: 'Search assignments').copyWith(
+      prefixIcon: Icon(Icons.search, size: 18, color: C.muted),
+      prefixIconConstraints: const BoxConstraints(minWidth: 34),
+      suffixIcon: _controller.text.isEmpty
+          ? null
+          : Tap(
+              onTap: () {
+                _controller.clear();
+                widget.onChanged('');
+                setState(() {});
+              },
+              semanticLabel: 'Clear the search',
+              child: const Padding(
+                padding: EdgeInsets.only(right: 8),
+                child: CloseGlyph(size: 16),
+              ),
+            ),
+      suffixIconConstraints: const BoxConstraints(minWidth: 28),
     ),
   );
 }

@@ -161,8 +161,8 @@ Three destinations in a bottom bar.
 
 | | |
 |---|---|
-| **Assignments** | The landing page. Triage counts, the 14-day strip, subject chips, Manage subjects (add, rename, recolour, delete), and the Today / Open / Submitted tabs. |
-| **Grades** | Marks totalled per subject. |
+| **Assignments** | The landing page. Triage counts, the fortnight strip, search, due-date windows, subject chips, Manage subjects (add, rename, recolour, delete), and the Today / Open / Submitted tabs. |
+| **Grades** | Marks totalled per subject, each opening to show the results behind the total. |
 | **Settings** | Version, appearance, reminders, export, import and erasing — one scroll. |
 
 They can be swiped between as well as tapped. Nav taps animate rather than jump,
@@ -399,12 +399,21 @@ Urgency thresholds live in exactly one function, `urgency()` in `models.dart`.
 
 ### The horizon strip
 
-14 columns for the next 14 days. A day with deadlines gets a block whose height
-grows with the number due and whose colour comes from `urgency()`; empty days get
-a hairline. It exists so a crunch week is visible before it arrives.
+A fortnight of columns, one per day. A day with deadlines gets a filled block
+whose height grows with the number due and whose colour comes from `urgency`;
+empty days get a hairline. It exists so a crunch week is visible before it
+arrives, and it always charts **all** subjects whatever filter is on — the
+filter narrows the list, not the early warning.
 
-It always shows **all** subjects, whatever filter is active. That is deliberate:
-the filter narrows the list, not the early warning.
+**Paged, and aligned to Monday.** It used to start at today and run fourteen
+days forward, so the Monday just gone was invisible, every page began on a
+different weekday, and the weekend tints never landed in the same place twice.
+Each page is two whole weeks now, Monday to Sunday twice; a swipe moves a full
+fortnight, and a BACK TO TODAY appears once you have moved off the current one.
+It reaches about seven years either way.
+
+Days are coloured against *today*, not against the page, so a column in a
+fortnight already gone still reads as overdue.
 
 ### Type
 
@@ -437,6 +446,7 @@ key, migrate forward, leave the old key in place as an accidental backup.
 - **Real scheduled notifications** (see above).
 - **Sub-tasks**, one level under a task.
 - **Marks**, with a Grades page per subject (see below).
+- **Search and due-date windows** over the list.
 - **Effort estimates and a Today plan**, which paces the day rather than
   listing deadlines.
 - **An Android home-screen widget** (see below).
@@ -446,8 +456,7 @@ key, migrate forward, leave the old key in place as an accidental backup.
   `?v=N` dance.
 
 Still not built: weighting (what each assignment is worth towards the subject),
-recurring assignments, search, a link or attachment per assignment, archiving
-by term, sorting other than due-date ascending, and
+recurring assignments, a link or attachment per assignment, archiving by term, sorting other than due-date ascending, and
 bulk `.ics` export for a whole semester.
 
 ---

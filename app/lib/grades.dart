@@ -18,7 +18,7 @@ class SubjectGrade {
     required this.subjectId,
     required this.earned,
     required this.outOf,
-    required this.gradedCount,
+    required this.results,
   });
 
   /// Null for unfiled assignments, which are still rolled up together so the
@@ -29,7 +29,11 @@ class SubjectGrade {
   final double earned;
   final double outOf;
 
-  final int gradedCount;
+  /// The assignments behind the totals, soonest-due first — so the page can
+  /// show its working rather than only the sum.
+  final List<Assignment> results;
+
+  int get gradedCount => results.length;
 
   /// 0..1, or null when nothing has come back yet.
   double? get average => outOf <= 0 ? null : earned / outOf;
@@ -56,12 +60,13 @@ List<SubjectGrade> gradesBySubject(List<Assignment> items) {
       earned += a.earned!;
       outOf += a.outOf!;
     }
+    list.sort((x, y) => sortKey(x).compareTo(sortKey(y)));
     out.add(
       SubjectGrade(
         subjectId: subjectId,
         earned: earned,
         outOf: outOf,
-        gradedCount: list.length,
+        results: list,
       ),
     );
   });
