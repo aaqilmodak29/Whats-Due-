@@ -336,12 +336,12 @@ void main() {
     );
   });
 
-  testWidgets('desktop, list', (tester) async {
+  testWidgets('wide, list', (tester) async {
     await _boot(tester, const Size(1100, 900), seed: _seed());
     await _goTo(tester, 'Assignments');
     await expectLater(
       find.byType(WhatsDueApp),
-      matchesGoldenFile('goldens/desktop-list.png'),
+      matchesGoldenFile('goldens/wide-list.png'),
     );
   });
 

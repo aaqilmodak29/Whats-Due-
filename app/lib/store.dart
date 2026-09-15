@@ -6,7 +6,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'models.dart';
 import 'reminders.dart';
-import 'sync/sync_engine.dart';
 import 'updater.dart';
 import 'widget_bridge.dart';
 import 'theme.dart';
@@ -49,10 +48,6 @@ class AppStore extends ChangeNotifier {
   /// Checks GitHub for a newer build. Null on platforms that cannot
   /// self-install, where the UI simply never offers an update.
   final Updater updater = Updater();
-
-  /// Set once sync is wired up. Null keeps the app fully functional offline and
-  /// local-only, which is what a build with no Firebase project configured does.
-  SyncEngine? sync;
 
   List<Subject> subjects = [];
   List<Assignment> items = [];
@@ -164,42 +159,6 @@ class AppStore extends ChangeNotifier {
     notifyListeners();
     unawaited(_syncReminders());
     unawaited(WidgetBridge.push(items, subjects));
-    // Stamps the change and schedules a debounced push. Local storage is
-    // already written by this point, so a failed or absent sync never costs the
-    // user their edit.
-    unawaited(sync?.onLocalChange() ?? Future<void>.value());
-  }
-
-  /// Replaces everything with a payload pulled from another device.
-  ///
-  /// Deliberately does not route through [_commit]: that would mark the state
-  /// dirty and immediately push the copy straight back to where it came from.
-  void adoptRemote(String payload) {
-    try {
-      _adopt(_decode(payload));
-    } catch (e) {
-      debugPrint('Store: could not adopt remote payload — $e');
-      return;
-    }
-    try {
-      _prefs?.setString(storageKey, payload);
-    } catch (e) {
-      debugPrint('Store: save failed — $e');
-      storageBlocked = true;
-    }
-    notifyListeners();
-    unawaited(_syncReminders());
-    unawaited(WidgetBridge.push(items, subjects));
-  }
-
-  /// Item count for an arbitrary payload, so a conflict can be described
-  /// without adopting either side first.
-  int countItemsIn(String payload) {
-    try {
-      return _decode(payload).items.length;
-    } catch (_) {
-      return 0;
-    }
   }
 
   Future<void> _syncReminders() =>
@@ -212,11 +171,6 @@ class AppStore extends ChangeNotifier {
 
   String exportJson() =>
       const JsonEncoder.withIndent('  ').convert(toJson());
-
-  /// The compact form, byte-identical to what is written to storage. This is
-  /// what travels to Firestore, so the remote copy, the local copy and an
-  /// exported backup are all the same format.
-  String payloadJson() => jsonEncode(toJson());
 
   // --------------------------------------------------------------- selectors
 

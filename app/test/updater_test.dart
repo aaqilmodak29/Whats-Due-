@@ -122,8 +122,6 @@ void main() {
     // The first version of these did inherit it, so they passed on a Windows
     // machine and failed on the Linux CI runner — the assertions were about
     // the runner, not about the code.
-    setUp(() => Updater.assetExtension = '.apk');
-    tearDown(() => Updater.assetExtension = '.apk');
 
     String payload({
       String tag = 'v1.2.0',
@@ -156,32 +154,26 @@ void main() {
     });
 
     test('an Android build picks the APK', () {
-      Updater.assetExtension = '.apk';
       final r = Updater.parseRelease(payload())!;
       expect(r.apkUrl, 'https://example.test/app.apk');
       expect(r.apkBytes, 18500000);
     });
 
-    test('a Windows build picks the zip, though the APK is listed first', () {
-      // Taking the first attachment would have the desktop app download an
-      // Android package it can do nothing with.
-      Updater.assetExtension = '.zip';
+    test('the APK is picked out of a release carrying other builds', () {
+      // Releases published before the desktop build was discontinued still
+      // carry a Windows zip, and the updater has to keep walking past it.
       final r = Updater.parseRelease(payload())!;
-      expect(r.apkUrl, 'https://example.test/app-windows.zip');
-      expect(r.apkBytes, 28000000);
+      expect(r.apkUrl, 'https://example.test/app.apk');
     });
 
-    test('a release missing the build for this platform offers nothing', () {
-      // This was the desktop case until a Windows zip was published: the
-      // release held only an APK, and offering that would be worse than
-      // offering nothing.
-      Updater.assetExtension = '.zip';
+    test('a release with no APK at all offers nothing', () {
+      // Offering a build the app cannot install is worse than offering none.
       final r = Updater.parseRelease(
         payload(assets: [
           {
-            'name': 'whats-due-v1.2.0.apk',
-            'browser_download_url': 'https://example.test/app.apk',
-            'size': 50000000,
+            'name': 'whats-due-v1.2.0-windows.zip',
+            'browser_download_url': 'https://example.test/app-windows.zip',
+            'size': 28000000,
           },
         ]),
       )!;
@@ -190,7 +182,6 @@ void main() {
     });
 
     test('unrelated attachments are ignored', () {
-      Updater.assetExtension = '.apk';
       final r = Updater.parseRelease(
         payload(assets: [
           {

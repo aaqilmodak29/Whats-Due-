@@ -8,7 +8,6 @@ import 'package:open_filex/open_filex.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 
-import 'windows_update.dart';
 
 enum UpdateStatus { idle, checking, upToDate, available, downloading, ready, failed }
 
@@ -44,24 +43,18 @@ class Updater extends ChangeNotifier {
   static const repo = 'aaqilmodak29/Whats-Due-';
   static const releasesPage = 'https://github.com/$repo/releases/latest';
 
-  /// Android installs an APK over itself; Windows swaps its own directory via
-  /// a helper script. Both are covered — this was Android-only at first, which
-  /// left the desktop app permanently stuck, pointing at a releases page that
-  /// held nothing it could run.
+  /// Android installs an APK over itself. Nothing else can, so elsewhere the
+  /// UI points at the releases page instead of offering a button that cannot
+  /// work.
   ///
-  /// A field rather than a getter so snapshot tests can render either layout.
-  /// Tests run on the host and would otherwise only ever capture one.
-  static bool canSelfInstall =
-      !kIsWeb && (Platform.isAndroid || Platform.isWindows);
+  /// A field rather than a getter so snapshot tests can render either layout;
+  /// tests run on the host and would otherwise only ever capture one. The
+  /// first version of those tests derived this from the host, passed on
+  /// Windows, and failed on the Linux CI runner.
+  static bool canSelfInstall = !kIsWeb && Platform.isAndroid;
 
-  /// The file extension this platform can actually install.
-  ///
-  /// A field rather than a getter, like [canSelfInstall], so tests can assert
-  /// both platforms' selection whatever host they run on. The first version of
-  /// those tests derived it from the host and passed on Windows while failing
-  /// on the Linux CI runner.
-  static String assetExtension =
-      !kIsWeb && Platform.isWindows ? '.zip' : '.apk';
+  /// The only build the app can install over itself.
+  static const assetExtension = '.apk';
 
   UpdateStatus _status = UpdateStatus.idle;
   Release? _release;
@@ -279,13 +272,8 @@ class Updater extends ChangeNotifier {
         return;
       }
 
-      final isWindows = !kIsWeb && Platform.isWindows;
-      // The Windows archive is scratch data: it is unpacked and thrown away, so
-      // it belongs in temp rather than somewhere the user has to tidy up.
-      final dir = isWindows
-          ? Directory.systemTemp
-          : await getExternalStorageDirectory() ??
-                await getApplicationDocumentsDirectory();
+      final dir = await getExternalStorageDirectory() ??
+          await getApplicationDocumentsDirectory();
       final file = File(
         '${dir.path}/whats-due-${release.tag}$assetExtension',
       );
@@ -312,11 +300,6 @@ class Updater extends ChangeNotifier {
       _progress = 1;
       _set(UpdateStatus.ready);
 
-      if (isWindows) {
-        await _installOnWindows(file);
-        return;
-      }
-
       // Android shows its own installer UI from here. The first time, it will
       // also ask for permission to install from this app.
       final result = await OpenFilex.open(
@@ -334,37 +317,6 @@ class Updater extends ChangeNotifier {
       debugPrint('Updater: download failed — $e');
       _set(UpdateStatus.failed, 'Download failed — $e');
     }
-  }
-
-  /// Unpacks the Windows archive and hands the swap to a helper, then quits.
-  ///
-  /// The app has to exit: a running process holds its own executable open, so
-  /// the files cannot be replaced until it is gone. The helper waits for that,
-  /// swaps them, and starts the app again.
-  Future<void> _installOnWindows(File zip) async {
-    final staging = await WindowsUpdate.stage(zip);
-    if (staging == null) {
-      _set(
-        UpdateStatus.failed,
-        'The download could not be unpacked, so nothing was changed. '
-        'The file is at ${zip.path}.',
-      );
-      return;
-    }
-
-    if (!await WindowsUpdate.handOff(staging)) {
-      _set(
-        UpdateStatus.failed,
-        'Could not start the updater, so nothing was changed. The new version '
-        'is unpacked at ${staging.path} if you want to copy it over yourself.',
-      );
-      return;
-    }
-
-    _set(UpdateStatus.ready, 'Restarting to finish the update…');
-    // Give the message a frame to land, then get out of the helper's way.
-    await Future<void>.delayed(const Duration(milliseconds: 600));
-    exit(0);
   }
 
   /// Re-opens an already-downloaded APK, for when the install prompt was

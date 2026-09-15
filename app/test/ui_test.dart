@@ -824,9 +824,7 @@ void main() {
       // would notice it drifting: every section renders fine in any position.
       const titles = {
         'VERSION',
-        'HOW IT WORKS',
         'APPEARANCE',
-        'NOT CONFIGURED',
         'REMINDERS',
         'EXPORT',
         'IMPORT',
@@ -839,12 +837,9 @@ void main() {
           .where(titles.contains)
           .toList();
 
-      // HOW IT WORKS explains sync, so it is absent with no project
-      // configured — there is nothing to explain.
       expect(rendered, [
         'VERSION',
         'APPEARANCE',
-        'NOT CONFIGURED',
         'REMINDERS',
         'EXPORT',
         'IMPORT',
@@ -852,16 +847,11 @@ void main() {
       ]);
     }, seed: _seed(), size: const Size(430, 2000), tab: 'Settings');
 
-    appTest('gathers sync, reminders, backup and updates on one page', (
+    appTest('gathers everything configurable on one page', (
       tester,
       store,
     ) async {
       expect(find.text('Settings'), findsOne);
-      // Sync and backup used to be two separate pushed pages, so the two
-      // halves of "where does my data live" were never visible at once. With
-      // no Firebase project configured the sync section says so, which is
-      // still proof it is on this page.
-      expect(find.text('NOT CONFIGURED'), findsOne);
       expect(find.text('EXPORT'), findsOne);
       expect(find.text('IMPORT'), findsOne);
       expect(find.text('REMINDERS'), findsOne);
@@ -1320,13 +1310,15 @@ void main() {
   group('layout', () {
     // Overflow throws inside a widget test, so building at each size *is* the
     // assertion. These are the extremes the app has to survive: a small phone
-    // through to a maximised desktop window.
+    // through to a tablet held in landscape. The desktop build is gone, but
+    // the 620px column still has to behave when it is given far more room
+    // than it wants.
     for (final (label, size) in const [
       ('small phone', Size(360, 640)),
       ('tall phone', Size(430, 932)),
       ('tablet', Size(834, 1112)),
-      ('desktop', Size(1512, 945)),
-      ('wide desktop', Size(2560, 1440)),
+      ('landscape tablet', Size(1512, 945)),
+      ('very wide', Size(2560, 1440)),
     ]) {
       appTest('renders on a $label without overflowing', (
         tester,

@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../models.dart';
 import '../store.dart';
 import '../theme.dart';
-import '../sync/sync_engine.dart';
 import 'add_panel.dart';
 import 'assignment_card.dart';
 import 'atoms.dart';
@@ -125,7 +124,6 @@ class AssignmentsPage extends StatelessWidget {
       ),
       children: [
         UpdateBanner(updater: store.updater, onTap: onOpenSettings),
-        _syncNotice(),
 
         // Back on the page it filters, so tapping a day no longer means
         // crossing a page boundary to see the result.
@@ -295,40 +293,6 @@ class AssignmentsPage extends StatelessWidget {
           ),
         ],
       ],
-    );
-  }
-
-  /// Only appears when sync needs a decision or has failed.
-  ///
-  /// A working sync says nothing: a permanent status line trains you to ignore
-  /// the spot where the failure will eventually appear.
-  Widget _syncNotice() {
-    final status = store.sync?.status;
-    if (status != SyncStatus.conflict && status != SyncStatus.error) {
-      return const SizedBox.shrink();
-    }
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
-      child: Tap(
-        onTap: onOpenSettings,
-        semanticLabel: status == SyncStatus.conflict
-            ? 'Sync needs a decision, tap to open Settings'
-            : 'Sync failed, tap to open Settings',
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            color: C.card,
-            border: Border.all(color: C.red),
-          ),
-          child: Text(
-            status == SyncStatus.conflict
-                ? 'SYNC NEEDS A DECISION'
-                : 'SYNC FAILED',
-            style: T.count(C.red),
-          ),
-        ),
-      ),
     );
   }
 

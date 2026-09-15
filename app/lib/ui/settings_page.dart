@@ -4,18 +4,14 @@ import '../store.dart';
 import '../theme.dart';
 import 'atoms.dart';
 import 'backup_page.dart';
-import 'sync_page.dart';
 import 'update_section.dart';
 
 /// Everything that is configuration rather than coursework.
 ///
-/// Sync and Backup were two separate pushed pages reached from footer links,
-/// which meant the two halves of "where does my data live" were never visible
-/// at once — and a sync conflict was only discoverable by going looking for it.
-/// They are one scroll now, ordered by how often you come here for each:
-/// the version first, because checking for an update is the main reason to
-/// open this page at all, then how sync works, then appearance, then the
-/// operational sections — sync status, reminders, backup, restore and erasing.
+/// Ordered by how often you come here for each: the version first, because
+/// checking for an update is the main reason to open this page at all, then
+/// appearance, then the operational sections — reminders, backup, restore and
+/// erasing.
 class SettingsPage extends StatelessWidget {
   const SettingsPage({
     super.key,
@@ -30,15 +26,11 @@ class SettingsPage extends StatelessWidget {
   Widget build(BuildContext context) => PageBody(
     controller: controller,
     title: 'Settings',
-    eyebrow: 'Version, sync, appearance, reminders and backup',
+    eyebrow: 'Version, appearance, reminders and backup',
     children: [
       UpdateSection(updater: store.updater),
       const SizedBox(height: 16),
-      SyncHowItWorks(store: store),
-      const SizedBox(height: 16),
       _appearance(),
-      const SizedBox(height: 16),
-      SyncSection(store: store),
       const SizedBox(height: 16),
       BackupSections(store: store),
     ],

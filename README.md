@@ -3,15 +3,16 @@
 A coursework tracker. It answers three questions: what's overdue, what's coming
 up, and what's left to do inside each assignment.
 
-A Flutter app in [`app/`](app), built for **Windows desktop and Android**. Both
-share one list through Firebase — see [Sync](#sync) and
-[`SYNC-SETUP.md`](SYNC-SETUP.md). Without a Firebase project configured the app
-is local-only and still fully usable.
+A Flutter app in [`app/`](app), built for **Android**.
 
-It started as a single-file web app served from GitHub Pages. That has been
-retired: the desktop and phone builds do everything it did and can fire real
-notifications, which a web page fundamentally cannot. The original `index.html`
-remains in the git history if it is ever wanted.
+**Everything stays on the device.** There is no account, no server and no
+network call except the one that checks GitHub for a new version. That is a
+deliberate choice, not a missing feature — see
+[Why there is no sync](#why-there-is-no-sync).
+
+It started as a single-file web app served from GitHub Pages, and for a while
+there was a Windows desktop build and a Firebase sync between them. Both have
+been retired; the git history keeps them if they are ever wanted again.
 
 ---
 
@@ -22,72 +23,6 @@ Everything below is run from the `app/` directory.
 ```bash
 cd app
 ```
-
-### Windows desktop
-
-⚠️ **One-time setup:** Flutter needs Windows **Developer Mode** enabled before it
-can build any project that uses plugins — it creates symlinks, which otherwise
-requires administrator rights on every build. Open **Settings → System → For
-developers** and turn on **Developer Mode**, or run:
-
-```bash
-start ms-settings:developers
-```
-
-Then:
-
-```bash
-flutter run -d windows
-```
-
-To produce a distributable build:
-
-```bash
-flutter build windows --release --dart-define-from-file=../.env
-```
-
-The result is a folder, not a single file — the `.exe` needs the DLLs beside it:
-
-```
-app/build/windows/x64/runner/Release/
-```
-
-### Installing it
-
-Use the install script. It installs to `%LOCALAPPDATA%\WhatsDue` — the
-conventional per-user location on Windows, and one that needs no administrator
-rights — and creates the Start menu shortcut:
-
-```powershell
-.\tools\install-windows.ps1
-```
-
-That downloads the latest release. `-Version v1.0.7` pins a specific one, and
-`-FromBuild` installs what you just built instead of downloading.
-
-**Run it from an ordinary PowerShell window**, not from a terminal embedded in a
-packaged (MSIX) app. Such a container silently redirects writes to
-`%LOCALAPPDATA%` into its own private storage, where `Test-Path` reports success
-and Explorer correctly reports that the folder does not exist. The script probes
-for this and refuses rather than installing somewhere you cannot reach it.
-
-#### Why not just copy the folder
-
-**Never run it in place from `build/`.** That directory is disposable:
-`flutter clean` deletes it, every rebuild overwrites it, and it is gitignored —
-so moving the project leaves the app behind. Not hypothetical: the app was
-installed there, updated itself to 1.0.5 in place, and disappeared when the
-repository was moved, because `app/build` was not part of what moved.
-
-**The shortcut is part of the install, not an afterthought.** A pin made by
-right-clicking the exe under `build/` points into that same disposable
-directory, so it breaks with it. And a broken shortcut is not a cosmetic
-problem: an app you cannot launch never runs its own updater, so it quietly
-falls behind every release. That is exactly how a desktop install sat on 1.0.5
-while the phone reached 1.0.7.
-
-A copy outside the repository is independent of all that, and it is what the
-in-app updater then swaps when a new version arrives.
 
 ### Android
 
@@ -131,20 +66,13 @@ git tag v1.1.0 && git push origin v1.1.0
 ```
 
 [`release.yml`](.github/workflows/release.yml) runs analyze and the test suite,
-then builds both platforms and publishes them as a GitHub Release:
+then builds and publishes a signed `whats-due-<tag>.apk` as a GitHub Release.
 
-| Asset | |
-|---|---|
-| `whats-due-<tag>.apk` | signed, built on Linux |
-| `whats-due-<tag>-windows.zip` | the Release folder's contents, built on a Windows runner |
-
-The Windows job runs after the Android one rather than beside it, so the two
-uploads cannot race to create the same release.
-
-Each app checks that feed on launch and offers whichever asset it can actually
-install, so a change no longer means copying anything anywhere by hand. Picking
-the first attachment instead of the matching one would have the desktop download
-an APK it can do nothing with, which is why that selection is tested.
+The app checks that feed on launch and offers the APK, so an update is a tap
+rather than a file copied across by hand. It picks the attachment by extension
+rather than taking the first one — releases published before the desktop build
+was discontinued still carry a Windows zip, and the updater has to walk past
+it. That selection is tested.
 
 Two things must line up or the update will not install, and both are handled by
 that workflow:
@@ -161,29 +89,22 @@ that workflow:
 being able to ship an update that installs over an existing one — the only way
 back is uninstalling, which erases local data.
 
-Both platforms update themselves. Android hands the APK to the system installer;
-Windows unpacks the zip and hands the swap to a PowerShell helper, because a
-process cannot overwrite its own executable while it is running. The app closes
-and reopens on the new version — the close is expected, not a crash.
+The app downloads the APK and hands it to the system installer. The first time,
+Android also asks for permission to install from this app.
 
-The helper waits for the app to exit, copies the current install aside, replaces
-it, verifies the executable is there, and relaunches. On any failure it restores
-the backup and starts the old version instead, so the worst case is the previous
-version coming back rather than a half-written directory. Backups land in
-`%TEMP%\whats-due-backup-<timestamp>` and can be deleted once an update sticks.
+**Updating is not a reinstall.** An APK installed over the same package with the
+same signing key is an update, and app data is preserved — no export and import
+around it. Uninstalling is what wipes data.
 
-Everything it does is written to `%TEMP%\whats-due-update.log`. Read that first
-if an update does not complete — the first version of the helper logged nothing,
-and a silent failure was indistinguishable from a crash.
-
-It swaps whichever directory the running `.exe` lives in, which is the other
-reason to install outside `build/`.
-
-### iOS
+### Other platforms
 
 The iOS project is present and the code is platform-correct, but **it has not
-been built or tested** — that requires a Mac with Xcode. On a Mac,
-`flutter build ios` should be the whole story.
+been built or tested** — that requires a Mac with Xcode.
+
+The Windows desktop build was removed. It worked, but it was the least-used
+half of the app and carried the most machinery: a whole second release job, a
+self-update helper that swapped a running program's own directory, and an
+install script. Dropping it took all of that with it.
 
 ---
 
@@ -232,11 +153,6 @@ On Android 13+ the OS asks permission the first time. If reminders are silently
 not arriving, check the app is allowed to post notifications **and** allowed to
 set alarms and reminders — they are two separate switches.
 
-On Windows the notification plugin registers an AppUserModelID in the registry
-on first run, so toasts work for the unpackaged build without a Start Menu
-shortcut. Its MSIX caveat applies only to querying and cancelling
-*already-shown* notifications, not to scheduling.
-
 ---
 
 ## Getting around
@@ -246,19 +162,21 @@ Three destinations in a bottom bar.
 | | |
 |---|---|
 | **Assignments** | The landing page. Triage counts, the 14-day strip, subject chips, Manage subjects (add, rename, recolour, delete), and the Today / Open / Submitted tabs. |
-| **Grades** | Per-subject standing and what the rest has to average. |
-| **Settings** | Appearance, sync, version, reminders, export, import and erasing — one scroll. |
+| **Grades** | Marks totalled per subject. |
+| **Settings** | Version, appearance, reminders, export, import and erasing — one scroll. |
+
+They can be swiped between as well as tapped. Nav taps animate rather than jump,
+so the direction of travel is the same either way, and the bar follows the pager
+rather than being a second source of truth.
 
 A separate Home page existed briefly and was removed. Every block on it either
 restated the list underneath it or was a door to somewhere the nav bar already
-went, so it cost a tap on every launch and gave nothing back. The strip, the
-update banner and the sync warning moved onto Assignments, which is where they
-were before and where the thing they filter actually lives.
+went, so it cost a tap on every launch and gave nothing back. The strip and the
+update banner moved onto Assignments, which is where they were before and where
+the thing they filter actually lives.
 
-Sync and Backup used to be separate pages behind footer links, so the two halves
-of "where does my data live" were never visible at once — and a sync conflict was
-only discoverable by going looking for it. Settings is one page now, and
-Assignments raises a warning when sync needs attention.
+Settings was two pages behind footer links, so what was configurable was never
+visible at once. It is one scroll now.
 
 The Assignments view state — which tab, which filter, which day, which card is
 open — is held by the shell rather than the page, so it survives switching tabs
@@ -373,48 +291,23 @@ this week".
 
 ---
 
-## Sync
+## Why there is no sync
 
-Both builds of `app/` share one list through Firebase. Setup is a one-time
-five-minute job in the Firebase console — see [`SYNC-SETUP.md`](SYNC-SETUP.md).
+There was sync, over Firebase, with email-and-password accounts. It is gone.
 
-**The whole list is one document, newest wins.** Not per-item merging. For one
-user with tens of items the entire `{subjects, items}` blob is a few kilobytes,
-and treating it as one unit buys a large simplification: a deletion is just an
-item absent from a newer document, so there are no tombstones, no per-item
-timestamps, and no merge algorithm to get subtly wrong.
+The app is meant to be handed to other people now, and sync was the only part
+that needed an account, a server, and someone to be responsible for other
+people's coursework sitting in their project. Removing it removed all three at
+once. The public build no longer carries a Firebase API key, and nobody is ever
+asked to create an account.
 
-The cost, stated plainly: edit on two devices without a sync in between and one
-side's edits lose. That case is **detected, not silently resolved** — the app
-stops, shows both sides with item counts and edit times, and asks which to keep.
+What it costs: one device, one copy. Moving between devices is an export and an
+import, below.
 
-It pushes a few seconds after a change (debounced, so ticking six checkboxes is
-one write) and pulls on launch and on foreground. Home surfaces a warning when
-sync needs a decision or has failed, which doubles as the
-status indicator.
+**So keep a backup.** With nothing in the cloud, a saved `.json` is the only
+copy that survives uninstalling, a wiped phone, or a lost one.
 
-### Why REST and not the FlutterFire plugins
-
-`cloud_firestore` supports Windows, but its Windows implementation pulls in the
-Firebase C++ SDK. This project had already lost a Windows build to a missing ATL
-header from a far smaller native plugin, and whole-document sync needs exactly
-two operations — read a document, write a document. Firestore's offline cache and
-real-time listeners are the main reasons to take the native SDK, and the local
-store already *is* the offline cache.
-
-So sync is the Firestore and Firebase Auth REST APIs over `http`: no native
-dependencies, one identical code path on Windows and Android, no
-`google-services.json`, no `flutterfire configure`, and no C++ SDK to break a
-desktop build.
-
-Sign-in is email/password rather than Google Sign-In because the account has to
-work on Windows, and `google_sign_in` has no Windows implementation.
-
-The project ID and web API key in [`app/lib/sync/firebase_config.dart`](app/lib/sync/firebase_config.dart)
-are **public identifiers, not secrets** — a Firebase web API key ships in the
-JavaScript of every Firebase web app. Access control lives entirely in
-[`firestore.rules`](firestore.rules), which allows a signed-in user to touch
-exactly one document, their own.
+---
 
 ## Moving your data by hand
 
@@ -549,13 +442,12 @@ key, migrate forward, leave the old key in place as an accidental backup.
 - **An Android home-screen widget** (see below).
 - **Dark mode** (see below).
 - **Import and export**, in both builds.
-- **Sync across devices** (see above).
 - Native window, native install, no hosting dependency, no cache-busting
   `?v=N` dance.
 
-Still not built, in either: weighting (what each assignment is worth towards
-the subject), recurring assignments, search, a link or attachment per
-assignment, archiving by term, sorting other than due-date ascending, and
+Still not built: weighting (what each assignment is worth towards the subject),
+recurring assignments, search, a link or attachment per assignment, archiving
+by term, sorting other than due-date ascending, and
 bulk `.ics` export for a whole semester.
 
 ---
