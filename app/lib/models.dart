@@ -282,6 +282,18 @@ DateTime midnight() {
   return DateTime(n.year, n.month, n.day);
 }
 
+/// The Monday of [d]'s week, at local midnight.
+///
+/// The horizon strip is paged a fortnight at a time and every page starts here,
+/// so a week always reads Monday to Sunday. Anchoring on today instead put the
+/// current weekday in the left column, which made the Monday just gone
+/// invisible and gave every page a different shape.
+DateTime mondayOf(DateTime d) => DateTime(
+  d.year,
+  d.month,
+  d.day,
+).subtract(Duration(days: d.weekday - DateTime.monday));
+
 /// Local midnight on [iso], or null when [iso] is not a `YYYY-MM-DD` date.
 DateTime? parseIsoDate(String iso) {
   final p = iso.split('-');

@@ -129,6 +129,13 @@ Future<void> goTo(WidgetTester tester, String label) async {
   await tester.pumpAndSettle();
 }
 
+/// The shell's pager, not the horizon strip's.
+///
+/// There are two now, nested: swiping the strip pages the fortnight, swiping
+/// anywhere else changes destination. The shell's is the outer one, so it comes
+/// first in a depth-first walk.
+Finder _shellPager() => find.byType(PageView).first;
+
 /// Text fields behind a dialog would otherwise be matched first.
 /// The edit sheet's title box — the first field in the dialog.
 ///
@@ -231,7 +238,7 @@ void main() {
     String isoIn(int days) =>
         formatIsoDate(midnight().add(Duration(days: days)));
 
-    appTest('names the fortnight it covers, rather than "+14"', (
+    appTest('opens on the fortnight containing today, starting Monday', (
       tester,
       store,
     ) async {
@@ -239,8 +246,11 @@ void main() {
         'JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN',
         'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC',
       ];
-      final start = midnight();
+      // The page starts on this week's Monday, not on today — which is the
+      // whole point: the Monday just gone stays visible.
+      final start = mondayOf(midnight());
       final end = start.add(const Duration(days: 13));
+      expect(start.weekday, DateTime.monday);
       // The month is named once when both ends share it.
       final expected = start.month == end.month
           ? '${start.day} → ${end.day} ${months[end.month - 1]}'
@@ -248,6 +258,40 @@ void main() {
                 '${end.day} ${months[end.month - 1]}';
 
       expect(find.text(expected), findsOne);
+      expect(find.text('THIS FORTNIGHT'), findsOne);
+      // The way back is only offered once you have moved off it.
+      expect(find.text('BACK TO TODAY'), findsNothing);
+    }, seed: _seed());
+
+    appTest('slides a whole fortnight at a time, and back to today', (
+      tester,
+      store,
+    ) async {
+      final strip = find.descendant(
+        of: find.byType(HorizonStrip),
+        matching: find.byType(PageView),
+      );
+      final start = mondayOf(midnight());
+
+      await tester.fling(strip, const Offset(-400, 0), 1000);
+      await tester.pumpAndSettle();
+
+      // Two weeks on, still a Monday.
+      final next = start.add(const Duration(days: 14));
+      expect(find.text('THIS FORTNIGHT'), findsNothing);
+      expect(find.text('BACK TO TODAY'), findsOne);
+
+      // And two back from there lands on the fortnight before this one.
+      await tester.fling(strip, const Offset(400, 0), 1000);
+      await tester.pumpAndSettle();
+      await tester.fling(strip, const Offset(400, 0), 1000);
+      await tester.pumpAndSettle();
+      expect(find.text('BACK TO TODAY'), findsOne);
+
+      await tester.tap(find.bySemanticsLabel('Back to this fortnight'));
+      await tester.pumpAndSettle();
+      expect(find.text('THIS FORTNIGHT'), findsOne);
+      expect(next.weekday, DateTime.monday);
     }, seed: _seed());
 
     appTest('labels every column with its weekday', (tester, store) async {
@@ -265,20 +309,23 @@ void main() {
       tester,
       store,
     ) async {
-      final start = midnight();
-      // However today falls, a 14-day window contains exactly two Mondays —
-      // unless today is itself Monday, when the first is the leading column
-      // and gets no divider, leaving one.
-      final mondays = [
-        for (var d = 1; d < 14; d++)
-          if (start.add(Duration(days: d)).weekday == DateTime.monday) d,
-      ];
-
+      final start = mondayOf(midnight());
+      // A Monday-aligned fortnight holds exactly two Mondays, and the first is
+      // the leading column — so exactly one divider, always. Before the strip
+      // was aligned this count moved with the weekday.
       final dividers = find.byWidgetPredicate(
         (w) => w.key is ValueKey<String> &&
             (w.key as ValueKey<String>).value.startsWith('week-start-'),
       );
-      expect(dividers, findsNWidgets(mondays.length));
+      expect(dividers, findsOne);
+      expect(
+        find.byKey(
+          ValueKey(
+            'week-start-${formatIsoDate(start.add(const Duration(days: 7)))}',
+          ),
+        ),
+        findsOne,
+      );
 
       // Never on the leading column: there is nothing to its left.
       expect(
@@ -518,6 +565,8 @@ void main() {
       );
       // By label, not by text: both buttons read ADD, and the step's renders
       // before the task's in the tree, so `.last` picks the wrong one.
+      await tester.ensureVisible(find.bySemanticsLabel('Add step'));
+      await tester.pumpAndSettle();
       await tester.tap(find.bySemanticsLabel('Add step'));
       await tester.pumpAndSettle();
 
@@ -642,7 +691,10 @@ void main() {
 
       expect(find.text('NEW ASSIGNMENT'), findsOne);
 
-      await tester.enterText(find.byType(TextField).first, 'Comparative essay');
+      await tester.enterText(
+        find.widgetWithText(TextField, 'e.g. Comparative essay'),
+        'Comparative essay',
+      );
       await tester.pumpAndSettle();
 
       await tester.tap(find.byType(DropdownButtonFormField<String>));
@@ -650,9 +702,16 @@ void main() {
       await tester.tap(find.text('+ New subject…').last);
       await tester.pumpAndSettle();
 
-      await tester.enterText(find.byType(TextField).last, 'Organic Chemistry');
+      await tester.enterText(
+        find.widgetWithText(TextField, 'e.g. Organic Chemistry'),
+        'Organic Chemistry',
+      );
       await tester.pumpAndSettle();
 
+      // Search and the due-window chips pushed the panel down far enough that
+      // its button starts below the fold on a phone.
+      await tester.ensureVisible(find.text('TRACK IT'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('TRACK IT'));
       await tester.pumpAndSettle();
 
@@ -680,7 +739,10 @@ void main() {
       await tester.tap(find.bySemanticsLabel('Add assignment'));
       await tester.pumpAndSettle();
 
-      await tester.enterText(find.byType(TextField).first, 'Read chapters 4-6');
+      await tester.enterText(
+        find.widgetWithText(TextField, 'e.g. Comparative essay'),
+        'Read chapters 4-6',
+      );
       await tester.pumpAndSettle();
       await tester.tap(find.text('TRACK IT'));
       await tester.pumpAndSettle();
@@ -1206,11 +1268,7 @@ void main() {
     appTest('a swipe moves to the next destination', (tester, store) async {
       expect(find.text('Assignments, current page'), findsNothing);
 
-      await tester.fling(
-        find.byType(PageView),
-        const Offset(-400, 0),
-        1000,
-      );
+      await tester.fling(_shellPager(), const Offset(-400, 0), 1000);
       await tester.pumpAndSettle();
 
       expect(find.text('Grades'), findsWidgets);
@@ -1225,9 +1283,9 @@ void main() {
       await tester.tap(find.text('SUBMITTED (1)'));
       await tester.pumpAndSettle();
 
-      await tester.fling(find.byType(PageView), const Offset(-400, 0), 1000);
+      await tester.fling(_shellPager(), const Offset(-400, 0), 1000);
       await tester.pumpAndSettle();
-      await tester.fling(find.byType(PageView), const Offset(400, 0), 1000);
+      await tester.fling(_shellPager(), const Offset(400, 0), 1000);
       await tester.pumpAndSettle();
 
       expect(find.text('Week 3 problem set'), findsOne);
@@ -1242,6 +1300,158 @@ void main() {
       expect(find.bySemanticsLabel('Settings, current page'), findsOne);
       expect(find.text('Settings'), findsWidgets);
     }, seed: _seed());
+  });
+
+  group('search and due windows', () {
+    Finder searchBox() => find.widgetWithText(TextField, 'Search assignments');
+
+    appTest('typing narrows the list to matching titles', (
+      tester,
+      store,
+    ) async {
+      await tester.enterText(searchBox(), 'essay');
+      await tester.pumpAndSettle();
+
+      expect(find.text('Comparative essay'), findsOne);
+      expect(find.text('Reaction mechanisms problem set'), findsNothing);
+      expect(find.text('Regression assignment'), findsNothing);
+    }, seed: _seed(), tab: 'Assignments');
+
+    appTest('the search can be cleared back to everything', (
+      tester,
+      store,
+    ) async {
+      await tester.enterText(searchBox(), 'essay');
+      await tester.pumpAndSettle();
+      expect(find.text('Regression assignment'), findsNothing);
+
+      await tester.tap(find.bySemanticsLabel('Clear the search'));
+      await tester.pumpAndSettle();
+      expect(find.text('Regression assignment'), findsOne);
+    }, seed: _seed(), tab: 'Assignments');
+
+    appTest('a search matching nothing says so rather than going blank', (
+      tester,
+      store,
+    ) async {
+      await tester.enterText(searchBox(), 'zzzz');
+      await tester.pumpAndSettle();
+      expect(find.text('Nothing here'), findsOne);
+      expect(find.textContaining('zzzz'), findsWidgets);
+    }, seed: _seed(), tab: 'Assignments');
+
+    appTest('a due window narrows the list, cumulatively', (
+      tester,
+      store,
+    ) async {
+      // a1 is overdue, a2 is tomorrow, a3 and a4 are four days out.
+      await tester.tap(find.bySemanticsLabel('Show work due within 7 days'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Comparative essay'), findsOne);
+      expect(find.text('Regression assignment'), findsOne);
+      // Undated work has no date to be inside a window.
+      expect(find.text('Read chapters 4-6'), findsNothing);
+    }, seed: _seed(), tab: 'Assignments');
+
+    appTest('overdue work survives every window', (tester, store) async {
+      // A filter that hides something already late is how it gets forgotten.
+      await tester.tap(find.bySemanticsLabel('Show work due within 7 days'));
+      await tester.pumpAndSettle();
+      expect(find.text('Reaction mechanisms problem set'), findsOne);
+
+      await tester.tap(
+        find.bySemanticsLabel('Show work due more than 2 months out'),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Reaction mechanisms problem set'), findsOne);
+    }, seed: _seed(), tab: 'Assignments');
+
+    appTest('tapping the active window again clears it', (
+      tester,
+      store,
+    ) async {
+      await tester.tap(find.bySemanticsLabel('Show work due within 7 days'));
+      await tester.pumpAndSettle();
+      expect(find.text('Read chapters 4-6'), findsNothing);
+
+      await tester.tap(find.bySemanticsLabel('Show work due within 7 days'));
+      await tester.pumpAndSettle();
+      expect(find.text('Read chapters 4-6'), findsOne);
+    }, seed: _seed(), tab: 'Assignments');
+
+    appTest('search and subject filter both apply', (tester, store) async {
+      await tester.ensureVisible(find.text('ORGANIC CHEMISTRY 2'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('ORGANIC CHEMISTRY 2'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(searchBox(), 'lab');
+      await tester.pumpAndSettle();
+
+      expect(find.text('Lab report titration'), findsOne);
+      expect(find.text('Reaction mechanisms problem set'), findsNothing);
+    }, seed: _seed(), tab: 'Assignments');
+  });
+
+  group('grades detail', () {
+    appTest('a subject opens to show each result behind its total', (
+      tester,
+      store,
+    ) async {
+      store.setMarks(
+        store.items.firstWhere((x) => x.id == 'a1'),
+        earned: 30.0,
+        outOf: 40.0,
+      );
+      store.setMarks(
+        store.items.firstWhere((x) => x.id == 'a4'),
+        earned: 8.0,
+        outOf: 10.0,
+      );
+      await tester.pumpAndSettle();
+
+      // Closed, only the total shows.
+      expect(find.text('38 of 50 marks · 2 results'), findsOne);
+      expect(find.text('Lab report titration'), findsNothing);
+
+      await tester.tap(
+        find.bySemanticsLabel(RegExp('^Organic Chemistry, 76%')),
+      );
+      await tester.pumpAndSettle();
+
+      // Open, each assignment shows its own mark and percentage.
+      expect(find.text('Reaction mechanisms problem set'), findsOne);
+      expect(find.text('Lab report titration'), findsOne);
+      expect(find.text('30/40'), findsOne);
+      expect(find.text('8/10'), findsOne);
+      expect(find.text('75%'), findsOne);
+    }, seed: _seed(), tab: 'Grades');
+
+    appTest('only one subject is open at a time', (tester, store) async {
+      store.setMarks(
+        store.items.firstWhere((x) => x.id == 'a1'),
+        earned: 30.0,
+        outOf: 40.0,
+      );
+      store.setMarks(
+        store.items.firstWhere((x) => x.id == 'a3'),
+        earned: 20.0,
+        outOf: 25.0,
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.bySemanticsLabel(RegExp('^Organic Chemistry, 75%')),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Reaction mechanisms problem set'), findsOne);
+
+      await tester.tap(find.bySemanticsLabel(RegExp('^Statistics, 80%')));
+      await tester.pumpAndSettle();
+      expect(find.text('Regression assignment'), findsOne);
+      expect(find.text('Reaction mechanisms problem set'), findsNothing);
+    }, seed: _seed(), tab: 'Grades');
   });
 
   group('dark mode', () {
