@@ -161,7 +161,7 @@ Three destinations in a bottom bar.
 
 | | |
 |---|---|
-| **Assignments** | The landing page. Triage counts, the fortnight strip, search, due-date windows, subject chips, Manage subjects (add, rename, recolour, delete), and the Today / Open / Submitted tabs. |
+| **Assignments** | The landing page. Triage counts, the fortnight strip, search, due-date windows, subject chips, Manage subjects (add, rename, recolour, delete), and the Open / Submitted tabs. |
 | **Grades** | Marks totalled per subject, each opening to show the results behind the total, the goal, and what every grade band would still take. |
 | **Settings** | Version, grading, appearance, reminders, export, import and erasing — one scroll. |
 
@@ -213,22 +213,20 @@ libraries and lecture theatres where the right answer often is not the phone's.
 
 ---
 
-## Today, marks and grades
+## Marks and grades
 
-Two questions the deadline list cannot answer on its own.
+The question the deadline list cannot answer on its own.
 
-**Today** gives each unsubmitted assignment a share of the day equal to what is
-left on it divided by the days it has to run, then lists its next tasks up to
-that share, worst-behind first. So a report due in ten days with twenty hours
-left outranks a worksheet due in three days with one hour left — which a
-deadline sort gets backwards.
+A task can carry an effort estimate, set from preset chips rather than a free
+number field, because a student guessing to the minute is inventing precision.
+It shows beside the task and nothing else reads it.
 
-Estimates are set from preset chips, not a free number field, because a student
-guessing to the minute is inventing precision. With nothing estimated the plan
-degrades to one next action per assignment, ordered by deadline: the app has to
-be useful before any effort is entered, or nobody enters any. Unestimated tasks
-are paced at a nominal 30 minutes so they cannot empty one assignment into a
-single day, and that figure is never added to a displayed total.
+> A **Today** tab used to pace the day from those estimates — each assignment
+> got a share of today equal to its remaining effort over the days it had left,
+> worst-behind first. It was removed: the list, the fortnight strip and the due
+> windows already answer *what next*, and a second opinionated ordering of the
+> same work was one more place to look rather than one fewer. It is in the
+> history if it is ever wanted back.
 
 Marks are set in two places. **What it is out of** goes in when you add the
 assignment, because the spec already says so; **your score** goes in from the
@@ -507,8 +505,9 @@ key, migrate forward, leave the old key in place as an accidental backup.
 - **Sub-tasks**, one level under a task.
 - **Marks**, with a Grades page per subject (see below).
 - **Search and due-date windows** over the list.
-- **Effort estimates and a Today plan**, which paces the day rather than
-  listing deadlines.
+- **Effort estimates** on tasks, from preset chips.
+- **Letter grades and goals**, with what each grade would still take (see
+  below).
 - **An Android home-screen widget** (see below).
 - **Dark mode** (see below).
 - **Import and export**, in both builds.

@@ -403,3 +403,17 @@ String longDate(String iso) {
   if (d == null) return 'No deadline set';
   return '${_weekdays[d.weekday - 1]} ${d.day} ${_months[d.month - 1]} ${d.year}';
 }
+
+/// `1h 30m`, `45m`, `2h`. Used wherever a task's estimate is shown.
+String formatMinutes(int minutes) {
+  if (minutes <= 0) return '0m';
+  final h = minutes ~/ 60;
+  final m = minutes % 60;
+  if (h == 0) return '${m}m';
+  if (m == 0) return '${h}h';
+  return '${h}h ${m}m';
+}
+
+/// The estimate options offered on a task. Deliberately coarse: a student
+/// guessing to the minute is inventing precision.
+const kEstimateChoices = <int>[15, 30, 60, 120, 180, 300];

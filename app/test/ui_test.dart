@@ -1332,93 +1332,30 @@ void main() {
     );
   });
 
-  group('today', () {
+  group('task estimates', () {
     appTest(
-      'lists a next action per assignment and ticks it off',
+      'a chip sets the estimate and tapping it again clears it',
       (tester, store) async {
-        await tester.tap(find.bySemanticsLabel('Today'));
+        // Estimates outlived the Today planner they were built for: they are a
+        // note on the task now, shown beside it, and nothing else reads them.
+        await tester.tap(find.text('Reaction mechanisms problem set'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.bySemanticsLabel('Q6-Q10, tap to add steps'));
         await tester.pumpAndSettle();
 
-        // Only a1 has tasks in the seed, so it is the only thing to pick up.
-        expect(find.text('Q6-Q10'), findsOne);
-        expect(find.text('1 thing to pick up'), findsOne);
-
-        await tester.tap(find.bySemanticsLabel('Mark task finished'));
+        await tester.tap(find.bySemanticsLabel('Estimate 2h'));
         await tester.pumpAndSettle();
+        final task = store.items.firstWhere((x) => x.id == 'a1').tasks.last;
+        expect(task.minutes, 120);
+        // Shown beside the task itself, not just on the chip that set it.
+        expect(find.text('2h'), findsNWidgets(2));
 
-        expect(
-          store.items.firstWhere((x) => x.id == 'a1').tasks.last.done,
-          isTrue,
-        );
-        expect(find.text('Q6-Q10'), findsNothing, reason: 'it is done now');
+        await tester.tap(find.bySemanticsLabel('Clear the 2h estimate'));
+        await tester.pumpAndSettle();
+        expect(task.minutes, isNull);
       },
       seed: _seed(),
-      tab: 'Assignments',
-    );
-
-    appTest(
-      'totals the day once tasks are estimated',
-      (tester, store) async {
-        final a = store.items.firstWhere((x) => x.id == 'a1');
-        store.setTaskMinutes(a.tasks.last, 90);
-        await tester.pumpAndSettle();
-
-        await tester.tap(find.bySemanticsLabel('Today'));
-        await tester.pumpAndSettle();
-        expect(find.text('About 1h 30m today'), findsOne);
-      },
-      seed: _seed(),
-      tab: 'Assignments',
-    );
-
-    appTest(
-      'names the next step when a task has been broken down',
-      (tester, store) async {
-        final a = store.items.firstWhere((x) => x.id == 'a1');
-        store.addSubtask(a.tasks.last, 'Draw the mechanism');
-        await tester.pumpAndSettle();
-
-        await tester.tap(find.bySemanticsLabel('Today'));
-        await tester.pumpAndSettle();
-        // The step is the action; the task is the context around it.
-        expect(find.text('Draw the mechanism'), findsOne);
-        expect(find.text('Q6-Q10 · REACTION MECHANISMS PROBLEM SET'), findsOne);
-      },
-      seed: _seed(),
-      tab: 'Assignments',
-    );
-
-    appTest(
-      'opening a planned task jumps to its card',
-      (tester, store) async {
-        await tester.tap(find.bySemanticsLabel('Today'));
-        await tester.pumpAndSettle();
-
-        await tester.tap(
-          find.bySemanticsLabel(RegExp(r'^Q6-Q10, from Reaction mechanisms')),
-        );
-        await tester.pumpAndSettle();
-
-        // Back on Open, with that card expanded — its tasks are on screen.
-        expect(find.text('Q1-Q5'), findsOne);
-        expect(find.widgetWithText(TextField, 'Add a task'), findsOne);
-      },
-      seed: _seed(),
-      tab: 'Assignments',
-    );
-
-    appTest(
-      'says so when there is nothing to pace',
-      (tester, store) async {
-        await tester.tap(find.bySemanticsLabel('Today'));
-        await tester.pumpAndSettle();
-        final a = store.items.firstWhere((x) => x.id == 'a1');
-        store.toggleTask(a, a.tasks.last);
-        await tester.pumpAndSettle();
-
-        expect(find.text('No tasks yet'), findsOne);
-      },
-      seed: _seed(),
+      size: const Size(430, 1400),
       tab: 'Assignments',
     );
   });
