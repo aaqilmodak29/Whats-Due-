@@ -162,8 +162,8 @@ Three destinations in a bottom bar.
 | | |
 |---|---|
 | **Assignments** | The landing page. Triage counts, the fortnight strip, search, due-date windows, subject chips, Manage subjects (add, rename, recolour, delete), and the Today / Open / Submitted tabs. |
-| **Grades** | Marks totalled per subject, each opening to show the results behind the total. |
-| **Settings** | Version, appearance, reminders, export, import and erasing — one scroll. |
+| **Grades** | Marks totalled per subject, each opening to show the results behind the total, the goal, and what every grade band would still take. |
+| **Settings** | Version, grading, appearance, reminders, export, import and erasing — one scroll. |
 
 They can be swiped between as well as tapped. Nav taps animate rather than jump,
 so the direction of travel is the same either way, and the bar follows the pager
@@ -253,6 +253,57 @@ implying the number is a predicted grade.
 The `weight` field is still read and written by the storage layer even though
 nothing uses it. Dropping it would have every device quietly discard whatever
 had already been recorded against it on its next write.
+
+### Letter grades
+
+Percentages work everywhere and need nothing set up, so they are what the app
+stores. Letters are a display layer over the same numbers.
+
+The app asks once, on first run, whether your university or school also grades
+in letters. Saying no costs nothing — it can be switched on later under
+**Settings → Grading**, and switching it off again loses only the letters.
+
+Bands are yours to name, two to six of them, pre-filled with Fail, Pass, Credit,
+Distinction and High Distinction. Each band is stored as the **lowest percentage
+that earns it**; the band above decides where it stops. So 65 is a Credit, not
+the top of a Pass. The editor shows the ranges that implies and refuses a set
+that leaves a gap under the lowest band or puts two bands on the same bound.
+
+Once set, the letter appears beside every percentage: on the assignment card, in
+the **EDIT** sheet live as you type a score, and on each subject in **Grades**.
+
+Bands travel inside the coursework document, so a backup carries them — a
+restore without them would leave every grade showing as a bare percentage.
+Importing with **merge** does *not* adopt the incoming bands unless you have
+none, because redefining them silently changes what every existing grade means.
+
+### Goals
+
+Two kinds, because courses ask for both.
+
+**Per assignment** — a score out of that assignment's marks, set as you add it
+or from the **EDIT** sheet. For anything that has to be passed in its own right.
+Grades says whether it was met, and by how much it was missed.
+
+**Per subject** — a percentage across the whole subject, set on its card in
+**Grades**. A percentage rather than a band, so it works for people who never
+turned letter grading on; with bands configured they are offered as shortcuts
+onto the same field.
+
+A subject goal is worth setting because of what it back-solves. Three
+assignments worth 30, 30 and 40 make a subject out of 100. Aim for 85, score 20
+on the first, and what you need is **65 from the remaining 70** — which is the
+sentence the goal row prints. Once a goal cannot be lost it says *already
+there*; once it cannot be reached it says so rather than printing a number you
+cannot get.
+
+Open a subject and **MARKS NEEDED** does the same for every band at once, in
+marks rather than percentages, because marks are what you can go and earn.
+Bands already banked read *Safe*.
+
+All of it counts **only the assignments you have entered**. An assignment with a
+marks total and no score yet is what is still to play for; one with no marks at
+all is invisible to Grades entirely.
 
 ---
 
@@ -432,6 +483,15 @@ a build that has to look identical on Windows, Android and the web cannot.
 JSON shape the web app writes, which is what makes a backup from one importable
 into the other. Deleting a subject unfiles its assignments rather than cascading
 a delete: losing a subject should never lose work.
+
+Grade bands live inside that document, under `bands`, and are omitted entirely
+when letter grading is off — so a percentages-only file serialises exactly as it
+did before bands existed, and a reader that predates them is unaffected.
+
+Device settings are separate keys, because they describe the phone rather than
+the coursework and should not ride along in a backup: `coursework:reminders`,
+`coursework:dark`, and `coursework:onboarded` — the last being why restoring a
+backup does not re-ask the first-run question.
 
 Any future schema change should follow the same pattern the v1 → v2 step did: new
 key, migrate forward, leave the old key in place as an accidental backup.

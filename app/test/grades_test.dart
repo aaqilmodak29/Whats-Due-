@@ -65,7 +65,7 @@ void main() {
       ]).single;
 
       expect(g.earned, 42);
-      expect(g.outOf, 50);
+      expect(g.markedOutOf, 50);
       expect(g.average, closeTo(0.84, 1e-9));
       expect(g.gradedCount, 2);
     });
@@ -86,16 +86,25 @@ void main() {
       );
     });
 
-    test('ignores assignments with no result yet', () {
-      // A marks total on its own is not a result: it is what the assignment
-      // will be marked out of, entered when it was added.
-      final grades = gradesBySubject([
+    test('counts an unscored assignment as marks still to come', () {
+      // It is not a result, so it must not move the average — but it is what
+      // makes "how much do I still need" answerable at all.
+      final g = gradesBySubject([
         marked(id: 'a', earned: 30, outOf: 40),
         marked(id: 'b', outOf: 100),
         marked(id: 'c'),
-      ]);
-      expect(grades.single.gradedCount, 1);
-      expect(grades.single.outOf, 40);
+      ]).single;
+
+      expect(g.gradedCount, 1);
+      expect(g.markedOutOf, 40);
+      expect(g.remainingOutOf, 100);
+      expect(g.totalOutOf, 140);
+      expect(g.average, closeTo(0.75, 1e-9), reason: 'unchanged by pending');
+      expect(g.pending.single.id, 'b');
+    });
+
+    test('an assignment with no marks at all is invisible', () {
+      expect(gradesBySubject([marked(id: 'a')]), isEmpty);
     });
 
     test('rolls unfiled work up on its own rather than dropping it', () {
@@ -106,8 +115,68 @@ void main() {
       expect(g.average, closeTo(0.8, 1e-9));
     });
 
-    test('a subject with nothing marked does not appear at all', () {
-      expect(gradesBySubject([marked(outOf: 40)]), isEmpty);
+    test('a subject with nothing scored still appears, with no average', () {
+      final g = gradesBySubject([marked(outOf: 40)]).single;
+      expect(g.average, isNull);
+      expect(g.remainingOutOf, 40);
+      // Everything is still to play for, so every target is reachable.
+      expect(g.reachable(100), isTrue);
+      expect(g.secured(1), isFalse);
+    });
+  });
+
+  group('what is still needed', () {
+    // Their example: three assignments worth 30, 30 and 40. An 85 goal means
+    // 85 of the 100 marks; 20 scored on the first leaves 65 from the other 70.
+    SubjectGrade example({double? first}) => gradesBySubject([
+      marked(id: 'a', earned: first, outOf: 30),
+      marked(id: 'b', outOf: 30),
+      marked(id: 'c', outOf: 40),
+    ]).single;
+
+    test('before anything is marked, the goal is the whole target', () {
+      final g = example();
+      expect(g.totalOutOf, 100);
+      expect(g.neededFor(85), closeTo(85, 1e-9));
+      expect(g.reachable(85), isTrue);
+    });
+
+    test('a score reduces what is left to find', () {
+      final g = example(first: 20);
+      expect(g.earned, 20);
+      expect(g.remainingOutOf, 70);
+      expect(g.neededFor(85), closeTo(65, 1e-9));
+      expect(g.reachable(85), isTrue);
+    });
+
+    test('a bad enough result puts a target out of reach', () {
+      // 5 of 30 leaves 70 marks and a need for 80 of them.
+      final g = example(first: 5);
+      expect(g.neededFor(85), closeTo(80, 1e-9));
+      expect(g.reachable(85), isFalse);
+      // Something lower is still on.
+      expect(g.reachable(50), isTrue);
+    });
+
+    test('a target can be secured before the subject is over', () {
+      final g = gradesBySubject([
+        marked(id: 'a', earned: 60, outOf: 60),
+        marked(id: 'b', outOf: 40),
+      ]).single;
+      // 60 of 100 already banked, so a Pass at 50 cannot be lost.
+      expect(g.secured(50), isTrue);
+      expect(g.secured(65), isFalse);
+      expect(g.neededFor(50), lessThan(0));
+    });
+
+    test('the floor is what is banked against everything, not the average', () {
+      final g = gradesBySubject([
+        marked(id: 'a', earned: 10, outOf: 10),
+        marked(id: 'b', outOf: 90),
+      ]).single;
+      // A perfect quiz is 100% of what has been marked and 10% of the subject.
+      expect(g.average, 1);
+      expect(g.securedFraction, closeTo(0.1, 1e-9));
     });
   });
 

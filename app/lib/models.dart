@@ -135,12 +135,18 @@ double? _num(Object? v) => switch (v) {
 };
 
 class Subject {
-  Subject({required this.id, required this.name, required this.color});
+  Subject({
+    required this.id,
+    required this.name,
+    required this.color,
+    this.goalPercent,
+  });
 
   factory Subject.fromJson(Map<String, dynamic> j) => Subject(
     id: j['id'] as String? ?? uid(),
     name: j['name'] as String? ?? 'Untitled',
     color: j['color'] as String? ?? kPalette.first,
+    goalPercent: _num(j['goalPercent']),
   );
 
   final String id;
@@ -149,9 +155,22 @@ class Subject {
   /// `#RRGGBB`, matching the web app's stored form.
   String color;
 
+  /// What you are aiming for across the whole subject, as a percentage.
+  ///
+  /// A percentage rather than a band, even though it is usually set by tapping
+  /// one: bands can be renamed and their bounds moved afterwards, and a goal
+  /// that silently followed those edits would quietly become a different
+  /// target than the one that was chosen.
+  double? goalPercent;
+
   Color get swatch => hexToColor(color);
 
-  Map<String, dynamic> toJson() => {'id': id, 'name': name, 'color': color};
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'color': color,
+    if (goalPercent != null) 'goalPercent': goalPercent,
+  };
 }
 
 class Assignment {
@@ -165,6 +184,7 @@ class Assignment {
     this.weight,
     this.earned,
     this.outOf,
+    this.goal,
   }) : tasks = tasks ?? <Task>[];
 
   factory Assignment.fromJson(Map<String, dynamic> j) => Assignment(
@@ -180,6 +200,7 @@ class Assignment {
     weight: _num(j['weight']),
     earned: _num(j['earned']),
     outOf: _num(j['outOf']),
+    goal: _num(j['goal']),
   );
 
   final String id;
@@ -215,6 +236,14 @@ class Assignment {
   double? earned;
   double? outOf;
 
+  /// The score being aimed for, out of [outOf].
+  ///
+  /// A score rather than a band, so it reads in the same units as the mark
+  /// beside it and works whether or not letter grading is set up. Subjects
+  /// carry the band-shaped goal; this one answers "I need at least this much
+  /// on this particular piece".
+  double? goal;
+
   int get finishedTasks => tasks.where((t) => t.done).length;
 
   /// Total rubric marks across the tasks, when any carry them.
@@ -239,6 +268,13 @@ class Assignment {
   /// Fraction of the available marks achieved, 0..1. Null until graded.
   double? get scored => graded ? earned! / outOf! : null;
 
+  /// Whether a target has been set and can be compared against.
+  bool get hasGoal => goal != null && (outOf ?? 0) > 0;
+
+  /// Whether the score met the goal. Null until both are known.
+  bool? get metGoal =>
+      (hasGoal && earned != null) ? earned! + 1e-9 >= goal! : null;
+
   /// The mark as it reads on a card: `30/40`, `-/40`, `30/-`, or `-/-`.
   ///
   /// Always renders, even with neither half set. A blank space where a mark
@@ -260,6 +296,7 @@ class Assignment {
     if (weight != null) 'weight': weight,
     if (earned != null) 'earned': earned,
     if (outOf != null) 'outOf': outOf,
+    if (goal != null) 'goal': goal,
   };
 }
 

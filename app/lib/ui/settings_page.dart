@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../store.dart';
 import '../theme.dart';
 import 'atoms.dart';
+import 'band_editor.dart';
 import 'backup_page.dart';
 import 'update_section.dart';
 
@@ -10,8 +11,8 @@ import 'update_section.dart';
 ///
 /// Ordered by how often you come here for each: the version first, because
 /// checking for an update is the main reason to open this page at all, then
-/// appearance, then the operational sections — reminders, backup, restore and
-/// erasing.
+/// grading and appearance, then the operational sections — reminders, backup,
+/// restore and erasing.
 class SettingsPage extends StatelessWidget {
   const SettingsPage({
     super.key,
@@ -26,9 +27,11 @@ class SettingsPage extends StatelessWidget {
   Widget build(BuildContext context) => PageBody(
     controller: controller,
     title: 'Settings',
-    eyebrow: 'Version, appearance, reminders and backup',
+    eyebrow: 'Version, grading, appearance, reminders and backup',
     children: [
       UpdateSection(updater: store.updater),
+      const SizedBox(height: 16),
+      GradingSection(store: store),
       const SizedBox(height: 16),
       _appearance(),
       const SizedBox(height: 16),
@@ -60,11 +63,18 @@ class SettingsPage extends StatelessWidget {
                 style: T.count(C.ink),
               ),
             ),
-            Switch(
-              value: store.darkMode,
-              activeThumbColor: C.onMark,
-              activeTrackColor: C.mark,
-              onChanged: store.setDarkMode,
+            Semantics(
+              // container: true, or the label merges into the Switch's own
+              // node and never reaches the semantics tree as its own entry.
+              container: true,
+              label: 'Dark mode',
+              toggled: store.darkMode,
+              child: Switch(
+                value: store.darkMode,
+                activeThumbColor: C.onMark,
+                activeTrackColor: C.mark,
+                onChanged: store.setDarkMode,
+              ),
             ),
           ],
         ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../bands.dart';
 import '../models.dart';
 import '../planner.dart';
 import '../store.dart';
@@ -81,10 +82,7 @@ class _AssignmentCardState extends State<AssignmentCard> {
           child: Row(
             spacing: 10,
             children: [
-              CheckBoxSquare(
-                done: t.done,
-                onTap: () => store.toggleTask(a, t),
-              ),
+              CheckBoxSquare(done: t.done, onTap: () => store.toggleTask(a, t)),
               Expanded(
                 child: Tap(
                   onTap: () => setState(() => _openTaskId = open ? null : t.id),
@@ -240,8 +238,7 @@ class _AssignmentCardState extends State<AssignmentCard> {
           children: [
             for (final m in kEstimateChoices)
               Tap(
-                onTap: () =>
-                    store.setTaskMinutes(t, t.minutes == m ? null : m),
+                onTap: () => store.setTaskMinutes(t, t.minutes == m ? null : m),
                 semanticLabel: t.minutes == m
                     ? 'Clear the ${formatMinutes(m)} estimate'
                     : 'Estimate ${formatMinutes(m)}',
@@ -252,9 +249,7 @@ class _AssignmentCardState extends State<AssignmentCard> {
                   ),
                   decoration: BoxDecoration(
                     color: t.minutes == m ? C.mark : Colors.transparent,
-                    border: Border.all(
-                      color: t.minutes == m ? C.ink : C.rule,
-                    ),
+                    border: Border.all(color: t.minutes == m ? C.ink : C.rule),
                   ),
                   child: Text(
                     formatMinutes(m),
@@ -285,6 +280,13 @@ class _AssignmentCardState extends State<AssignmentCard> {
     _subtaskController.clear();
     // Keep focus so several steps can be typed in a row, as with tasks.
     _subtaskFocus.requestFocus();
+  }
+
+  /// The letter for a score, or nothing at all when letter grading is off.
+  Widget? _bandLabel(AppStore store, double fraction) {
+    final band = bandFor(fraction * 100, store.bands);
+    if (band == null) return null;
+    return Text(band.name.toUpperCase(), style: T.eyebrow(C.ink));
   }
 
   Future<void> _confirmDelete() async {
@@ -318,10 +320,7 @@ class _AssignmentCardState extends State<AssignmentCard> {
           color: C.card,
           border: Border(left: BorderSide(color: spine, width: 6)),
           boxShadow: const [
-            BoxShadow(
-              color: Color(0x1A16202E),
-              offset: Offset(0, 1),
-            ),
+            BoxShadow(color: Color(0x1A16202E), offset: Offset(0, 1)),
           ],
         ),
         child: Column(
@@ -330,7 +329,8 @@ class _AssignmentCardState extends State<AssignmentCard> {
             Semantics(
               button: true,
               expanded: widget.expanded,
-              label: '${a.title}, ${subject?.name ?? 'unfiled'}, '
+              label:
+                  '${a.title}, ${subject?.name ?? 'unfiled'}, '
                   '${a.done ? 'submitted' : countdown(n).toLowerCase()}',
               child: ExcludeSemantics(
                 child: Tap(
@@ -404,6 +404,9 @@ class _AssignmentCardState extends State<AssignmentCard> {
                                 color: a.graded ? C.ink : C.muted,
                               ),
                             ),
+                            // The band, when one is configured and there is a
+                            // score for it to land in.
+                            if (a.graded) ?_bandLabel(store, a.scored!),
                           ],
                         ),
                       ],
@@ -497,11 +500,7 @@ class _AssignmentCardState extends State<AssignmentCard> {
               semanticLabel: 'Delete assignment',
               child: Padding(
                 padding: EdgeInsets.all(6),
-                child: Icon(
-                  Icons.delete_outline,
-                  size: 19,
-                  color: C.muted,
-                ),
+                child: Icon(Icons.delete_outline, size: 19, color: C.muted),
               ),
             ),
           ],

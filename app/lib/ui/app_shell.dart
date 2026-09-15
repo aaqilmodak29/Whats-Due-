@@ -6,6 +6,7 @@ import 'assignments_page.dart';
 import 'atoms.dart';
 import 'grades_page.dart';
 import 'settings_page.dart';
+import 'welcome.dart';
 
 enum AppTab { assignments, grades, settings }
 
@@ -36,9 +37,7 @@ class _AppShellState extends State<AppShell> {
 
   /// One controller per destination, so each keeps its own scroll position
   /// across tab switches.
-  final _controllers = {
-    for (final t in AppTab.values) t: ScrollController(),
-  };
+  final _controllers = {for (final t in AppTab.values) t: ScrollController()};
 
   AppStore get store => widget.store;
 
@@ -63,7 +62,14 @@ class _AppShellState extends State<AppShell> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) {
+    // Asked before anything else, once. Answering either way records it, so a
+    // restored backup never re-asks.
+    if (!store.onboarded) return Welcome(store: store);
+    return _shell();
+  }
+
+  Widget _shell() => Scaffold(
     // A PageView rather than an IndexedStack, so the destinations can be swiped
     // between as well as tapped. Each page keeps its own scroll controller, and
     // the view state they render from lives in this State, so swiping away and
@@ -79,14 +85,8 @@ class _AppShellState extends State<AppShell> {
           onView: (v) => setState(() => _assignments = v),
           onOpenSettings: () => _go(AppTab.settings),
         ),
-        GradesPage(
-          store: store,
-          controller: _controllers[AppTab.grades]!,
-        ),
-        SettingsPage(
-          store: store,
-          controller: _controllers[AppTab.settings]!,
-        ),
+        GradesPage(store: store, controller: _controllers[AppTab.grades]!),
+        SettingsPage(store: store, controller: _controllers[AppTab.settings]!),
       ],
     ),
     bottomNavigationBar: _NavBar(current: _tab, onSelect: _go),
@@ -150,7 +150,8 @@ class _NavBar extends StatelessWidget {
                       const SizedBox(height: 3),
                       Text(
                         label.toUpperCase(),
-                        style: T.eyebrow(tab == current ? C.ink : C.muted)
+                        style: T
+                            .eyebrow(tab == current ? C.ink : C.muted)
                             .copyWith(fontSize: 9),
                         maxLines: 1,
                       ),
