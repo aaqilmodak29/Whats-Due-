@@ -251,26 +251,6 @@ void main() {
     );
   });
 
-  testWidgets('phone, today', (tester) async {
-    final store = await _boot(tester, const Size(430, 932), seed: _seed());
-    // Estimates are what turn the plan from a next-action list into a paced
-    // day, so the snapshot covers the estimated case.
-    final a1 = store.items.firstWhere((a) => a.id == 'a1');
-    store.setTaskMinutes(a1.tasks.last, 90);
-    final a2 = store.items.firstWhere((a) => a.id == 'a2');
-    store.setTaskMinutes(store.addTask(a2, 'Draft the argument')!, 60);
-    store.addTask(a2, 'Find a third source');
-    await tester.pumpAndSettle();
-
-    await _goTo(tester, 'Assignments');
-    await tester.tap(find.text('TODAY'));
-    await tester.pumpAndSettle();
-    await expectLater(
-      find.byType(WhatsDueApp),
-      matchesGoldenFile('goldens/phone-today.png'),
-    );
-  });
-
   testWidgets('phone, grades', (tester) async {
     final store = await _boot(tester, const Size(430, 932), seed: _seed());
     // Two subjects, one of them with two results, so the snapshot covers both

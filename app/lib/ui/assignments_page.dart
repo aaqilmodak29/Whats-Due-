@@ -9,7 +9,6 @@ import 'assignment_card.dart';
 import 'atoms.dart';
 import 'horizon.dart';
 import 'manage_subjects.dart';
-import 'today_view.dart';
 import 'update_section.dart';
 
 /// Filter sentinels, matching the web app's `filter` values.
@@ -17,14 +16,14 @@ const filterAll = 'all';
 const filterUnfiled = 'none';
 
 /// Which list the tab strip is showing.
-enum AssignmentTab { today, open, submitted }
+enum AssignmentTab { open, submitted }
 
 /// Everything about how the Assignments page is currently being looked at.
 ///
-/// Held by the shell rather than by the page, so Home can navigate *into* a
-/// particular view of it — a day picked from the horizon strip, or the card
-/// behind a planned task — and so that view survives switching tabs and coming
-/// back. Immutable, with [copyWith], to keep those transitions explicit.
+/// Held by the shell rather than by the page, so that a view of it — a day
+/// picked from the horizon strip, a subject filter, a card left open — survives
+/// switching destinations and coming back. Immutable, with [copyWith], to keep
+/// those transitions explicit.
 class AssignmentsView {
   const AssignmentsView({
     this.tab = AssignmentTab.open,
@@ -199,9 +198,8 @@ class AssignmentsPage extends StatelessWidget {
                 label: 'Any time',
                 count: active.length,
                 on: view.window == null,
-                onTap: () => onView(
-                  view.copyWith(clearWindow: true, clearOpenId: true),
-                ),
+                onTap: () =>
+                    onView(view.copyWith(clearWindow: true, clearOpenId: true)),
               ),
               for (final w in DueWindow.values)
                 _Chip(
@@ -275,19 +273,14 @@ class AssignmentsPage extends StatelessWidget {
           decoration: BoxDecoration(
             border: Border(bottom: BorderSide(color: C.rule)),
           ),
-          // Scrolls rather than wraps: three labels plus their counts no longer
-          // fit a 360px phone, and the underline marking the active tab only
-          // reads as one if they stay on a single line.
+          // Scrolls rather than wraps: the labels plus their counts can outrun
+          // a 360px phone, and the underline marking the active tab only reads
+          // as one if they stay on a single line.
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
               spacing: 18,
               children: [
-                _Tab(
-                  label: 'Today',
-                  on: view.tab == AssignmentTab.today,
-                  onTap: () => _show(AssignmentTab.today),
-                ),
                 _Tab(
                   label: 'Open (${active.length})',
                   on: view.tab == AssignmentTab.open,
@@ -307,19 +300,7 @@ class AssignmentsPage extends StatelessWidget {
 
         // ---- list ----
         const SizedBox(height: 12),
-        if (view.tab == AssignmentTab.today)
-          TodayView(
-            store: store,
-            onOpen: (a) => onView(
-              view.copyWith(
-                tab: AssignmentTab.open,
-                filter: filterAll,
-                openId: a.id,
-                clearSelectedDue: true,
-              ),
-            ),
-          )
-        else if (shown.isEmpty)
+        if (shown.isEmpty)
           _empty()
         else
           Column(
@@ -360,7 +341,7 @@ class AssignmentsPage extends StatelessWidget {
       tab: tab,
       clearOpenId: true,
       // The horizon strip only charts unsubmitted, dated work, so a day filter
-      // carried into either of the other two views would show an empty list.
+      // carried into Submitted would show an empty list.
       clearSelectedDue: tab != AssignmentTab.open,
     ),
   );
@@ -401,14 +382,16 @@ class AssignmentsPage extends StatelessWidget {
     if (view.query.trim().isNotEmpty) {
       return EmptyState(
         head: 'Nothing here',
-        body: 'No assignment matches “${view.query.trim()}”. '
+        body:
+            'No assignment matches “${view.query.trim()}”. '
             'Clear the search to see everything again.',
       );
     }
     if (view.window != null) {
       return EmptyState(
         head: 'Nothing here',
-        body: 'Nothing is due within ${view.window!.label.toLowerCase()}. '
+        body:
+            'Nothing is due within ${view.window!.label.toLowerCase()}. '
             'Tap ANY TIME to widen it.',
       );
     }
@@ -511,10 +494,7 @@ class _Tab extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
         border: Border(
-          bottom: BorderSide(
-            color: on ? C.ink : Colors.transparent,
-            width: 2,
-          ),
+          bottom: BorderSide(color: on ? C.ink : Colors.transparent, width: 2),
         ),
       ),
       child: Text(label.toUpperCase(), style: T.tab(on ? C.ink : C.muted)),

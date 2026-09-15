@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../bands.dart';
 import '../models.dart';
-import '../planner.dart';
 import '../store.dart';
 import '../theme.dart';
 import 'atoms.dart';
@@ -205,10 +204,10 @@ class _AssignmentCardState extends State<AssignmentCard> {
 
   /// The open task's rubric marks and effort estimate.
   ///
-  /// The estimate is a row of preset chips rather than a free number field:
-  /// a student guessing to the minute is inventing precision, and the planner
-  /// only needs the rough shape of the work. One tap sets it, tapping the
-  /// active one clears it.
+  /// The estimate is a row of preset chips rather than a free number field: a
+  /// student guessing to the minute is inventing precision, and the rough shape
+  /// of the work is all this is for. One tap sets it, tapping the active one
+  /// clears it.
   Widget _taskMeta(AppStore store, Task t) => Padding(
     padding: const EdgeInsets.only(bottom: 8),
     child: Column(
