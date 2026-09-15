@@ -56,7 +56,6 @@ jobs:
 
       - name: Build (unsigned, just to prove it compiles)
         working-directory: app
-        # No .env and no keystore, so this exercises the path a fresh clone
-        # takes: sync reports itself switched off and the release falls back to
-        # the debug key, rather than the build failing.
+        # No keystore, so this exercises the path a fresh clone takes: the
+        # build falls back to the debug key rather than failing.
         run: flutter build apk --debug

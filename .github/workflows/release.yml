@@ -104,8 +104,3 @@ jobs:
           generate_release_notes: true
           files: whats-due-${{ steps.version.outputs.tag }}.apk
 
-  # Windows has to build on a Windows runner, and runs after Android rather
-  # than beside it so the two uploads cannot race to create the same release.
-  #
-  # Until this existed the desktop app had nothing to update to: the release
-  # held an APK and nothing else, while the app told you to go and download it.
