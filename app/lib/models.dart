@@ -114,6 +114,14 @@ class Task {
   };
 }
 
+/// Trims the pointless decimal so a mark reads `20`, not `20.0`, while still
+/// allowing `12.5`.
+String trimNumber(double v) {
+  final r = v.round();
+  if ((v - r).abs() < 0.005) return '$r';
+  return v.toStringAsFixed(1);
+}
+
 /// Lenient number reader.
 ///
 /// Values reaching here have been through JSON, a hand-edited backup file and
@@ -230,6 +238,17 @@ class Assignment {
 
   /// Fraction of the available marks achieved, 0..1. Null until graded.
   double? get scored => graded ? earned! / outOf! : null;
+
+  /// The mark as it reads on a card: `30/40`, `-/40`, `30/-`, or `-/-`.
+  ///
+  /// Always renders, even with neither half set. A blank space where a mark
+  /// belongs is indistinguishable from an assignment that has no marks at all,
+  /// and the dashes say "nothing here yet" in the same shape the filled-in
+  /// version will take.
+  String get markLabel {
+    String half(double? v) => v == null ? '-' : trimNumber(v);
+    return '${half(earned)}/${half(outOf)}';
+  }
 
   Map<String, dynamic> toJson() => {
     'id': id,

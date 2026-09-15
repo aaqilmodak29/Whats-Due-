@@ -196,7 +196,16 @@ void main() {
   tearDownAll(() => clock = DateTime.now);
 
   testWidgets('phone, list', (tester) async {
-    await _boot(tester, const Size(430, 932), seed: _seed());
+    final store = await _boot(tester, const Size(430, 932), seed: _seed());
+    // One card marked and one with only a total, so the snapshot carries all
+    // three states of the mark rather than just the placeholder.
+    store.setMarks(
+      store.items.firstWhere((a) => a.id == 'a3'),
+      earned: 30,
+      outOf: 40,
+    );
+    store.setMarks(store.items.firstWhere((a) => a.id == 'a4'), outOf: 25);
+    await tester.pumpAndSettle();
     await _goTo(tester, 'Assignments');
     await expectLater(
       find.byType(WhatsDueApp),

@@ -7,6 +7,7 @@ import 'package:whats_due/main.dart';
 import 'package:whats_due/models.dart';
 import 'package:whats_due/store.dart';
 import 'package:whats_due/theme.dart';
+import 'package:whats_due/ui/assignment_card.dart';
 import 'package:whats_due/ui/horizon.dart';
 
 String _iso(int offsetDays) =>
@@ -902,13 +903,50 @@ void main() {
   });
 
   group('marks', () {
-    appTest('a returned mark replaces the countdown', (tester, store) async {
+    appTest('every card shows its mark, filled in or not', (
+      tester,
+      store,
+    ) async {
+      // Blank where a mark belongs is indistinguishable from an assignment
+      // with no marks at all, so the placeholder always renders.
+      expect(find.text('-/-'), findsWidgets);
+
       final a = store.items.firstWhere((x) => x.id == 'a3');
-      store.setMarks(a, earned: 34.0, outOf: 40.0);
+      store.setMarks(a, outOf: 40.0);
       await tester.pumpAndSettle();
-      // Once a result is in it is the only thing left worth reading, so it
-      // takes the countdown's slot rather than adding a line.
-      expect(find.text('34/40 · 85%'), findsOne);
+      expect(find.text('-/40'), findsOne);
+
+      store.setMarks(a, earned: 30.0);
+      await tester.pumpAndSettle();
+      expect(find.text('30/40'), findsOne);
+      expect(find.text('-/40'), findsNothing);
+    }, seed: _seed(), tab: 'Assignments');
+
+    appTest('the countdown keeps its slot once a mark is in', (
+      tester,
+      store,
+    ) async {
+      // The mark used to take the countdown's place, so a graded card stopped
+      // saying when it was due. It has its own home now, and showing it twice
+      // on one card said nothing extra.
+      final a = store.items.firstWhere((x) => x.id == 'a3');
+      store.setMarks(a, earned: 30.0, outOf: 40.0);
+      await tester.pumpAndSettle();
+
+      // Two assignments fall on the same day in the seed, so this has to be
+      // scoped to the card that carries the mark.
+      final card = find.ancestor(
+        of: find.text('Regression assignment'),
+        matching: find.byType(AssignmentCard),
+      );
+      expect(
+        find.descendant(of: card, matching: find.text('4 DAYS')),
+        findsOne,
+      );
+      expect(
+        find.descendant(of: card, matching: find.text('30/40')),
+        findsOne,
+      );
     }, seed: _seed(), tab: 'Assignments');
 
     appTest('marks can be entered from the edit sheet', (tester, store) async {
@@ -1171,6 +1209,48 @@ void main() {
         reason: 'today, while selected, must not be painted ink on ink',
       );
       expect(theme.todayBackgroundColor!.resolve(selected), C.ink);
+    }, seed: _seed());
+  });
+
+  group('swiping between destinations', () {
+    appTest('a swipe moves to the next destination', (tester, store) async {
+      expect(find.text('Assignments, current page'), findsNothing);
+
+      await tester.fling(
+        find.byType(PageView),
+        const Offset(-400, 0),
+        1000,
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Grades'), findsWidgets);
+      // The bar follows the swipe rather than being a separate source of truth.
+      expect(find.bySemanticsLabel('Grades, current page'), findsOne);
+    }, seed: _seed());
+
+    appTest('swiping back returns to the list as it was left', (
+      tester,
+      store,
+    ) async {
+      await tester.tap(find.text('SUBMITTED (1)'));
+      await tester.pumpAndSettle();
+
+      await tester.fling(find.byType(PageView), const Offset(-400, 0), 1000);
+      await tester.pumpAndSettle();
+      await tester.fling(find.byType(PageView), const Offset(400, 0), 1000);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Week 3 problem set'), findsOne);
+      expect(find.bySemanticsLabel('Assignments, current page'), findsOne);
+    }, seed: _seed());
+
+    appTest('tapping the bar still works and agrees with the pager', (
+      tester,
+      store,
+    ) async {
+      await goTo(tester, 'Settings');
+      expect(find.bySemanticsLabel('Settings, current page'), findsOne);
+      expect(find.text('Settings'), findsWidgets);
     }, seed: _seed());
   });
 

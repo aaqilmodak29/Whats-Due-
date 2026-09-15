@@ -1,5 +1,9 @@
 import 'models.dart';
 
+// trimNumber lives with the model it formats; re-exported so the several
+// callers that reach for it through this file keep working.
+export 'models.dart' show trimNumber;
+
 /// Where a subject stands, totalled from the marks its assignments came back
 /// with.
 ///
@@ -62,14 +66,6 @@ List<SubjectGrade> gradesBySubject(List<Assignment> items) {
     );
   });
   return out;
-}
-
-/// Trims the pointless decimal so a mark reads `20`, not `20.0`, while still
-/// allowing `12.5`.
-String trimNumber(double v) {
-  final r = v.round();
-  if ((v - r).abs() < 0.005) return '$r';
-  return v.toStringAsFixed(1);
 }
 
 String formatPercent(double fraction) => '${trimNumber(fraction * 100)}%';
