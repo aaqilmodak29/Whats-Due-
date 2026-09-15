@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:whats_due/main.dart';
+import 'package:whats_due/bands.dart';
 import 'package:whats_due/models.dart';
 import 'package:whats_due/store.dart';
 import 'package:whats_due/updater.dart';
@@ -50,7 +51,8 @@ Future<void> _loadFonts() async {
   // The icon font comes from the SDK, not this package, and is not present in a
   // test binary by default — without it every icon renders as a blank box and
   // the snapshot can't tell a missing glyph from a working one.
-  final flutterRoot = Platform.environment['FLUTTER_ROOT'] ??
+  final flutterRoot =
+      Platform.environment['FLUTTER_ROOT'] ??
       File(Platform.resolvedExecutable).parent.parent.path;
   final iconFont = File(
     '$flutterRoot/bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf',
@@ -157,6 +159,8 @@ Future<AppStore> _boot(
   Size size, {
   String? seed,
   bool dark = false,
+  bool onboarded = true,
+  List<GradeBand>? bands,
 }) async {
   tester.view.devicePixelRatio = 1.0;
   tester.view.physicalSize = size;
@@ -167,9 +171,11 @@ Future<AppStore> _boot(
   SharedPreferences.setMockInitialValues({
     AppStore.storageKey: ?seed,
     if (dark) 'coursework:dark': true,
+    if (onboarded) 'coursework:onboarded': true,
   });
   final store = AppStore();
   await store.init();
+  if (bands != null) store.setBands(bands);
   await tester.pumpWidget(WhatsDueApp(store: store));
   await tester.pumpAndSettle();
   return store;
@@ -235,9 +241,7 @@ void main() {
     store.addSubtask(task, 'Draft the argument');
     await tester.pumpAndSettle();
     await tester.tap(
-      find.bySemanticsLabel(
-        '${task.text}, 0 of 2 steps done, tap to expand',
-      ),
+      find.bySemanticsLabel('${task.text}, 0 of 2 steps done, tap to expand'),
     );
     await tester.pumpAndSettle();
 
@@ -392,7 +396,11 @@ void main() {
   testWidgets('phone, edit sheet', (tester) async {
     // The marks boxes are the reason this snapshot exists: their labels are
     // the only thing saying which number goes where.
-    final store = await _boot(tester, const Size(430, 932), seed: _seed());
+    //
+    // Taller than a phone on purpose. At 932 the expanded card's EDIT row sits
+    // underneath the nav bar, so the tap landed on GRADES instead and this
+    // snapshot quietly captured the wrong page for several releases.
+    final store = await _boot(tester, const Size(430, 1200), seed: _seed());
     store.setMarks(
       store.items.firstWhere((a) => a.id == 'a2'),
       outOf: 40,
@@ -450,6 +458,79 @@ void main() {
     await expectLater(
       find.byType(WhatsDueApp),
       matchesGoldenFile('goldens/phone-dark-banner.png'),
+    );
+  });
+
+  testWidgets('phone, first run', (tester) async {
+    // The one screen every new user sees, and the only place the letter-grade
+    // question is asked unprompted.
+    await _boot(tester, const Size(430, 932), seed: _seed(), onboarded: false);
+    await expectLater(
+      find.byType(WhatsDueApp),
+      matchesGoldenFile('goldens/phone-welcome.png'),
+    );
+  });
+
+  testWidgets('phone, first run with the bands open', (tester) async {
+    // The band editor: five rows of name-and-bound that only make sense read
+    // against each other, which is exactly what a snapshot can check.
+    await _boot(tester, const Size(430, 1500), seed: _seed(), onboarded: false);
+    await tester.tap(find.text('YES, SET THEM UP'));
+    await tester.pumpAndSettle();
+    await expectLater(
+      find.byType(WhatsDueApp),
+      matchesGoldenFile('goldens/phone-welcome-bands.png'),
+    );
+  });
+
+  testWidgets('phone, grades with a goal', (tester) async {
+    // Letters beside the percentages, a goal on the subject, and the marks each
+    // band would still take — the three surfaces the projection shows up on.
+    final store = await _boot(
+      tester,
+      const Size(430, 1500),
+      seed: _seed(),
+      bands: kDefaultBands,
+    );
+    store.setMarks(
+      store.items.firstWhere((a) => a.id == 'a1'),
+      earned: 30,
+      outOf: 40,
+    );
+    store.setMarks(store.items.firstWhere((a) => a.id == 'a4'), outOf: 60);
+    store.setGoal(store.items.firstWhere((a) => a.id == 'a4'), 45);
+    store.setSubjectGoal(store.subjects.first, 75);
+    await tester.pumpAndSettle();
+
+    await _goTo(tester, 'Grades');
+    await tester.tap(find.text('ORGANIC CHEMISTRY'));
+    await tester.pumpAndSettle();
+    await expectLater(
+      find.byType(WhatsDueApp),
+      matchesGoldenFile('goldens/phone-grades-goal.png'),
+    );
+  });
+
+  testWidgets('phone, goal sheet', (tester) async {
+    final store = await _boot(
+      tester,
+      const Size(430, 932),
+      seed: _seed(),
+      bands: kDefaultBands,
+    );
+    store.setMarks(
+      store.items.firstWhere((a) => a.id == 'a1'),
+      earned: 30,
+      outOf: 40,
+    );
+    await tester.pumpAndSettle();
+
+    await _goTo(tester, 'Grades');
+    await tester.tap(find.text('SET A GOAL'));
+    await tester.pumpAndSettle();
+    await expectLater(
+      find.byType(WhatsDueApp),
+      matchesGoldenFile('goldens/phone-goal-sheet.png'),
     );
   });
 

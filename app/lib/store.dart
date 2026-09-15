@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'bands.dart';
 import 'models.dart';
 import 'reminders.dart';
 import 'updater.dart';
@@ -42,6 +43,7 @@ class AppStore extends ChangeNotifier {
   static const legacyKey = 'coursework:v1';
   static const _remindersKey = 'coursework:reminders';
   static const _darkKey = 'coursework:dark';
+  static const _onboardedKey = 'coursework:onboarded';
 
   SharedPreferences? _prefs;
 
@@ -51,6 +53,20 @@ class AppStore extends ChangeNotifier {
 
   List<Subject> subjects = [];
   List<Assignment> items = [];
+
+  /// Letter grade bands, empty when the user works in percentages.
+  ///
+  /// Part of the coursework document rather than a device setting, so a backup
+  /// carries them: restoring onto a new phone without them would leave every
+  /// grade showing as a bare percentage and every subject goal pointing at a
+  /// band that no longer exists.
+  List<GradeBand> bands = [];
+
+  bool get usesLetterGrades => bands.isNotEmpty;
+
+  /// Whether the first-run question has been answered, either way. Device
+  /// state, not coursework — a restored backup should not re-ask.
+  bool onboarded = false;
 
   /// Set when a write throws. The web app shows a warning line and keeps
   /// working in memory for the session rather than crashing; so does this.
@@ -70,6 +86,7 @@ class AppStore extends ChangeNotifier {
       _prefs = await SharedPreferences.getInstance();
       remindersEnabled = _prefs!.getBool(_remindersKey) ?? true;
       darkMode = _prefs!.getBool(_darkKey) ?? false;
+      onboarded = _prefs!.getBool(_onboardedKey) ?? false;
       // Applied before the first frame, so the app never opens light and then
       // flips.
       C.palette = darkMode ? Palette.night : Palette.light;
@@ -94,7 +111,8 @@ class AppStore extends ChangeNotifier {
 
   // ---------------------------------------------------------------- decoding
 
-  ({List<Subject> subjects, List<Assignment> items}) _decode(String raw) {
+  ({List<Subject> subjects, List<Assignment> items, List<GradeBand> bands})
+  _decode(String raw) {
     final j = jsonDecode(raw);
     if (j is! Map) throw const FormatException('Expected a JSON object');
     return (
@@ -106,13 +124,21 @@ class AppStore extends ChangeNotifier {
           .whereType<Map>()
           .map((a) => Assignment.fromJson(a.cast<String, dynamic>()))
           .toList(),
+      // Absent from everything written before letter grading existed, which
+      // has to keep loading as "percentages only".
+      bands: normaliseBands(
+        (j['bands'] as List? ?? const []).whereType<Map>().map(
+          (b) => GradeBand.fromJson(b.cast<String, dynamic>()),
+        ),
+      ),
     );
   }
 
   /// v1 stored a bare array with a free-text `module` field. Group by
   /// case-insensitive module name, mint a subject per distinct name, rewrite
   /// the references.
-  ({List<Subject> subjects, List<Assignment> items}) _migrateV1(String raw) {
+  ({List<Subject> subjects, List<Assignment> items, List<GradeBand> bands})
+  _migrateV1(String raw) {
     final arr = jsonDecode(raw);
     if (arr is! List) throw const FormatException('Expected a JSON array');
     final subjects = <Subject>[];
@@ -137,12 +163,16 @@ class AppStore extends ChangeNotifier {
       }
       items.add(Assignment.fromJson(j)..subjectId = sid);
     }
-    return (subjects: subjects, items: items);
+    return (subjects: subjects, items: items, bands: const <GradeBand>[]);
   }
 
-  void _adopt(({List<Subject> subjects, List<Assignment> items}) data) {
+  void _adopt(
+    ({List<Subject> subjects, List<Assignment> items, List<GradeBand> bands})
+    data,
+  ) {
     subjects = data.subjects;
     items = data.items;
+    bands = data.bands;
   }
 
   // ------------------------------------------------------------------ saving
@@ -167,10 +197,12 @@ class AppStore extends ChangeNotifier {
   Map<String, dynamic> toJson() => {
     'subjects': subjects.map((s) => s.toJson()).toList(),
     'items': items.map((a) => a.toJson()).toList(),
+    // Omitted when unused, so a percentages-only document serialises exactly
+    // as it did before bands existed.
+    if (bands.isNotEmpty) 'bands': bands.map((b) => b.toJson()).toList(),
   };
 
-  String exportJson() =>
-      const JsonEncoder.withIndent('  ').convert(toJson());
+  String exportJson() => const JsonEncoder.withIndent('  ').convert(toJson());
 
   // --------------------------------------------------------------- selectors
 
@@ -338,6 +370,34 @@ class AppStore extends ChangeNotifier {
     _commit();
   }
 
+  /// Replaces the band set. Empty turns letter grading off.
+  void setBands(List<GradeBand> value) {
+    bands = normaliseBands(value);
+    _commit();
+  }
+
+  /// The target for a whole subject, as a percentage. Null clears it.
+  void setSubjectGoal(Subject s, double? percent) {
+    s.goalPercent = percent;
+    _commit();
+  }
+
+  /// The score being aimed for on one assignment. Null clears it.
+  void setGoal(Assignment a, double? goal) {
+    a.goal = goal;
+    _commit();
+  }
+
+  void markOnboarded() {
+    onboarded = true;
+    try {
+      _prefs?.setBool(_onboardedKey, true);
+    } catch (e) {
+      debugPrint('Store: could not record onboarding — $e');
+    }
+    notifyListeners();
+  }
+
   void setDarkMode(bool value) {
     darkMode = value;
     C.palette = value ? Palette.night : Palette.light;
@@ -373,7 +433,8 @@ class AppStore extends ChangeNotifier {
     final text = raw.trim();
     if (text.isEmpty) return const ImportResult.failed('Nothing to import.');
 
-    ({List<Subject> subjects, List<Assignment> items}) incoming;
+    ({List<Subject> subjects, List<Assignment> items, List<GradeBand> bands})
+    incoming;
     try {
       incoming = text.startsWith('[') ? _migrateV1(text) : _decode(text);
     } on FormatException catch (e) {
@@ -391,11 +452,9 @@ class AppStore extends ChangeNotifier {
     if (!merge) {
       subjects = incoming.subjects;
       items = incoming.items;
+      bands = incoming.bands;
       _commit();
-      return ImportResult.ok(
-        subjects: subjects.length,
-        items: items.length,
-      );
+      return ImportResult.ok(subjects: subjects.length, items: items.length);
     }
 
     var addedSubjects = 0;
@@ -409,12 +468,22 @@ class AppStore extends ChangeNotifier {
       if (existing != null) {
         remap[s.id] = existing.id;
       } else {
-        final fresh = Subject(id: uid(), name: s.name, color: s.color);
+        final fresh = Subject(
+          id: uid(),
+          name: s.name,
+          color: s.color,
+          goalPercent: s.goalPercent,
+        );
         subjects.add(fresh);
         remap[s.id] = fresh.id;
         addedSubjects++;
       }
     }
+
+    // Bands are a single shared setting, not a per-item thing to merge. Taking
+    // the incoming set would silently redefine what every existing grade means,
+    // so a merge only adopts them when there are none to overwrite.
+    if (bands.isEmpty && incoming.bands.isNotEmpty) bands = incoming.bands;
 
     final known = items.map((a) => a.id).toSet();
     for (final a in incoming.items) {

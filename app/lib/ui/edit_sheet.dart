@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../bands.dart';
 import '../grades.dart';
 import '../models.dart';
 import '../store.dart';
@@ -37,9 +38,11 @@ class _EditSheetState extends State<_EditSheet> {
   late String _due = widget.assignment.due;
 
   late final _earned = _numberController(widget.assignment.earned);
+  late final _goal = _numberController(widget.assignment.goal);
   late final _outOf = _numberController(widget.assignment.outOf);
 
   late double? _earnedValue = widget.assignment.earned;
+  late double? _goalValue = widget.assignment.goal;
   late double? _outOfValue = widget.assignment.outOf;
 
   /// Seeded with the trimmed form, so an assignment worth 20% opens showing
@@ -51,6 +54,7 @@ class _EditSheetState extends State<_EditSheet> {
   void dispose() {
     _title.dispose();
     _earned.dispose();
+    _goal.dispose();
     _outOf.dispose();
     super.dispose();
   }
@@ -64,6 +68,7 @@ class _EditSheetState extends State<_EditSheet> {
       earned: _earnedValue,
       outOf: _outOfValue,
     );
+    widget.store.setGoal(widget.assignment, _goalValue);
     Navigator.of(context).pop();
   }
 
@@ -89,8 +94,17 @@ class _EditSheetState extends State<_EditSheet> {
       return 'Add what it is marked out of, or the score cannot be read as a '
           'percentage.';
     }
-    return 'Scored ${formatPercent(score / marks)} — '
-        '${trimNumber(score)} out of ${trimNumber(marks)}.';
+    final fraction = score / marks;
+    final band = bandFor(fraction * 100, widget.store.bands);
+    final goalNote = _goalValue == null
+        ? ''
+        : score + 1e-9 >= _goalValue!
+        ? ' Goal of ${trimNumber(_goalValue!)} met.'
+        : ' ${trimNumber(_goalValue! - score)} short of the '
+              '${trimNumber(_goalValue!)} you wanted.';
+    return 'Scored ${formatPercent(fraction)} — ${trimNumber(score)} out of '
+        '${trimNumber(marks)}'
+        '${band == null ? '' : ', a ${band.name}'}.$goalNote';
   }
 
   @override
@@ -100,7 +114,8 @@ class _EditSheetState extends State<_EditSheet> {
         _title.text.trim() == a.title &&
         _due == a.due &&
         _earnedValue == a.earned &&
-        _outOfValue == a.outOf;
+        _outOfValue == a.outOf &&
+        _goalValue == a.goal;
 
     return Dialog(
       backgroundColor: C.card,
@@ -175,6 +190,17 @@ class _EditSheetState extends State<_EditSheet> {
                       ),
                     ),
                   ),
+                  Expanded(
+                    child: LabelledField(
+                      label: 'Goal',
+                      child: NumberField(
+                        controller: _goal,
+                        hint: '30',
+                        semanticLabel: 'Goal score',
+                        onChanged: (v) => setState(() => _goalValue = v),
+                      ),
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 6),
@@ -202,10 +228,7 @@ class _EditSheetState extends State<_EditSheet> {
                           vertical: 9,
                         ),
                         color: C.ink,
-                        child: Text(
-                          'SAVE',
-                          style: T.ghost(C.onInk),
-                        ),
+                        child: Text('SAVE', style: T.ghost(C.onInk)),
                       ),
                     ),
                   ),

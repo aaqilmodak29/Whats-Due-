@@ -29,6 +29,7 @@ class _AddPanelState extends State<AddPanel> {
   final _title = TextEditingController();
   final _subjectName = TextEditingController();
   final _outOf = TextEditingController();
+  final _goal = TextEditingController();
   final _titleFocus = FocusNode();
   final _subjectFocus = FocusNode();
 
@@ -39,6 +40,10 @@ class _AddPanelState extends State<AddPanel> {
   /// added — which it usually is, since the spec says so. The score itself
   /// arrives weeks later, from the card's EDIT sheet.
   double? _outOfValue;
+
+  /// The score being aimed for, when it is known up front — which it often is
+  /// for anything that has to be passed in its own right.
+  double? _goalValue;
   late String _picked = widget.store.nextColor;
 
   @override
@@ -52,6 +57,7 @@ class _AddPanelState extends State<AddPanel> {
     _title.dispose();
     _subjectName.dispose();
     _outOf.dispose();
+    _goal.dispose();
     _titleFocus.dispose();
     _subjectFocus.dispose();
     super.dispose();
@@ -80,12 +86,15 @@ class _AddPanelState extends State<AddPanel> {
       due: _due,
       outOf: _outOfValue,
     );
+    if (_goalValue != null) widget.store.setGoal(created, _goalValue);
 
     setState(() {
       _title.clear();
       _subjectName.clear();
       _outOf.clear();
       _outOfValue = null;
+      _goal.clear();
+      _goalValue = null;
       _due = '';
       _subjectId = subjectId ?? '';
       _picked = widget.store.nextColor;
@@ -152,13 +161,22 @@ class _AddPanelState extends State<AddPanel> {
                   onChanged: (v) => setState(() => _outOfValue = v),
                 ),
               );
+              final goal = LabelledField(
+                label: 'Goal',
+                child: NumberField(
+                  controller: _goal,
+                  hint: '30',
+                  semanticLabel: 'Goal score',
+                  onChanged: (v) => setState(() => _goalValue = v),
+                ),
+              );
               // Narrow phones cannot fit a dropdown and a date side by side
               // without truncating subject names, so stack below ~360px.
               if (constraints.maxWidth < 360) {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   spacing: 10,
-                  children: [subject, date, marks],
+                  children: [subject, date, marks, goal],
                 );
               }
               return Column(
@@ -170,8 +188,9 @@ class _AddPanelState extends State<AddPanel> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     spacing: 8,
                     children: [
-                      Expanded(flex: 3, child: date),
+                      Expanded(flex: 4, child: date),
                       Expanded(flex: 2, child: marks),
+                      Expanded(flex: 2, child: goal),
                     ],
                   ),
                 ],
