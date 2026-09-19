@@ -162,7 +162,7 @@ Three destinations in a bottom bar.
 | | |
 |---|---|
 | **Assignments** | The landing page. Triage counts, the fortnight strip, search, due-date windows, subject chips, Manage subjects (add, rename, recolour, delete), and the Open / Submitted tabs. |
-| **Grades** | Marks totalled per subject, each opening to show the results behind the total, the goal, and what every grade band would still take. |
+| **Grades** | Marks totalled per subject and coloured by where they land, each opening to show the results behind the total, the goal, and what every grade band would still take. |
 | **Settings** | Version, grading, appearance, reminders, export, import and erasing — one scroll. |
 
 They can be swiped between as well as tapped. Nav taps animate rather than jump,
@@ -245,8 +245,9 @@ marks and marking errors both happen.
 That is deliberately **unweighted**. Weighting — what each assignment is worth
 towards the subject — was removed pending a decision on how to handle it, so a
 quiz out of 10 and a report out of 100 count here in proportion to their marks
-rather than to what they are actually worth. The page says so rather than
-implying the number is a predicted grade.
+rather than to what they are actually worth. The page used to carry a paragraph
+saying so; it has been cut, because a caveat nobody reads twice is not worth
+the height it costs on every visit.
 
 The `weight` field is still read and written by the storage layer even though
 nothing uses it. Dropping it would have every device quietly discard whatever
@@ -274,6 +275,29 @@ Bands travel inside the coursework document, so a backup carries them — a
 restore without them would leave every grade showing as a bare percentage.
 Importing with **merge** does *not* adopt the incoming bands unless you have
 none, because redefining them silently changes what every existing grade means.
+
+The Grading section on Settings is folded shut, showing only whether letter
+grades are on. Five band rows is the tallest thing on that page and it is set
+up once a degree.
+
+### Colour on Grades
+
+Three states, not a gradient: **red** in the lowest band, **green** in the
+highest, ink everywhere between. It colours the percentage, the letter and the
+bar together.
+
+A five-shade scale would make the colour the thing being read instead of the
+number, and the design carries two signal colours in the first place. Without
+bands configured there is no institutional pass mark to go on, so it falls back
+to 50 and 85 — the bounds the default bands ship with.
+
+The bar is coloured by the **average**, not by how much of the subject is
+banked. A subject one assignment in has banked very little of itself and would
+otherwise read as a fail all semester.
+
+Colour is never the only signal. The letter sits beside the percentage, the
+percentage is a number, and the bar has a length — red and green are within
+0.02 of each other in luminance, so nothing here is knowable by hue alone.
 
 ### Goals
 

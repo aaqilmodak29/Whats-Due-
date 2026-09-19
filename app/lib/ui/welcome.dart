@@ -50,23 +50,12 @@ class _WelcomeState extends State<Welcome> {
                     Eyebrow('One question', color: C.ink),
                     const SizedBox(height: 10),
                     Text(
-                      'Scores are kept as marks and shown as percentages — '
-                      '34 out of 40 reads as 85%. That works everywhere and '
-                      'needs no setting up.',
-                      style: T.body,
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      'Does your university or school also grade in letters, '
-                      'like Pass, Credit and Distinction? Set the bands and '
-                      'they appear beside every percentage.',
+                      'Does your university grade in letters, like Pass, '
+                      'Credit and Distinction?',
                       style: T.body,
                     ),
                     const SizedBox(height: 6),
-                    Text(
-                      'You can change this later under Settings either way.',
-                      style: T.note,
-                    ),
+                    Text('Changeable later under Settings.', style: T.note),
 
                     if (!_configuring) ...[
                       const SizedBox(height: 16),
@@ -104,13 +93,12 @@ class _WelcomeState extends State<Welcome> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Eyebrow('Your bands', color: C.ink),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 4),
                       Text(
-                        'Each band needs the lowest percentage that earns it. '
-                        'The one above it decides where it stops.',
+                        'The lowest percentage that earns each.',
                         style: T.note,
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 10),
                       BandEditor(store: store),
                     ],
                   ),

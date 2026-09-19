@@ -56,9 +56,8 @@ class UpdateSection extends StatelessWidget {
             if (updater.status == UpdateStatus.ready) ...[
               const SizedBox(height: 12),
               Text(
-                'Nothing happened? Android needs permission to install apps '
-                'from here. It will have offered a settings link — grant it, '
-                'then tap Install again.',
+                'Nothing happened? Allow this app to install apps, then tap '
+                'Install again.',
                 style: T.emptyBody,
               ),
             ],
@@ -134,10 +133,7 @@ class UpdateSection extends StatelessWidget {
   Widget _downloading(Release? release) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      Text(
-        'Downloading ${release?.version ?? ''}',
-        style: T.count(C.ink),
-      ),
+      Text('Downloading ${release?.version ?? ''}', style: T.count(C.ink)),
       const SizedBox(height: 10),
       SizedBox(
         height: 3,
@@ -222,7 +218,8 @@ class UpdateBanner extends StatelessWidget {
         padding: const EdgeInsets.only(top: 12),
         child: Tap(
           onTap: onTap,
-          semanticLabel: 'Version ${release.version} is available, tap to install',
+          semanticLabel:
+              'Version ${release.version} is available, tap to install',
           child: Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),

@@ -252,9 +252,15 @@ void main() {
   });
 
   testWidgets('phone, grades', (tester) async {
-    final store = await _boot(tester, const Size(430, 932), seed: _seed());
-    // Two subjects, one of them with two results, so the snapshot covers both
-    // a single mark and marks being added together.
+    // Three subjects, one with two results so the snapshot covers marks being
+    // added together — and one in each colour, since the whole point of the
+    // colour coding is how the three read against each other.
+    final store = await _boot(
+      tester,
+      const Size(430, 932),
+      seed: _seed(),
+      bands: kDefaultBands,
+    );
     store.setMarks(
       store.items.firstWhere((a) => a.id == 'a1'),
       earned: 30,
@@ -265,10 +271,17 @@ void main() {
       earned: 8,
       outOf: 10,
     );
+    // Under the Pass mark: red.
     store.setMarks(
       store.items.firstWhere((a) => a.id == 'a3'),
-      earned: 17,
+      earned: 10,
       outOf: 25,
+    );
+    // Top band: green.
+    store.setMarks(
+      store.items.firstWhere((a) => a.id == 'a2'),
+      earned: 46,
+      outOf: 50,
     );
     await tester.pumpAndSettle();
 
@@ -276,6 +289,41 @@ void main() {
     await expectLater(
       find.byType(MaterialApp),
       matchesGoldenFile('goldens/phone-grades.png'),
+    );
+  });
+
+  testWidgets('phone, dark grades', (tester) async {
+    // The grade colours land on a card in both palettes, and red and green are
+    // the two the night palette lifts — so the one place they all appear
+    // together is worth a look after dark as well.
+    final store = await _boot(
+      tester,
+      const Size(430, 932),
+      seed: _seed(),
+      bands: kDefaultBands,
+      dark: true,
+    );
+    store.setMarks(
+      store.items.firstWhere((a) => a.id == 'a3'),
+      earned: 10,
+      outOf: 25,
+    );
+    store.setMarks(
+      store.items.firstWhere((a) => a.id == 'a2'),
+      earned: 46,
+      outOf: 50,
+    );
+    store.setMarks(
+      store.items.firstWhere((a) => a.id == 'a1'),
+      earned: 30,
+      outOf: 40,
+    );
+    await tester.pumpAndSettle();
+
+    await _goTo(tester, 'Grades');
+    await expectLater(
+      find.byType(WhatsDueApp),
+      matchesGoldenFile('goldens/phone-dark-grades.png'),
     );
   });
 

@@ -65,18 +65,13 @@ class _ManageSubjectsState extends State<ManageSubjects> {
         if (store.subjects.isEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 4, bottom: 4),
-            child: Text(
-              'No subjects yet. Name one below, or create it inline when you '
-              'add an assignment.',
-              style: T.note,
-            ),
+            child: Text('No subjects yet. Name one below.', style: T.note),
           )
         else ...[
           for (final s in store.subjects) _SubjectRow(store: store, subject: s),
           Padding(
             padding: const EdgeInsets.only(top: 10),
             child: Text(
-              'Tap a swatch to change its colour, or the name to rename it. '
               'Deleting a subject keeps its assignments.',
               style: T.note,
             ),
@@ -251,7 +246,8 @@ class _SubjectRowState extends State<_SubjectRow> {
               confirm(
                 context,
                 title: 'Delete “${s.name}”?',
-                body: 'Its $count assignment${count == 1 ? '' : 's'} '
+                body:
+                    'Its $count assignment${count == 1 ? '' : 's'} '
                     'will become Unfiled. Nothing is lost.',
                 confirmLabel: 'Delete subject',
                 onConfirm: () => widget.store.deleteSubject(s),
