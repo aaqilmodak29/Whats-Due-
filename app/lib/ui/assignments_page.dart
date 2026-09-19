@@ -382,17 +382,13 @@ class AssignmentsPage extends StatelessWidget {
     if (view.query.trim().isNotEmpty) {
       return EmptyState(
         head: 'Nothing here',
-        body:
-            'No assignment matches “${view.query.trim()}”. '
-            'Clear the search to see everything again.',
+        body: 'Nothing matches “${view.query.trim()}”.',
       );
     }
     if (view.window != null) {
       return EmptyState(
         head: 'Nothing here',
-        body:
-            'Nothing is due within ${view.window!.label.toLowerCase()}. '
-            'Tap ANY TIME to widen it.',
+        body: 'Nothing due within ${view.window!.label.toLowerCase()}.',
       );
     }
     final (head, body) = switch ((
@@ -403,23 +399,17 @@ class AssignmentsPage extends StatelessWidget {
       // A day filter is the most recent thing the user did, so name it first.
       (true, true, _) => (
         'Nothing here',
-        'Nothing in this subject is due on that day. Tap SHOW ALL to widen it.',
+        'Nothing in this subject is due that day.',
       ),
-      (true, false, _) => (
-        'Nothing here',
-        'Nothing is due on that day any more. Tap SHOW ALL to widen it.',
-      ),
-      (false, true, _) => (
-        'Nothing here',
-        'No assignments in this subject yet. Tap All to see everything.',
-      ),
+      (true, false, _) => ('Nothing here', 'Nothing due that day.'),
+      (false, true, _) => ('Nothing here', 'Nothing in this subject yet.'),
       (false, false, false) => (
         'Nothing tracked yet',
-        'Add an assignment and the 14-day strip on Home starts filling in.',
+        'Add an assignment with the + above.',
       ),
       (false, false, true) => (
         'Nothing submitted yet',
-        'Finished work shows up here once you mark it submitted.',
+        'Work shows up here once you mark it submitted.',
       ),
     };
     return EmptyState(head: head, body: body);

@@ -123,6 +123,16 @@ void appTest(
   });
 }
 
+/// The colour a piece of rendered text is actually painted in.
+Color? colourOf(WidgetTester tester, String text) =>
+    tester.widget<Text>(find.text(text)).style?.color;
+
+/// Unfolds the Grading section on Settings, which opens collapsed.
+Future<void> openGrading(WidgetTester tester) async {
+  await tester.tap(find.bySemanticsLabel(RegExp('^Grading, ')));
+  await tester.pumpAndSettle();
+}
+
 /// Taps a bottom-nav destination by the label a screen reader would announce.
 ///
 /// Matches the current-page label too, so a test can name the destination it
@@ -1731,6 +1741,7 @@ void main() {
       'turning them on from Settings is enough to set them up',
       (tester, store) async {
         expect(store.usesLetterGrades, isFalse);
+        await openGrading(tester);
         await tester.tap(find.bySemanticsLabel('Letter grades'));
         await tester.pumpAndSettle();
 
@@ -1751,6 +1762,7 @@ void main() {
     appTest(
       'turning them off again leaves the percentages alone',
       (tester, store) async {
+        await openGrading(tester);
         await tester.tap(find.bySemanticsLabel('Letter grades'));
         await tester.pumpAndSettle();
 
@@ -1761,6 +1773,91 @@ void main() {
       size: const Size(430, 1400),
       bands: kDefaultBands,
       tab: 'Settings',
+    );
+
+    appTest(
+      'the section folds away, saying what it is doing while shut',
+      (tester, store) async {
+        // Shut, the state is still legible without opening anything.
+        expect(find.text('LETTER GRADES ON'), findsOne);
+        expect(find.widgetWithText(TextField, 'Pass'), findsNothing);
+        expect(find.bySemanticsLabel('Letter grades'), findsNothing);
+
+        await openGrading(tester);
+        expect(find.widgetWithText(TextField, 'Pass'), findsOne);
+
+        await openGrading(tester);
+        expect(find.widgetWithText(TextField, 'Pass'), findsNothing);
+      },
+      seed: _seed(),
+      size: const Size(430, 1400),
+      bands: kDefaultBands,
+      tab: 'Settings',
+    );
+  });
+
+  group('grade colours', () {
+    appTest(
+      'a subject in the lowest band reads red, the highest green',
+      (tester, store) async {
+        final s = store.subjects.first;
+        store.setMarks(
+          store.addAssignment(title: 'Bombed', subjectId: s.id, outOf: 100),
+          earned: 30.0,
+        );
+        // A second subject at the other end of the scale.
+        final other = store.subjects[1];
+        store.setMarks(
+          store.addAssignment(title: 'Aced', subjectId: other.id, outOf: 100),
+          earned: 92.0,
+        );
+        await tester.pumpAndSettle();
+
+        expect(colourOf(tester, '30%'), C.red);
+        expect(colourOf(tester, 'FAIL'), C.red);
+        expect(colourOf(tester, '92%'), C.green);
+        expect(colourOf(tester, 'HIGH DISTINCTION'), C.green);
+      },
+      seed: _seed(),
+      bands: kDefaultBands,
+      tab: 'Grades',
+    );
+
+    appTest(
+      'everything between them stays ink',
+      (tester, store) async {
+        final s = store.subjects.first;
+        store.setMarks(
+          store.addAssignment(title: 'Solid', subjectId: s.id, outOf: 100),
+          earned: 70.0,
+        );
+        await tester.pumpAndSettle();
+
+        expect(colourOf(tester, '70%'), C.ink);
+        expect(colourOf(tester, 'CREDIT'), C.ink);
+      },
+      seed: _seed(),
+      bands: kDefaultBands,
+      tab: 'Grades',
+    );
+
+    appTest(
+      'without bands it falls back to the same 50 and 85',
+      (tester, store) async {
+        // No institutional pass mark to go on, but a colour is still more use
+        // than none — and these are the bounds the defaults ship with.
+        final s = store.subjects.first;
+        store.setMarks(
+          store.addAssignment(title: 'Low', subjectId: s.id, outOf: 100),
+          earned: 49.0,
+        );
+        await tester.pumpAndSettle();
+
+        expect(colourOf(tester, '49%'), C.red);
+        expect(find.text('FAIL'), findsNothing, reason: 'no bands, no letter');
+      },
+      seed: _seed(),
+      tab: 'Grades',
     );
   });
 

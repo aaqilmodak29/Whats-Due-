@@ -47,20 +47,11 @@ class _GradesPageState extends State<GradesPage> {
       children: [
         if (grades.isEmpty)
           _empty()
-        else ...[
+        else
           for (final g in grades) ...[
             _subjectCard(g),
             const SizedBox(height: 9),
           ],
-          const SizedBox(height: 6),
-          Text(
-            'Marks are added up as they are — a quiz out of 10 and a report out '
-            'of 100 count here in proportion to their marks, not to what each '
-            'is actually worth towards the subject. Everything below counts '
-            'only the assignments you have entered.',
-            style: T.note,
-          ),
-        ],
       ],
     );
   }
@@ -75,6 +66,9 @@ class _GradesPageState extends State<GradesPage> {
   /// The band a fraction lands in, as a short label, or empty without bands.
   String _band(double fraction) =>
       bandFor(fraction * 100, bands)?.name.toUpperCase() ?? '';
+
+  /// How a fraction should be coloured: red at the bottom, green at the top.
+  Color _colour(double fraction) => gradeColour(fraction * 100, bands);
 
   // ------------------------------------------------------------------- card
 
@@ -108,12 +102,14 @@ class _GradesPageState extends State<GradesPage> {
                     Dot(_swatch(g.subjectId)),
                     Expanded(child: Eyebrow(_name(g.subjectId), maxLines: 1)),
                     if (average != null && _band(average).isNotEmpty) ...[
-                      Text(_band(average), style: T.eyebrow(C.ink)),
+                      Text(_band(average), style: T.eyebrow(_colour(average))),
                       const SizedBox(width: 2),
                     ],
                     Text(
                       average == null ? '—' : formatPercent(average),
-                      style: T.count(C.ink),
+                      style: T.count(
+                        average == null ? C.muted : _colour(average),
+                      ),
                     ),
                     Icon(
                       open ? Icons.expand_less : Icons.expand_more,
@@ -172,7 +168,12 @@ class _GradesPageState extends State<GradesPage> {
         ),
         FractionallySizedBox(
           widthFactor: g.securedFraction.clamp(0.0, 1.0),
-          child: Container(color: C.ink),
+          // Coloured by the average, not by how much is banked — a subject one
+          // assignment in has banked very little of itself and would read as a
+          // fail all semester.
+          child: Container(
+            color: g.average == null ? C.ink : _colour(g.average!),
+          ),
         ),
       ],
     ),
@@ -296,7 +297,7 @@ class _GradesPageState extends State<GradesPage> {
                   if (_band(a.scored!).isNotEmpty) _band(a.scored!),
                   formatPercent(a.scored!),
                 ].join(' · '),
-                style: T.frac,
+                style: T.frac.copyWith(color: _colour(a.scored!)),
               ),
             ],
           ),
@@ -362,9 +363,6 @@ class _GradesPageState extends State<GradesPage> {
 
   Widget _empty() => const EmptyState(
     head: 'Nothing to total yet',
-    body:
-        'Set what an assignment is marked out of when you add it, and it '
-        'shows up here — with what you still need — even before the score '
-        'comes back.',
+    body: 'Set what an assignment is marked out of and it shows up here.',
   );
 }

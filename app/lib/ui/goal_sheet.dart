@@ -78,15 +78,6 @@ class _GoalSheetState extends State<_GoalSheet> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Eyebrow('Goal for ${widget.subjectName}'),
-            const SizedBox(height: 10),
-            Text(
-              widget.bands.isEmpty
-                  ? 'What are you aiming for across the whole subject? Grades '
-                        'works out how many marks you still need to get there.'
-                  : 'Pick a grade, or set a number. Grades works out how many '
-                        'marks you still need to get there.',
-              style: T.note,
-            ),
 
             if (widget.bands.isNotEmpty) ...[
               const SizedBox(height: 12),

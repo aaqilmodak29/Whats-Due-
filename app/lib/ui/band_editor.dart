@@ -10,6 +10,10 @@ import 'atoms.dart';
 /// The app works in percentages by default and always will — bands are a
 /// display layer over the same numbers, not a different way of storing them.
 /// Turning them off loses nothing but the letters.
+///
+/// Collapsed by default. Five band rows is the tallest thing on Settings and
+/// it is set up once a degree, so it folds away behind the one line saying
+/// what it is currently doing.
 class GradingSection extends StatefulWidget {
   const GradingSection({super.key, required this.store});
 
@@ -20,7 +24,12 @@ class GradingSection extends StatefulWidget {
 }
 
 class _GradingSectionState extends State<GradingSection> {
+  bool _open = false;
+
   AppStore get store => widget.store;
+
+  String get _state =>
+      store.usesLetterGrades ? 'LETTER GRADES ON' : 'PERCENTAGES ONLY';
 
   @override
   Widget build(BuildContext context) => Surface(
@@ -28,44 +37,47 @@ class _GradingSectionState extends State<GradingSection> {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Eyebrow('Grading', color: C.ink),
-        const SizedBox(height: 10),
-        Text(
-          'Scores are kept as marks and shown as percentages. If your '
-          'university or school also grades in letters, set the bands here and '
-          'they appear beside every percentage.',
-          style: T.note,
-        ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                store.usesLetterGrades
-                    ? 'LETTER GRADES ON'
-                    : 'PERCENTAGES ONLY',
-                style: T.count(C.ink),
+        Tap(
+          onTap: () => setState(() => _open = !_open),
+          semanticLabel:
+              'Grading, $_state, tap to ${_open ? 'collapse' : 'expand'}',
+          child: Row(
+            spacing: 6,
+            children: [
+              Expanded(child: Eyebrow('Grading', color: C.ink)),
+              // Only while shut: open, the row below says the same thing.
+              if (!_open) Text(_state, style: T.eyebrow(C.muted)),
+              Icon(
+                _open ? Icons.expand_less : Icons.expand_more,
+                size: 16,
+                color: C.rule,
               ),
-            ),
-            Semantics(
-              // container: true, or the label merges into the Switch's own
-              // node and never reaches the semantics tree as its own entry.
-              container: true,
-              label: 'Letter grades',
-              toggled: store.usesLetterGrades,
-              child: Switch(
-                value: store.usesLetterGrades,
-                activeThumbColor: C.onMark,
-                activeTrackColor: C.mark,
-                onChanged: (on) =>
-                    store.setBands(on ? kDefaultBands : const []),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
-        if (store.usesLetterGrades) ...[
-          const SizedBox(height: 12),
-          BandEditor(store: store),
+
+        if (_open) ...[
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Expanded(child: Text(_state, style: T.count(C.ink))),
+              Semantics(
+                // container: true, or the label merges into the Switch's own
+                // node and never reaches the semantics tree as its own entry.
+                container: true,
+                label: 'Letter grades',
+                toggled: store.usesLetterGrades,
+                child: Switch(
+                  value: store.usesLetterGrades,
+                  activeThumbColor: C.onMark,
+                  activeTrackColor: C.mark,
+                  onChanged: (on) =>
+                      store.setBands(on ? kDefaultBands : const []),
+                ),
+              ),
+            ],
+          ),
+          if (store.usesLetterGrades) BandEditor(store: store),
         ],
       ],
     ),

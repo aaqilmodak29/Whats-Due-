@@ -1,3 +1,8 @@
+import 'package:flutter/material.dart';
+
+import 'models.dart';
+import 'theme.dart';
+
 /// A letter grade band: a name, and the lowest percentage that earns it.
 ///
 /// Stored as a lower bound rather than a range. Ranges would let two bands
@@ -98,6 +103,27 @@ String? bandProblem(List<GradeBand> bands) {
     }
   }
   return null;
+}
+
+/// Where a percentage stands, as a colour.
+///
+/// Three states, not a gradient: red in the lowest band, green in the highest,
+/// ink everywhere between. A scale of five shades would make the colour the
+/// thing being read instead of the number, and the design only carries two
+/// signal colours anyway.
+///
+/// With no bands configured there is no institutional pass mark to go on, so
+/// this falls back to 50 and 85 — the same bounds [kDefaultBands] ships with.
+/// Takes a palette for the same reason [urgency] does: so a test can name one
+/// without swapping the global.
+Color gradeColour(double percent, List<GradeBand> bands, [Palette? palette]) {
+  final p = palette ?? C.palette;
+  final (low, high) = bands.length < 2
+      ? (50.0, 85.0)
+      : (bands[1].min, bands.last.min);
+  if (percent + 1e-9 < low) return p.red;
+  if (percent + 1e-9 >= high) return p.green;
+  return p.ink;
 }
 
 /// `65` rather than `65.0`, while still allowing `62.5`.

@@ -10,9 +10,8 @@ import 'atoms.dart';
 
 /// Backup and reminder settings.
 ///
-/// Sync keeps the devices in step, so import and export are no longer how data
-/// travels between them. They remain the escape hatch: a copy that survives
-/// uninstalling, a lost device, or deciding to stop using the app.
+/// With nothing syncing anywhere, export is the only copy of the data that
+/// survives uninstalling, a lost device, or deciding to stop using the app.
 class BackupSections extends StatefulWidget {
   const BackupSections({super.key, required this.store});
 
@@ -130,16 +129,11 @@ class _BackupSectionsState extends State<BackupSections> {
           title: 'Reminders',
           children: [
             Text(
-              'Six notifications per deadline, scheduled on this '
-              'device. At 9am two weeks out, one week out, three days '
-              'out, the day before and the morning it is due — then a '
-              'last one at 9pm, about three hours before a midnight '
-              'cut-off.\n\n'
-              'Assignments due at the same moment arrive as one '
-              'notification rather than several.',
+              '9am at two weeks, one week, three days, the day before and '
+              'the morning it is due, plus 9pm the night before.',
               style: T.note,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             Row(
               children: [
                 Expanded(
@@ -214,13 +208,11 @@ class _BackupSectionsState extends State<BackupSections> {
               '${store.items.length == 1 ? '' : 's'} across '
               '${store.subjects.length} subject'
               '${store.subjects.length == 1 ? '' : 's'}. '
-              'Everything lives on this device and nowhere else. A '
-              'saved backup is the only copy that survives '
-              'uninstalling, a wiped phone or a lost one — keep a '
-              'recent one somewhere else.',
+              // Worth the one line: the data lives nowhere else.
+              'The only copy that survives a lost phone.',
               style: T.note,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -263,15 +255,10 @@ class _BackupSectionsState extends State<BackupSections> {
           title: 'Import',
           children: [
             Text(
-              'Paste a backup below. Accepts this app\'s JSON and the '
-              'older bare-array format, so an old backup still works.'
-              '\n\n'
-              'MERGE keeps what you have and adds anything new, '
-              'matching subjects by name and skipping assignments you '
-              'already have. REPLACE overwrites everything.',
+              'MERGE adds what is new. REPLACE overwrites everything.',
               style: T.note,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             TextField(
               controller: _paste,
               style: T.monoInput,
@@ -330,12 +317,6 @@ class _BackupSectionsState extends State<BackupSections> {
           accent: C.red,
           title: 'Danger',
           children: [
-            Text(
-              'Erasing is immediate and cannot be undone. Uninstalling '
-              'the app has the same effect on its data.',
-              style: T.note,
-            ),
-            const SizedBox(height: 12),
             GhostButton(
               label: 'Clear all data',
               onPressed: () => confirm(

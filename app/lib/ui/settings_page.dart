@@ -27,7 +27,6 @@ class SettingsPage extends StatelessWidget {
   Widget build(BuildContext context) => PageBody(
     controller: controller,
     title: 'Settings',
-    eyebrow: 'Version, grading, appearance, reminders and backup',
     children: [
       UpdateSection(updater: store.updater),
       const SizedBox(height: 16),
@@ -47,14 +46,7 @@ class SettingsPage extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Eyebrow('Appearance', color: C.ink),
-        const SizedBox(height: 10),
-        Text(
-          'The same design after dark rather than a different one: the paper '
-          'goes to ink, the ink to paper, and the highlighter stays exactly '
-          'where it is.',
-          style: T.note,
-        ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         Row(
           children: [
             Expanded(

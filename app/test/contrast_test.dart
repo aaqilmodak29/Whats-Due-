@@ -13,8 +13,7 @@ void main() {
   /// Rough perceptual distance. Not a WCAG figure — just enough to catch a
   /// foreground that has collapsed onto its own background.
   double distance(Color a, Color b) {
-    double lum(Color c) =>
-        0.299 * c.r + 0.587 * c.g + 0.114 * c.b;
+    double lum(Color c) => 0.299 * c.r + 0.587 * c.g + 0.114 * c.b;
     return (lum(a) - lum(b)).abs();
   }
 
@@ -94,6 +93,25 @@ void main() {
     for (final palette in [Palette.light, Palette.night]) {
       test('in ${palette.dark ? 'dark' : 'light'}', () {
         expect(distance(palette.onInk, palette.ink), greaterThan(0.3));
+      });
+    }
+  });
+
+  group('every grade colour reads on a card', () {
+    // Grades paints the percentage in one of three colours against the card.
+    // Red and green are lifted after dark for exactly this reason, so the
+    // pairing is worth holding rather than assuming.
+    //
+    // Only each colour against the card, deliberately — not red against green.
+    // They sit within 0.02 of each other in luminance, so that comparison can
+    // never pass, and it should not have to: the colour is always redundant.
+    // The band name is beside the percentage, the percentage is a number, and
+    // the bar has a length. Nothing in Grades is knowable by hue alone.
+    for (final palette in [Palette.light, Palette.night]) {
+      test('in ${palette.dark ? 'dark' : 'light'}', () {
+        for (final c in [palette.red, palette.ink, palette.green]) {
+          expect(distance(c, palette.card), greaterThan(0.2));
+        }
       });
     }
   });
