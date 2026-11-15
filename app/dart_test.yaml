@@ -10,3 +10,5 @@
 tags:
   golden:
     description: Snapshot tests, platform-dependent on font rendering.
+  ui_shots:
+    description: UI screenshots for judging (tool/ui_shots); skipped unless UI_SHOTS=1.
