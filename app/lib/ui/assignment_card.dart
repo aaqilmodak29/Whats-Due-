@@ -109,8 +109,8 @@ class _AssignmentCardState extends State<AssignmentCard> {
                         ),
                       Icon(
                         open ? Icons.expand_less : Icons.expand_more,
-                        size: 16,
-                        color: C.rule,
+                        size: 18,
+                        color: open ? C.ink : C.muted,
                       ),
                     ],
                   ),
@@ -136,8 +136,16 @@ class _AssignmentCardState extends State<AssignmentCard> {
   /// nesting is legible without a connecting line. The task's own marks and
   /// estimate live here too — opening a task is how you get at its detail,
   /// rather than putting six more controls on every collapsed row.
-  Widget _steps(AppStore store, Task t) => Padding(
-    padding: const EdgeInsets.only(left: 29, bottom: 6),
+  ///
+  /// The detail hangs off a rail dropped from the task's checkbox, so
+  /// everything inside it, its own add row included, reads as one level down
+  /// from the task rather than as more of the card.
+  Widget _steps(AppStore store, Task t) => Container(
+    margin: const EdgeInsets.only(left: 9, top: 2, bottom: 8),
+    padding: const EdgeInsets.only(left: 19, top: 2, bottom: 2),
+    decoration: BoxDecoration(
+      border: Border(left: BorderSide(color: C.rule, width: 2)),
+    ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -171,31 +179,13 @@ class _AssignmentCardState extends State<AssignmentCard> {
           ),
         Padding(
           padding: const EdgeInsets.only(top: 4),
-          child: Row(
-            spacing: 6,
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _subtaskController,
-                  focusNode: _subtaskFocus,
-                  style: T.body.copyWith(fontSize: 13),
-                  decoration: fieldDecoration(hint: 'Add a step'),
-                  textInputAction: TextInputAction.done,
-                  onSubmitted: (_) => _pushSubtask(t),
-                ),
-              ),
-              Tap(
-                onTap: () => _pushSubtask(t),
-                semanticLabel: 'Add step',
-                child: Container(
-                  height: 38,
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  color: C.ink,
-                  alignment: Alignment.center,
-                  child: Text('ADD', style: T.primary.copyWith(fontSize: 10)),
-                ),
-              ),
-            ],
+          child: _AddRow(
+            controller: _subtaskController,
+            focusNode: _subtaskFocus,
+            hint: 'Add a step',
+            buttonLabel: 'Add step',
+            small: true,
+            onSubmit: () => _pushSubtask(t),
           ),
         ),
       ],
@@ -208,15 +198,20 @@ class _AssignmentCardState extends State<AssignmentCard> {
   /// student guessing to the minute is inventing precision, and the rough shape
   /// of the work is all this is for. One tap sets it, tapping the active one
   /// clears it.
+  ///
+  /// Label and control share a line, with the labels in one column, so the
+  /// two read as a small form rather than four loose rows. The time chips are
+  /// the list filter chips' language: hairline box, and the active one gets
+  /// an ink edge with the highlighter underline.
   Widget _taskMeta(AppStore store, Task t) => Padding(
-    padding: const EdgeInsets.only(bottom: 8),
+    padding: const EdgeInsets.only(bottom: 6),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      spacing: 6,
       children: [
         Row(
-          spacing: 8,
           children: [
-            Text('MARKS', style: T.flabel),
+            SizedBox(width: 50, child: Text('MARKS', style: T.count(C.muted))),
             SizedBox(
               width: 62,
               child: NumberField(
@@ -228,34 +223,28 @@ class _AssignmentCardState extends State<AssignmentCard> {
             ),
           ],
         ),
-        const SizedBox(height: 7),
-        Text('TIME', style: T.flabel),
-        const SizedBox(height: 4),
-        Wrap(
-          spacing: 5,
-          runSpacing: 5,
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            for (final m in kEstimateChoices)
-              Tap(
-                onTap: () => store.setTaskMinutes(t, t.minutes == m ? null : m),
-                semanticLabel: t.minutes == m
-                    ? 'Clear the ${formatMinutes(m)} estimate'
-                    : 'Estimate ${formatMinutes(m)}',
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 7,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: t.minutes == m ? C.mark : Colors.transparent,
-                    border: Border.all(color: t.minutes == m ? C.ink : C.rule),
-                  ),
-                  child: Text(
-                    formatMinutes(m),
-                    style: T.chip(t.minutes == m ? C.onMark : C.muted),
-                  ),
-                ),
+            SizedBox(width: 50, child: Text('TIME', style: T.count(C.muted))),
+            Expanded(
+              child: Wrap(
+                spacing: 5,
+                runSpacing: 5,
+                children: [
+                  for (final m in kEstimateChoices)
+                    _EstimateChip(
+                      label: formatMinutes(m),
+                      on: t.minutes == m,
+                      semanticLabel: t.minutes == m
+                          ? 'Clear the ${formatMinutes(m)} estimate'
+                          : 'Estimate ${formatMinutes(m)}',
+                      onTap: () =>
+                          store.setTaskMinutes(t, t.minutes == m ? null : m),
+                    ),
+                ],
               ),
+            ),
           ],
         ),
       ],
@@ -312,111 +301,122 @@ class _AssignmentCardState extends State<AssignmentCard> {
     final total = a.tasks.length;
     final finished = a.finishedTasks;
 
-    return Opacity(
-      opacity: a.done ? .62 : 1,
-      child: Container(
-        decoration: BoxDecoration(
-          color: C.card,
-          border: Border(left: BorderSide(color: spine, width: 6)),
-          boxShadow: const [
-            BoxShadow(color: Color(0x1A16202E), offset: Offset(0, 1)),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Semantics(
-              button: true,
-              expanded: widget.expanded,
-              label:
-                  '${a.title}, ${subject?.name ?? 'unfiled'}, '
-                  '${a.done ? 'submitted' : countdown(n).toLowerCase()}',
-              child: ExcludeSemantics(
-                child: Tap(
-                  onTap: widget.onToggleExpanded,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 13,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Row(
-                                spacing: 6,
+    // Submitted work used to be washed out to 62% and struck through, which
+    // read as disabled or deleted. The green spine and the label say "done";
+    // the title steps back to muted and stays readable.
+    return Container(
+      decoration: BoxDecoration(
+        color: C.card,
+        border: Border(left: BorderSide(color: spine, width: 6)),
+        boxShadow: const [
+          BoxShadow(color: Color(0x1A16202E), offset: Offset(0, 1)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Semantics(
+            button: true,
+            expanded: widget.expanded,
+            label:
+                '${a.title}, ${subject?.name ?? 'unfiled'}, '
+                '${a.done ? 'submitted' : countdown(n).toLowerCase()}',
+            child: ExcludeSemantics(
+              child: Tap(
+                onTap: widget.onToggleExpanded,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 13,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Row(
+                              spacing: 6,
+                              children: [
+                                if (subject != null) Dot(subject.swatch),
+                                Flexible(
+                                  child: Eyebrow(
+                                    subject?.name ?? 'Unfiled',
+                                    maxLines: 1,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          if (a.done)
+                            Row(
+                              spacing: 4,
+                              children: [
+                                Icon(Icons.check, size: 14, color: C.green),
+                                Text('SUBMITTED', style: T.count(C.ink)),
+                              ],
+                            )
+                          else
+                            Text(countdown(n), style: T.count(spine)),
+                        ],
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        a.title,
+                        style: a.done
+                            ? T.title().copyWith(color: C.muted)
+                            : T.title(),
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        spacing: 9,
+                        children: [
+                          Expanded(
+                            child: SizedBox(
+                              height: 3,
+                              child: Stack(
                                 children: [
-                                  if (subject != null) Dot(subject.swatch),
-                                  Flexible(
-                                    child: Eyebrow(
-                                      subject?.name ?? 'Unfiled',
-                                      maxLines: 1,
-                                    ),
+                                  Container(color: C.rule),
+                                  FractionallySizedBox(
+                                    widthFactor: total == 0
+                                        ? 0
+                                        : finished / total,
+                                    child: Container(color: spine),
                                   ),
                                 ],
                               ),
                             ),
-                            const SizedBox(width: 10),
-                            Text(
-                              a.done ? 'SUBMITTED' : countdown(n),
-                              style: T.count(spine),
+                          ),
+                          Text(
+                            total == 0 ? 'no tasks' : '$finished/$total',
+                            style: T.frac,
+                          ),
+                          // A hairline keeps the two fractions from reading
+                          // as one: 1/2 is tasks done, 30/40 is marks.
+                          Container(width: 1, height: 11, color: C.rule),
+                          Text(
+                            a.markLabel,
+                            style: T.frac.copyWith(
+                              // Ink once a real result is in, so a graded
+                              // card is distinguishable at a glance from one
+                              // still showing placeholders.
+                              color: a.graded ? C.ink : C.muted,
                             ),
-                          ],
-                        ),
-                        const SizedBox(height: 5),
-                        Text(a.title, style: T.title(struck: a.done)),
-                        const SizedBox(height: 10),
-                        Row(
-                          spacing: 9,
-                          children: [
-                            Expanded(
-                              child: SizedBox(
-                                height: 3,
-                                child: Stack(
-                                  children: [
-                                    Container(color: C.rule),
-                                    FractionallySizedBox(
-                                      widthFactor: total == 0
-                                          ? 0
-                                          : finished / total,
-                                      child: Container(color: spine),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            Text(
-                              total == 0 ? 'no tasks' : '$finished/$total',
-                              style: T.frac,
-                            ),
-                            // A hairline keeps the two fractions from reading
-                            // as one: 1/2 is tasks done, 30/40 is marks.
-                            Container(width: 1, height: 11, color: C.rule),
-                            Text(
-                              a.markLabel,
-                              style: T.frac.copyWith(
-                                // Ink once a real result is in, so a graded
-                                // card is distinguishable at a glance from one
-                                // still showing placeholders.
-                                color: a.graded ? C.ink : C.muted,
-                              ),
-                            ),
-                            // The band, when one is configured and there is a
-                            // score for it to land in.
-                            if (a.graded) ?_bandLabel(store, a.scored!),
-                          ],
-                        ),
-                      ],
-                    ),
+                          ),
+                          // The band, when one is configured and there is a
+                          // score for it to land in.
+                          if (a.graded) ?_bandLabel(store, a.scored!),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
               ),
             ),
-            if (widget.expanded) _body(a, store),
-          ],
-        ),
+          ),
+          if (widget.expanded) _body(a, store),
+        ],
       ),
     );
   }
@@ -426,54 +426,67 @@ class _AssignmentCardState extends State<AssignmentCard> {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // The due date and the subject share one line. The subject is a
+        // setting of the card, not a form to fill in, so it is an underlined
+        // inline picker rather than a full-width boxed field.
         Padding(
-          padding: const EdgeInsets.only(top: 4, bottom: 8),
-          child: Eyebrow(longDate(a.due)),
-        ),
-        SubjectDropdown<String>(
-          value: a.subjectId ?? '',
-          semanticLabel: 'Change subject',
-          fontSize: 13,
-          onChanged: (v) =>
-              store.setSubject(a, (v == null || v.isEmpty) ? null : v),
-          items: [
-            const DropdownMenuItem(value: '', child: Text('Unfiled')),
-            for (final s in store.subjects)
-              DropdownMenuItem(value: s.id, child: Text(s.name)),
-          ],
-        ),
-        const SizedBox(height: 10),
-        for (final t in a.tasks) _taskRow(a, store, t),
-        Padding(
-          padding: const EdgeInsets.only(top: 8),
+          padding: const EdgeInsets.only(top: 2, bottom: 6),
           child: Row(
-            spacing: 6,
             children: [
+              Expanded(child: Eyebrow(longDate(a.due))),
+              const SizedBox(width: 12),
               Expanded(
-                child: TextField(
-                  controller: _taskController,
-                  focusNode: _taskFocus,
-                  style: T.body,
-                  decoration: fieldDecoration(hint: 'Add a task'),
-                  textInputAction: TextInputAction.done,
-                  onSubmitted: (_) => _pushTask(),
-                ),
-              ),
-              Tap(
-                onTap: _pushTask,
-                semanticLabel: 'Add task',
-                child: Container(
-                  height: 42,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  color: C.ink,
-                  alignment: Alignment.center,
-                  child: Text('ADD', style: T.primary.copyWith(fontSize: 11)),
+                child: Semantics(
+                  label: 'Change subject',
+                  child: DropdownButtonFormField<String>(
+                    initialValue: a.subjectId ?? '',
+                    isExpanded: true,
+                    isDense: true,
+                    icon: Icon(Icons.arrow_drop_down, color: C.ink, size: 20),
+                    dropdownColor: C.card,
+                    borderRadius: BorderRadius.zero,
+                    style: T.body.copyWith(color: C.ink),
+                    decoration: InputDecoration(
+                      isDense: true,
+                      contentPadding: const EdgeInsets.only(top: 4, bottom: 5),
+                      border: UnderlineInputBorder(
+                        borderSide: BorderSide(color: C.rule),
+                      ),
+                      enabledBorder: UnderlineInputBorder(
+                        borderSide: BorderSide(color: C.rule),
+                      ),
+                      focusedBorder: UnderlineInputBorder(
+                        borderSide: BorderSide(color: C.ink, width: 2),
+                      ),
+                    ),
+                    onChanged: (v) => store.setSubject(
+                      a,
+                      (v == null || v.isEmpty) ? null : v,
+                    ),
+                    items: [
+                      const DropdownMenuItem(value: '', child: Text('Unfiled')),
+                      for (final s in store.subjects)
+                        DropdownMenuItem(value: s.id, child: Text(s.name)),
+                    ],
+                  ),
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 13),
+        const SizedBox(height: 4),
+        for (final t in a.tasks) _taskRow(a, store, t),
+        Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: _AddRow(
+            controller: _taskController,
+            focusNode: _taskFocus,
+            hint: 'Add a task',
+            buttonLabel: 'Add task',
+            onSubmit: _pushTask,
+          ),
+        ),
+        const SizedBox(height: 12),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -505,6 +518,109 @@ class _AssignmentCardState extends State<AssignmentCard> {
           ],
         ),
       ],
+    ),
+  );
+}
+
+/// A text field with its add button, one per level: [small] for steps inside
+/// an open task, full size for tasks on the card.
+///
+/// The button is outlined in ink, the ghost button's look, rather than a
+/// filled ink block: filled ink turns into a pale slab after dark, and two of
+/// them stacked read as two primary actions competing.
+class _AddRow extends StatelessWidget {
+  const _AddRow({
+    required this.controller,
+    required this.focusNode,
+    required this.hint,
+    required this.buttonLabel,
+    required this.onSubmit,
+    this.small = false,
+  });
+
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final String hint;
+
+  /// Spoken label for the button.
+  final String buttonLabel;
+  final VoidCallback onSubmit;
+  final bool small;
+
+  @override
+  Widget build(BuildContext context) => IntrinsicHeight(
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      spacing: 6,
+      children: [
+        Expanded(
+          child: TextField(
+            controller: controller,
+            focusNode: focusNode,
+            style: T.body,
+            decoration: fieldDecoration(hint: hint).copyWith(
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: small ? 8 : 10,
+              ),
+            ),
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) => onSubmit(),
+          ),
+        ),
+        Tap(
+          onTap: onSubmit,
+          semanticLabel: buttonLabel,
+          child: Container(
+            padding: EdgeInsets.symmetric(horizontal: small ? 9 : 12),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              border: Border.all(color: small ? C.muted : C.ink, width: 1.5),
+            ),
+            child: Text(
+              small ? 'ADD STEP' : 'ADD',
+              style: small ? T.chip(C.ink) : T.ghost(C.ink),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+/// An effort preset in an open task, drawn like the list's filter chips.
+class _EstimateChip extends StatelessWidget {
+  const _EstimateChip({
+    required this.label,
+    required this.on,
+    required this.onTap,
+    required this.semanticLabel,
+  });
+
+  final String label;
+  final bool on;
+  final VoidCallback onTap;
+  final String semanticLabel;
+
+  @override
+  Widget build(BuildContext context) => Tap(
+    onTap: onTap,
+    semanticLabel: semanticLabel,
+    child: DecoratedBox(
+      decoration: BoxDecoration(
+        color: C.card,
+        border: Border.all(color: on ? C.ink : C.rule),
+      ),
+      child: Container(
+        decoration: on
+            ? BoxDecoration(
+                border: Border(bottom: BorderSide(color: C.mark, width: 2)),
+              )
+            : null,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+        // Not uppercased: 15M would read as months.
+        child: Text(label, style: T.chip(on ? C.ink : C.muted)),
+      ),
     ),
   );
 }

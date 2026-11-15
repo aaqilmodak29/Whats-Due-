@@ -127,12 +127,16 @@ class AssignmentsPage extends StatelessWidget {
     return PageBody(
       controller: controller,
       title: "What's due",
-      eyebrow: [
-        if (overdue > 0) '$overdue overdue',
-        '$thisWeek due within 7 days',
-        '${active.length} open',
-      ].join(' · '),
-      eyebrowColor: overdue > 0 ? C.red : C.muted,
+      // On Submitted the triage counts describe a list that is not showing,
+      // so the line names what is.
+      eyebrow: _showSubmitted
+          ? '${submitted.length} submitted · ${active.length} open'
+          : [
+              if (overdue > 0) '$overdue overdue',
+              '$thisWeek due within 7 days',
+              '${active.length} open',
+            ].join(' · '),
+      eyebrowColor: overdue > 0 && !_showSubmitted ? C.red : C.muted,
       action: IconSquare(
         icon: view.showAdd ? Icons.close : Icons.add,
         open: view.showAdd,
@@ -141,6 +145,13 @@ class AssignmentsPage extends StatelessWidget {
       ),
       children: [
         UpdateBanner(updater: store.updater, onTap: onOpenSettings),
+        // The banner has no space of its own below it; without this it sits
+        // flush on the fortnight label.
+        ListenableBuilder(
+          listenable: store.updater,
+          builder: (context, _) =>
+              SizedBox(height: store.updater.release == null ? 0 : 16),
+        ),
 
         // Back on the page it filters, so tapping a day no longer means
         // crossing a page boundary to see the result.
@@ -156,7 +167,7 @@ class AssignmentsPage extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 14),
 
         if (view.showAdd) ...[
           const SizedBox(height: 4),
@@ -186,7 +197,7 @@ class AssignmentsPage extends StatelessWidget {
           value: view.query,
           onChanged: (q) => onView(view.copyWith(query: q, clearOpenId: true)),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
 
         // ---- due window chips ----
         SingleChildScrollView(
@@ -216,7 +227,7 @@ class AssignmentsPage extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
 
         // ---- subject filter chips ----
         if (store.subjects.isNotEmpty) ...[
@@ -249,57 +260,64 @@ class AssignmentsPage extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 10),
-        ],
-
-        // Sits with the chips it edits, above the tabs — subjects are a
-        // property of the list, not one of the three views of it.
-        Align(
-          alignment: Alignment.centerLeft,
-          child: EyebrowButton(
-            label: view.showManage ? 'Hide subjects' : 'Manage subjects',
-            onPressed: () =>
-                onView(view.copyWith(showManage: !view.showManage)),
-          ),
-        ),
-        if (view.showManage) ...[
-          const SizedBox(height: 8),
-          ManageSubjects(store: store),
         ],
 
         // ---- tabs ----
-        const SizedBox(height: 14),
+        const SizedBox(height: 12),
         Container(
           decoration: BoxDecoration(
             border: Border(bottom: BorderSide(color: C.rule)),
           ),
-          // Scrolls rather than wraps: the labels plus their counts can outrun
-          // a 360px phone, and the underline marking the active tab only reads
-          // as one if they stay on a single line.
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              spacing: 18,
-              children: [
-                _Tab(
-                  label: 'Open (${active.length})',
-                  on: view.tab == AssignmentTab.open,
-                  onTap: () => _show(AssignmentTab.open),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Scrolls rather than wraps: the labels plus their counts can
+              // outrun a 360px phone, and the underline marking the active
+              // tab only reads as one if they stay on a single line.
+              Expanded(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    spacing: 18,
+                    children: [
+                      _Tab(
+                        label: 'Open (${active.length})',
+                        on: view.tab == AssignmentTab.open,
+                        onTap: () => _show(AssignmentTab.open),
+                      ),
+                      _Tab(
+                        label: 'Submitted (${submitted.length})',
+                        on: _showSubmitted,
+                        onTap: () => _show(AssignmentTab.submitted),
+                      ),
+                    ],
+                  ),
                 ),
-                _Tab(
-                  label: 'Submitted (${submitted.length})',
-                  on: _showSubmitted,
-                  onTap: () => _show(AssignmentTab.submitted),
+              ),
+              const SizedBox(width: 12),
+              // Rides on the tab rule rather than taking a line of its own
+              // above it: subjects are a property of the list, not one of the
+              // views of it, so it sits apart from the tabs, at the far end.
+              Padding(
+                padding: const EdgeInsets.only(top: 1),
+                child: EyebrowButton(
+                  label: view.showManage ? 'Hide subjects' : 'Manage subjects',
+                  onPressed: () =>
+                      onView(view.copyWith(showManage: !view.showManage)),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
+        if (view.showManage) ...[
+          const SizedBox(height: 10),
+          ManageSubjects(store: store),
+        ],
 
         if (view.selectedDue != null) _dayFilterBar(),
 
         // ---- list ----
-        const SizedBox(height: 12),
+        const SizedBox(height: 10),
         if (shown.isEmpty)
           _empty()
         else
@@ -320,6 +338,19 @@ class AssignmentsPage extends StatelessWidget {
                 ),
             ],
           ),
+
+        // A short submitted list otherwise ends in bare paper, which reads as
+        // a list that failed to load rather than one that is simply short.
+        if (_showSubmitted && shown.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          Text(
+            'Submitted work stays here. Open a card and tap Reopen to move it '
+            'back to Open.',
+            // Ink, not muted: muted sans on the paper ground fails contrast.
+            style: T.emptyBody.copyWith(color: C.ink),
+            textAlign: TextAlign.center,
+          ),
+        ],
 
         if (store.storageBlocked) ...[
           const SizedBox(height: 16),
@@ -452,7 +483,7 @@ class _Chip extends StatelessWidget {
                 border: Border(bottom: BorderSide(color: C.mark, width: 2)),
               )
             : null,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         child: Row(
           spacing: 6,
           children: [
@@ -526,6 +557,7 @@ class _SearchFieldState extends State<_SearchField> {
     // the clear button's label with it, leaving a control a screen reader
     // cannot name — the hint is what the field announces anyway.
     decoration: fieldDecoration(hint: 'Search assignments').copyWith(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
       prefixIcon: Icon(Icons.search, size: 18, color: C.muted),
       prefixIconConstraints: const BoxConstraints(minWidth: 34),
       suffixIcon: _controller.text.isEmpty
