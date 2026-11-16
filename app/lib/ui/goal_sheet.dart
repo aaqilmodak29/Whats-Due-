@@ -64,24 +64,76 @@ class _GoalSheetState extends State<_GoalSheet> {
   /// Nothing to save: no target yet, or the one already set.
   bool get _unchanged => _value == null || _value == widget.current;
 
+  /// The list filters' chip: filled ink when on, a plain tint when off. Fixed
+  /// height, so a row of them lines up with the target field beside them.
   Widget _chip(GradeBand b) {
     // Display only: a chip is lit when the field holds exactly its bound,
     // whether it got there by a tap or by typing.
     final on = _value != null && (_value! - b.min).abs() < 1e-9;
+    final ink = on ? C.onInk : C.ink;
     return Tap(
       onTap: () => _pick(b.min),
       semanticLabel: 'Aim for ${b.name}, ${trimBound(b.min)} percent',
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-        decoration: BoxDecoration(
-          color: on ? C.ink : Colors.transparent,
-          border: Border.all(color: on ? C.ink : C.rule, width: 1.5),
-        ),
-        child: Text(
-          '${b.name} ${trimBound(b.min)}%'.toUpperCase(),
-          style: T.chip(on ? C.onInk : C.ink),
+        height: _cell,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        color: on ? C.ink : C.paper,
+        child: Row(
+          spacing: 8,
+          children: [
+            Expanded(
+              child: Text(
+                b.name.toUpperCase(),
+                style: T.chip(ink),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            Text('${trimBound(b.min)}%', style: T.chip(ink)),
+          ],
         ),
       ),
+    );
+  }
+
+  static const _cell = 40.0;
+
+  /// Any percentage, typed: the last cell of the grid, so the bands and the
+  /// free figure read as one set of choices for the same number.
+  Widget _target() => SizedBox(
+    height: _cell,
+    child: NumberField(
+      controller: _field,
+      hint: 'Other %',
+      suffix: '%',
+      semanticLabel: 'Target percentage',
+      onChanged: (v) => setState(() => _value = v),
+    ),
+  );
+
+  /// Two even columns, highest band first: a goal is something to reach up
+  /// to. The target field takes the next free cell.
+  Widget _grid() {
+    final cells = [
+      for (final b in widget.bands.reversed) _chip(b),
+      _target(),
+    ];
+    return Column(
+      spacing: 6,
+      children: [
+        for (var i = 0; i < cells.length; i += 2)
+          Row(
+            spacing: 6,
+            children: [
+              Expanded(child: cells[i]),
+              Expanded(
+                child: i + 1 < cells.length
+                    ? cells[i + 1]
+                    : const SizedBox.shrink(),
+              ),
+            ],
+          ),
+      ],
     );
   }
 
@@ -116,31 +168,8 @@ class _GoalSheetState extends State<_GoalSheet> {
               style: T.emptyBody,
             ),
 
-            if (widget.bands.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  // Highest first: a goal is something to reach up to.
-                  for (final b in widget.bands.reversed) _chip(b),
-                ],
-              ),
-            ],
-
             const SizedBox(height: 14),
-            SizedBox(
-              width: 120,
-              child: LabelledField(
-                label: 'Target',
-                child: NumberField(
-                  controller: _field,
-                  suffix: '%',
-                  semanticLabel: 'Target percentage',
-                  onChanged: (v) => setState(() => _value = v),
-                ),
-              ),
-            ),
+            _grid(),
 
             const SizedBox(height: 18),
             Row(
