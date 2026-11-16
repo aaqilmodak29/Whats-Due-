@@ -126,50 +126,44 @@ class _BackupSectionsState extends State<BackupSections> {
       children: [
         _Section(
           title: 'Reminders',
+          // The state sits under the title and the switch beside both, the
+          // way a settings row reads, rather than on a line of its own.
+          status: Text(
+            store.remindersEnabled
+                ? (_notificationsAllowed == false
+                      ? 'ON — BUT BLOCKED BY ANDROID'
+                      : 'ON — $_pending queued')
+                : 'OFF',
+            style: T.count(
+              store.remindersEnabled && _notificationsAllowed == false
+                  ? C.red
+                  : C.ink,
+            ),
+          ),
+          trailing: LabelledSwitch(
+            label: 'Reminders',
+            value: store.remindersEnabled,
+            onChanged: (v) async {
+              if (v) await Reminders.requestPermission();
+              store.setRemindersEnabled(v);
+              await _refreshPending();
+            },
+          ),
           children: [
             Text(
-              '9am at two weeks, one week, three days, the day before and '
-              'the morning it is due, plus 9pm the night before.',
-              style: T.emptyBody,
-            ),
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    store.remindersEnabled
-                        ? (_notificationsAllowed == false
-                              ? 'ON — BUT BLOCKED BY ANDROID'
-                              : 'ON — $_pending queued')
-                        : 'OFF',
-                    style: T.count(
-                      !store.remindersEnabled
-                          ? C.muted
-                          : _notificationsAllowed == false
-                          ? C.red
-                          : C.ink,
-                    ),
-                  ),
-                ),
-                LabelledSwitch(
-                  label: 'Reminders',
-                  value: store.remindersEnabled,
-                  onChanged: (v) async {
-                    if (v) await Reminders.requestPermission();
-                    store.setRemindersEnabled(v);
-                    await _refreshPending();
-                  },
-                ),
-              ],
+              '9am two weeks, a week and three days ahead, the day before '
+              'and on the day, plus 9pm the night before.',
+              style: T.body,
             ),
             ?_remindersWarning(),
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
+            // Both are checks rather than settings, so neither is boxed.
             Wrap(
-              spacing: 8,
-              runSpacing: 8,
+              spacing: 12,
               children: [
                 GhostButton(
                   label: 'Send a test',
+                  quiet: true,
                   onPressed: () async {
                     final ok = await Reminders.sendTest();
                     if (!mounted) return;
@@ -183,12 +177,16 @@ class _BackupSectionsState extends State<BackupSections> {
                     );
                   },
                 ),
-                GhostButton(label: 'Recount', onPressed: _refreshPending),
+                GhostButton(
+                  label: 'Recount',
+                  quiet: true,
+                  onPressed: _refreshPending,
+                ),
               ],
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
 
         _Section(
           title: 'Export',
@@ -200,12 +198,13 @@ class _BackupSectionsState extends State<BackupSections> {
               '${store.subjects.length == 1 ? '' : 's'}. '
               // Worth the one line: the data lives nowhere else.
               'The only copy that survives a lost phone.',
-              style: T.emptyBody,
+              style: T.body,
             ),
             const SizedBox(height: 10),
             Wrap(
-              spacing: 8,
+              spacing: 16,
               runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 GhostButton(
                   label: 'Save .json file',
@@ -226,6 +225,7 @@ class _BackupSectionsState extends State<BackupSections> {
                 ),
                 GhostButton(
                   label: 'Copy to clipboard',
+                  quiet: true,
                   onPressed: () async {
                     await Clipboard.setData(
                       ClipboardData(text: store.exportJson()),
@@ -238,7 +238,7 @@ class _BackupSectionsState extends State<BackupSections> {
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
 
         _Section(
           title: 'Import',
@@ -251,7 +251,7 @@ class _BackupSectionsState extends State<BackupSections> {
                   ? 'Paste a backup below to merge it in or replace '
                         'everything with it.'
                   : 'MERGE adds what is new. REPLACE overwrites everything.',
-              style: T.emptyBody,
+              style: T.body,
             ),
             const SizedBox(height: 10),
             TextField(
@@ -265,13 +265,17 @@ class _BackupSectionsState extends State<BackupSections> {
               ),
               onChanged: (_) => setState(() {}),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             Wrap(
               spacing: 8,
               runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 GhostButton(
                   label: 'Paste from clipboard',
+                  // Once there is something to import, the import is the
+                  // action and pasting again is the aside.
+                  quiet: _paste.text.trim().isNotEmpty,
                   onPressed: () async {
                     final data = await Clipboard.getData('text/plain');
                     if (data?.text == null) {
@@ -306,7 +310,7 @@ class _BackupSectionsState extends State<BackupSections> {
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
 
         _Section(
           accent: C.red,
@@ -314,7 +318,7 @@ class _BackupSectionsState extends State<BackupSections> {
           children: [
             Text(
               'Deletes every assignment, task and subject on this phone.',
-              style: T.emptyBody,
+              style: T.body,
             ),
             const SizedBox(height: 10),
             GhostButton(
@@ -343,16 +347,23 @@ class _BackupSectionsState extends State<BackupSections> {
 
 /// A Settings section. Plain by default; only Danger carries a coloured
 /// rule, so a coloured rule on this page always means the same thing.
+///
+/// A section with a switch puts it beside the title, with the state it is in
+/// ([status]) underneath, so a toggle reads as one settings row.
 class _Section extends StatelessWidget {
   const _Section({
     required this.title,
     required this.children,
     this.accent,
+    this.status,
+    this.trailing,
   });
 
   final String title;
   final List<Widget> children;
   final Color? accent;
+  final Widget? status;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) => Surface(
@@ -360,7 +371,23 @@ class _Section extends StatelessWidget {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Eyebrow(title, color: C.ink),
+        Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Eyebrow(title, color: C.ink),
+                  if (status != null) ...[
+                    const SizedBox(height: 4),
+                    status!,
+                  ],
+                ],
+              ),
+            ),
+            ?trailing,
+          ],
+        ),
         const SizedBox(height: 8),
         ...children,
       ],

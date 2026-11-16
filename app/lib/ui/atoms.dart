@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../bands.dart';
@@ -121,11 +122,16 @@ class GhostButton extends StatelessWidget {
     this.color,
     this.icon,
     this.expand = false,
+    this.quiet = false,
   });
 
   final String label;
   final VoidCallback onPressed;
   final bool filled;
+
+  /// No box at all: an underlined label, for the secondary actions beside a
+  /// section's main one, so a section has one button that looks like a button.
+  final bool quiet;
 
   /// Outline (and [icon]) colour for an unfilled button — [C.red] for the one
   /// destructive action. Ink when null. The label stays ink either way, since
@@ -144,8 +150,20 @@ class GhostButton extends StatelessWidget {
     final line = color ?? C.ink;
     final text = Text(
       label.toUpperCase(),
-      style: T.ghost(filled ? C.onMark : C.ink),
+      style: quiet ? T.link : T.ghost(filled ? C.onMark : C.ink),
     );
+    if (quiet) {
+      return Tap(
+        onTap: onPressed,
+        semanticLabel: label,
+        child: Padding(
+          // The same height as a boxed button, so the two share a baseline
+          // when they sit in one row.
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 9.5),
+          child: text,
+        ),
+      );
+    }
     return Tap(
       onTap: onPressed,
       semanticLabel: label,
@@ -436,6 +454,50 @@ class LabelledField extends StatelessWidget {
   );
 }
 
+/// The date picker's wording: the app's own date format rather than the US
+/// one Material ships with, and weeks that start on Monday like the fortnight
+/// strip on the assignments page.
+class _PickerLocalizations extends DefaultMaterialLocalizations {
+  const _PickerLocalizations();
+
+  static const delegate = _PickerLocalizationsDelegate();
+
+  @override
+  int get firstDayOfWeekIndex => 1;
+
+  /// "THU 6 AUG" — the headline, and how a due date reads on a card.
+  @override
+  String formatMediumDate(DateTime date) =>
+      '${_shortDays[date.weekday - 1]} ${date.day} '
+      '${_shortMonths[date.month - 1]}';
+
+  /// "AUGUST 2026" above the grid.
+  @override
+  String formatMonthYear(DateTime date) =>
+      super.formatMonthYear(date).toUpperCase();
+
+  static const _shortDays = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+  static const _shortMonths = [
+    'JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN',
+    'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC',
+  ];
+}
+
+class _PickerLocalizationsDelegate
+    extends LocalizationsDelegate<MaterialLocalizations> {
+  const _PickerLocalizationsDelegate();
+
+  @override
+  bool isSupported(Locale locale) => true;
+
+  @override
+  Future<MaterialLocalizations> load(Locale locale) =>
+      SynchronousFuture<MaterialLocalizations>(const _PickerLocalizations());
+
+  @override
+  bool shouldReload(_PickerLocalizationsDelegate old) => false;
+}
+
 /// A tappable date field standing in for the web app's `<input type="date">`.
 ///
 /// Shows the raw `YYYY-MM-DD` in mono, matching how the browser renders a date
@@ -470,18 +532,18 @@ class DateField extends StatelessWidget {
       helpText: 'DUE DATE',
       cancelText: 'CANCEL',
       confirmText: 'SET DATE',
-      builder: (context, child) {
-        final theme = Theme.of(context);
-        return Theme(
-          data: theme.copyWith(
+      builder: (context, child) => Localizations.override(
+        context: context,
+        // Monday-first, with dates written the way the rest of the app writes
+        // them ("THU 6 AUG", "AUGUST 2026"), whatever the device locale.
+        delegates: const [_PickerLocalizations.delegate],
+        child: Theme(
+          data: Theme.of(context).copyWith(
             datePickerTheme: buildDatePickerTheme(),
-            // The month heading ("August 2026") is drawn in titleSmall; mono,
-            // like every other label that names a date.
-            textTheme: theme.textTheme.copyWith(titleSmall: T.tab(C.ink)),
           ),
           child: child!,
-        );
-      },
+        ),
+      ),
     );
     if (picked == null) return;
     onChanged(
@@ -687,7 +749,8 @@ class LabelledSwitch extends StatelessWidget {
 /// The colour of a grade bar — status, so every band gets one.
 ///
 /// Below the pass mark is red. At or above it is green, stronger the higher
-/// the band, so the top band is the full green and a bare pass a pale one.
+/// the band, so the top band is the full green and a bare pass a lighter one
+/// (never so light that it disappears against a white card).
 /// Text keeps [gradeColour]'s three steps (red, ink, green); a bar has no
 /// label to carry the band, so it needs the extra steps.
 Color gradeBarColour(double percent, List<GradeBand> bands) {
@@ -700,5 +763,5 @@ Color gradeBarColour(double percent, List<GradeBand> bands) {
   final band = bandFor(percent, bands);
   final rank = band == null ? 0 : bands.indexOf(band) - 1;
   final t = passing <= 1 ? 1.0 : rank / (passing - 1);
-  return C.green.withValues(alpha: .4 + .6 * t);
+  return C.green.withValues(alpha: .55 + .45 * t);
 }
