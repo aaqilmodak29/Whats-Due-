@@ -79,7 +79,7 @@ class _BackupSectionsState extends State<BackupSections> {
   }
 
   Widget _warn(String message) => Padding(
-    padding: const EdgeInsets.only(top: 10),
+    padding: const EdgeInsets.only(top: SettingsSection.blockGap),
     child: Container(
       width: double.infinity,
       padding: const EdgeInsets.all(10),
@@ -156,7 +156,11 @@ class _BackupSectionsState extends State<BackupSections> {
               style: T.body,
             ),
             ?_remindersWarning(),
-            const SizedBox(height: 4),
+            // Less than a block's gap: a link carries 9.5px of tap padding
+            // above its text, where a boxed button's border sits right at its
+            // edge, so this puts the link text about as far from the prose as
+            // a button's box would be.
+            const SizedBox(height: 6),
             // Checks rather than the section's main action, so links.
             Wrap(
               spacing: 12,
@@ -186,7 +190,8 @@ class _BackupSectionsState extends State<BackupSections> {
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        // Reminders is a group of its own; the backup cards are the next.
+        const SizedBox(height: SettingsSection.groupGap),
 
         SettingsSection(
           title: 'Export',
@@ -200,7 +205,7 @@ class _BackupSectionsState extends State<BackupSections> {
               'The only copy that survives a lost phone.',
               style: T.body,
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: SettingsSection.blockGap),
             Wrap(
               spacing: 16,
               runSpacing: 8,
@@ -239,7 +244,7 @@ class _BackupSectionsState extends State<BackupSections> {
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: SettingsSection.cardGap),
 
         SettingsSection(
           title: 'Import',
@@ -254,11 +259,11 @@ class _BackupSectionsState extends State<BackupSections> {
                   : 'MERGE adds what is new. REPLACE overwrites everything.',
               style: T.body,
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: SettingsSection.blockGap),
             TextField(
               controller: _paste,
               style: T.monoInput,
-              minLines: 3,
+              minLines: 2,
               maxLines: 10,
               decoration: fieldDecoration(
                 hint: '{ "subjects": [...], "items": [...] }',
@@ -266,7 +271,7 @@ class _BackupSectionsState extends State<BackupSections> {
               ),
               onChanged: (_) => setState(() {}),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: SettingsSection.blockGap),
             Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -312,7 +317,7 @@ class _BackupSectionsState extends State<BackupSections> {
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: SettingsSection.cardGap),
 
         SettingsSection(
           accent: C.red,
@@ -322,7 +327,7 @@ class _BackupSectionsState extends State<BackupSections> {
               'Deletes every assignment, task and subject on this phone.',
               style: T.body,
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: SettingsSection.blockGap),
             GhostButton(
               label: 'Clear all data',
               color: C.red,
@@ -356,6 +361,11 @@ class _BackupSectionsState extends State<BackupSections> {
 ///
 /// A section with a switch puts it beside the title, with the state it is in
 /// ([status]) underneath, so a toggle reads as one settings row.
+///
+/// Every card on the page shares the spacing below, so the page has one
+/// rhythm: the same inset on every side, the same step from a title to what
+/// it heads and from one block to the next, a narrow gap between related
+/// cards and a wider one between groups of them.
 class SettingsSection extends StatelessWidget {
   const SettingsSection({
     super.key,
@@ -366,6 +376,23 @@ class SettingsSection extends StatelessWidget {
     this.trailing,
   });
 
+  /// The inset of every Settings card.
+  static const padding = EdgeInsets.all(16);
+
+  /// From a card's title (and status) to its content.
+  static const titleGap = 10.0;
+
+  /// Between blocks inside a card: prose, a field, a row of actions.
+  static const blockGap = 12.0;
+
+  /// Between cards in one group.
+  static const cardGap = 12.0;
+
+  /// Between groups of cards. Wide enough that a card at the head of a group,
+  /// scrolled to the top of the screen, has only paper above it rather than a
+  /// strip of the card before.
+  static const groupGap = 28.0;
+
   final String title;
   final List<Widget> children;
   final Color? accent;
@@ -375,6 +402,7 @@ class SettingsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Surface(
     topBorder: accent,
+    padding: padding,
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -396,7 +424,7 @@ class SettingsSection extends StatelessWidget {
           ],
         ),
         if (children.isNotEmpty) ...[
-          const SizedBox(height: 8),
+          const SizedBox(height: titleGap),
           ...children,
         ],
       ],

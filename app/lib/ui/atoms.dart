@@ -412,9 +412,14 @@ class EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // A measure of its own, so every empty state wraps its sentence into the
+    // same narrow centred block whatever the screen width, rather than one
+    // line on one screen and a lone last word on the next.
     final block = Padding(
       padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
-      child: Column(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 320),
+        child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           if (icon != null) ...[
@@ -433,6 +438,7 @@ class EmptyState extends StatelessWidget {
             GhostButton(label: action!, filled: primary, onPressed: onAction!),
           ],
         ],
+        ),
       ),
     );
     if (minHeight == null) return Center(child: block);

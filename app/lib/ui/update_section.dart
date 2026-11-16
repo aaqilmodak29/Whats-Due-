@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../theme.dart';
 import '../updater.dart';
 import 'atoms.dart';
+import 'backup_page.dart' show SettingsSection;
 
 /// The update panel on the backup screen.
 ///
@@ -31,11 +32,12 @@ class UpdateSection extends StatelessWidget {
       // over the lime Update now made two highlighter marks on one screen.
       return Surface(
         topBorder: failed ? C.red : null,
+        padding: SettingsSection.padding,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Eyebrow('Version', color: C.ink),
-            const SizedBox(height: 10),
+            const SizedBox(height: SettingsSection.titleGap),
 
             if (downloading)
               _downloading(release)
@@ -45,15 +47,15 @@ class UpdateSection extends StatelessWidget {
               _current(failed),
 
             if (release != null && !downloading) ...[
-              const SizedBox(height: 16),
+              const SizedBox(height: SettingsSection.blockGap),
               _notes(release),
             ],
 
-            const SizedBox(height: 14),
+            const SizedBox(height: SettingsSection.blockGap),
             _actions(release, downloading),
 
             if (updater.status == UpdateStatus.ready) ...[
-              const SizedBox(height: 12),
+              const SizedBox(height: SettingsSection.blockGap),
               Text(
                 'Nothing happened? Allow this app to install apps, then tap '
                 'Install again.',
@@ -158,7 +160,7 @@ class UpdateSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Eyebrow("What's new", color: C.ink),
-        const SizedBox(height: 8),
+        const SizedBox(height: SettingsSection.titleGap),
         // Ink bullets and ink text: the highlighter vanished on white, and
         // grey notes read as disabled.
         for (final line in lines)
