@@ -202,6 +202,10 @@ class UpdateSection extends StatelessWidget {
 }
 
 /// A one-line nudge on the main screen when an update is waiting.
+///
+/// Quiet on purpose: a hairline row in ink, not a highlighter slab. An update
+/// is worth knowing about but never more urgent than work that is overdue, so
+/// it costs one short line and leaves the loud colours to the list.
 class UpdateBanner extends StatelessWidget {
   const UpdateBanner({super.key, required this.updater, required this.onTap});
 
@@ -215,30 +219,39 @@ class UpdateBanner extends StatelessWidget {
       final release = updater.release;
       if (release == null) return const SizedBox.shrink();
       return Padding(
-        padding: const EdgeInsets.only(top: 12),
+        padding: const EdgeInsets.only(bottom: 12),
         child: Tap(
           onTap: onTap,
           semanticLabel:
               'Version ${release.version} is available, tap to install',
           child: Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
             decoration: BoxDecoration(
-              color: C.mark,
-              // Everything here sits on the highlighter, which does not move
-              // between palettes — so it follows onMark, not ink. Using ink
-              // painted this near-white on yellow after dark.
-              border: Border(left: BorderSide(color: C.onMark, width: 6)),
+              color: C.card,
+              border: Border.all(color: C.rule),
             ),
             child: Row(
+              spacing: 8,
               children: [
+                Icon(Icons.system_update_alt, size: 15, color: C.ink),
                 Expanded(
                   child: Text(
                     'Version ${release.version} available'.toUpperCase(),
-                    style: T.count(C.onMark),
+                    style: T.eyebrow(C.ink),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                Text('UPDATE', style: T.ghost(C.onMark)),
+                // The one action, underlined in the highlighter that marks
+                // "do this" everywhere else, rather than painted with it.
+                Container(
+                  padding: const EdgeInsets.only(bottom: 1),
+                  decoration: BoxDecoration(
+                    border: Border(bottom: BorderSide(color: C.mark, width: 3)),
+                  ),
+                  child: Text('UPDATE', style: T.ghost(C.ink)),
+                ),
               ],
             ),
           ),

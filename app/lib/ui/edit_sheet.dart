@@ -117,127 +117,171 @@ class _EditSheetState extends State<_EditSheet> {
         _outOfValue == a.outOf &&
         _goalValue == a.goal;
 
-    return Dialog(
-      backgroundColor: C.card,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-      insetPadding: const EdgeInsets.all(20),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 460),
-        child: Container(
-          decoration: BoxDecoration(
-            border: Border(top: BorderSide(color: C.mark, width: 3)),
+    final blocked = _title.text.trim().isEmpty || unchanged;
+
+    return SheetDialog(
+      edge: C.mark,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Eyebrow('Edit assignment'),
+          const SizedBox(height: 12),
+          LabelledField(
+            label: 'Assignment',
+            child: TextField(
+              controller: _title,
+              style: T.input,
+              autofocus: true,
+              textInputAction: TextInputAction.done,
+              decoration: fieldDecoration(hint: 'e.g. Comparative essay'),
+              onChanged: (_) => setState(() {}),
+              onSubmitted: (_) => _save(),
+            ),
           ),
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+          const SizedBox(height: 12),
+          DateField(
+            label: 'Due date',
+            value: _due,
+            onChanged: (v) => setState(() => _due = v),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _due.isEmpty
+                ? 'Leaving the date empty keeps this off the 14-day strip.'
+                : longDate(_due),
+            style: T.note,
+          ),
+
+          const SizedBox(height: 14),
+          // Marks then score: "out of 40, I got 34". Weighting used to sit
+          // in front of these and has been removed for now, so what an
+          // assignment is worth towards the subject is not tracked.
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            spacing: 10,
             children: [
-              const Eyebrow('Edit assignment'),
-              const SizedBox(height: 12),
-              LabelledField(
-                label: 'Assignment',
-                child: TextField(
-                  controller: _title,
-                  style: T.input,
-                  autofocus: true,
-                  textInputAction: TextInputAction.done,
-                  decoration: fieldDecoration(hint: 'e.g. Comparative essay'),
-                  onChanged: (_) => setState(() {}),
-                  onSubmitted: (_) => _save(),
+              Expanded(
+                child: LabelledField(
+                  label: 'Marks',
+                  child: NumberField(
+                    controller: _outOf,
+                    hint: 'e.g. 40',
+                    semanticLabel: 'Marks the assignment is out of',
+                    onChanged: (v) => setState(() => _outOfValue = v),
+                  ),
                 ),
               ),
-              const SizedBox(height: 12),
-              DateField(
-                label: 'Due date',
-                value: _due,
-                onChanged: (v) => setState(() => _due = v),
+              Expanded(
+                child: LabelledField(
+                  label: 'Your score',
+                  child: NumberField(
+                    controller: _earned,
+                    hint: 'e.g. 34',
+                    semanticLabel: 'Your score',
+                    onChanged: (v) => setState(() => _earnedValue = v),
+                  ),
+                ),
               ),
-              const SizedBox(height: 8),
-              Text(
-                _due.isEmpty
-                    ? 'Leaving the date empty keeps this off the 14-day strip.'
-                    : longDate(_due),
-                style: T.note,
-              ),
-
-              const SizedBox(height: 14),
-              // Marks then score: "out of 40, I got 34". Weighting used to sit
-              // in front of these and has been removed for now, so what an
-              // assignment is worth towards the subject is not tracked.
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                spacing: 10,
-                children: [
-                  Expanded(
-                    child: LabelledField(
-                      label: 'Marks',
-                      child: NumberField(
-                        controller: _outOf,
-                        hint: '40',
-                        semanticLabel: 'Marks the assignment is out of',
-                        onChanged: (v) => setState(() => _outOfValue = v),
-                      ),
-                    ),
+              Expanded(
+                child: LabelledField(
+                  label: 'Goal',
+                  child: NumberField(
+                    controller: _goal,
+                    hint: 'e.g. 30',
+                    semanticLabel: 'Goal score',
+                    onChanged: (v) => setState(() => _goalValue = v),
                   ),
-                  Expanded(
-                    child: LabelledField(
-                      label: 'Your score',
-                      child: NumberField(
-                        controller: _earned,
-                        hint: '34',
-                        semanticLabel: 'Your score',
-                        onChanged: (v) => setState(() => _earnedValue = v),
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: LabelledField(
-                      label: 'Goal',
-                      child: NumberField(
-                        controller: _goal,
-                        hint: '30',
-                        semanticLabel: 'Goal score',
-                        onChanged: (v) => setState(() => _goalValue = v),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Text(_marksNote(), style: T.note),
-
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                spacing: 8,
-                children: [
-                  GhostButton(
-                    label: 'Cancel',
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                  Opacity(
-                    opacity: _title.text.trim().isEmpty || unchanged ? .4 : 1,
-                    child: Tap(
-                      onTap: _title.text.trim().isEmpty || unchanged
-                          ? null
-                          : _save,
-                      semanticLabel: 'Save changes',
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 11,
-                          vertical: 9,
-                        ),
-                        color: C.ink,
-                        child: Text('SAVE', style: T.ghost(C.onInk)),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ],
           ),
-        ),
+          const SizedBox(height: 6),
+          // Prose, so sans: the mono data face made two sentences of advice
+          // read as a dense log line.
+          Text(_marksNote(), style: T.emptyBody),
+
+          const SizedBox(height: 16),
+          Row(
+            spacing: 8,
+            children: [
+              // Says why Save is greyed out, rather than leaving a
+              // disabled-looking button to explain itself.
+              Expanded(
+                child: blocked
+                    ? Text(
+                        _title.text.trim().isEmpty
+                            ? 'NEEDS A TITLE'
+                            : 'NOTHING CHANGED YET',
+                        style: T.eyebrow(C.ink),
+                      )
+                    : const SizedBox.shrink(),
+              ),
+              GhostButton(
+                label: 'Cancel',
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+              Opacity(
+                opacity: blocked ? .4 : 1,
+                child: Tap(
+                  onTap: blocked ? null : _save,
+                  semanticLabel: 'Save changes',
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 11,
+                      vertical: 9,
+                    ),
+                    color: C.ink,
+                    child: Text('SAVE', style: T.ghost(C.onInk)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
+}
+
+/// A modal anchored to the bottom edge, full width, with a 3px coloured top
+/// rule — a bottom sheet in look, but still a [Dialog], so focus, the barrier
+/// and the back gesture behave as every other modal in the app does.
+///
+/// A box floating mid-screen over a dimmed card had no edge to belong to;
+/// pinned to the bottom it reads as the panel it is.
+class SheetDialog extends StatelessWidget {
+  const SheetDialog({super.key, required this.child, this.edge});
+
+  final Widget child;
+
+  /// The top rule: highlighter for a form, red for a destructive confirm.
+  final Color? edge;
+
+  @override
+  Widget build(BuildContext context) => Dialog(
+    alignment: Alignment.bottomCenter,
+    insetPadding: EdgeInsets.zero,
+    backgroundColor: C.card,
+    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+    child: Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: edge ?? C.ink, width: 3)),
+      ),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
+      child: SafeArea(
+        top: false,
+        child: Center(
+          heightFactor: 1,
+          child: ConstrainedBox(
+            // The page column's width, so on a tablet the form does not
+            // stretch edge to edge.
+            constraints: const BoxConstraints(maxWidth: 588),
+            child: child,
+          ),
+        ),
+      ),
+    ),
+  );
 }

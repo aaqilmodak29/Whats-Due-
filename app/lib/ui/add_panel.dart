@@ -4,6 +4,7 @@ import '../models.dart';
 import '../store.dart';
 import '../theme.dart';
 import 'atoms.dart';
+import 'manage_subjects.dart' show Swatch;
 
 /// The "new assignment" panel, revealed by the + button in the header.
 ///
@@ -156,7 +157,7 @@ class _AddPanelState extends State<AddPanel> {
                 label: 'Marks',
                 child: NumberField(
                   controller: _outOf,
-                  hint: '40',
+                  hint: 'e.g. 40',
                   semanticLabel: 'Marks the assignment is out of',
                   onChanged: (v) => setState(() => _outOfValue = v),
                 ),
@@ -165,7 +166,7 @@ class _AddPanelState extends State<AddPanel> {
                 label: 'Goal',
                 child: NumberField(
                   controller: _goal,
-                  hint: '30',
+                  hint: 'e.g. 30',
                   semanticLabel: 'Goal score',
                   onChanged: (v) => setState(() => _goalValue = v),
                 ),
@@ -219,17 +220,7 @@ class _AddPanelState extends State<AddPanel> {
                   Tap(
                     onTap: () => setState(() => _picked = c),
                     semanticLabel: 'Use this colour',
-                    child: Container(
-                      width: 26,
-                      height: 26,
-                      decoration: BoxDecoration(
-                        color: hexToColor(c),
-                        border: Border.all(
-                          color: c == _picked ? C.ink : Colors.transparent,
-                          width: 2,
-                        ),
-                      ),
-                    ),
+                    child: Swatch(colour: hexToColor(c), on: c == _picked),
                   ),
               ],
             ),

@@ -107,12 +107,12 @@ class _ManageSubjectsState extends State<ManageSubjects> {
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 color: C.ink,
                 alignment: Alignment.center,
-                child: Text('ADD', style: T.primary.copyWith(fontSize: 11)),
+                child: Text('ADD', style: T.ghost(C.onInk)),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 10),
         Wrap(
           spacing: 6,
           runSpacing: 6,
@@ -121,17 +121,7 @@ class _ManageSubjectsState extends State<ManageSubjects> {
               Tap(
                 onTap: () => setState(() => _picked = c),
                 semanticLabel: 'Use this colour for the new subject',
-                child: Container(
-                  width: 26,
-                  height: 26,
-                  decoration: BoxDecoration(
-                    color: hexToColor(c),
-                    border: Border.all(
-                      color: c == _colour ? C.ink : Colors.transparent,
-                      width: 2,
-                    ),
-                  ),
-                ),
+                child: Swatch(colour: hexToColor(c), on: c == _colour),
               ),
           ],
         ),
@@ -186,9 +176,13 @@ class _SubjectRowState extends State<_SubjectRow> {
   Widget build(BuildContext context) {
     final s = widget.subject;
     final count = widget.store.countFor(s.id);
+    // Split the way the list splits them, so this agrees with the subject's
+    // chip (open work) instead of showing a bigger number beside it.
+    final open = widget.store.active.where((a) => a.subjectId == s.id).length;
+    final submitted = count - open;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
         spacing: 9,
         children: [
@@ -236,7 +230,13 @@ class _SubjectRowState extends State<_SubjectRow> {
               ),
             ),
           ),
-          Eyebrow('$count'),
+          Text(
+            [
+              '$open open',
+              if (submitted > 0) '$submitted submitted',
+            ].join(' · ').toUpperCase(),
+            style: T.eyebrow(C.muted),
+          ),
           Tap(
             onTap: () {
               if (count == 0) {
@@ -263,4 +263,25 @@ class _SubjectRowState extends State<_SubjectRow> {
       ),
     );
   }
+}
+
+/// A colour choice. The chosen one gets an ink ring standing clear of the
+/// colour, so it reads as picked at a glance rather than by a thin border
+/// drawn on the colour itself, which the darker swatches swallowed.
+class Swatch extends StatelessWidget {
+  const Swatch({super.key, required this.colour, required this.on});
+
+  final Color colour;
+  final bool on;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: 30,
+    height: 30,
+    padding: const EdgeInsets.all(3),
+    decoration: BoxDecoration(
+      border: Border.all(color: on ? C.ink : Colors.transparent, width: 2),
+    ),
+    child: ColoredBox(color: colour),
+  );
 }
