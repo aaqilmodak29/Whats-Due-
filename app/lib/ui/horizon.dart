@@ -60,7 +60,7 @@ class HorizonStrip extends StatefulWidget {
 
   static const _days = 14;
   static const _barsHeight = 20.0;
-  static const _labelHeight = 12.0;
+  static const _labelHeight = 13.0;
 
   /// The legend's column: room for `28 AUG → 10 SEP` on one line.
   static const _legendWidth = 112.0;
@@ -294,7 +294,7 @@ class _DayColumn extends StatelessWidget {
               if (!hasWork)
                 _hairline()
               else if (faded)
-                Opacity(opacity: .3, child: _bar())
+                _bar(faded: true)
               else
                 _bar(),
             ],
@@ -314,15 +314,11 @@ class _DayColumn extends StatelessWidget {
                 : null,
             child: Text(
               _initials[date.weekday - 1],
-              style: T.flabel.copyWith(
-                // A selected day's label sits on the highlighter.
-                color: selected
-                    ? C.onMark
-                    : _isToday
-                    ? C.ink
-                    : C.muted,
+              // Ink on every day: the muted grey failed contrast at this size
+              // on the paper and on the weekend tint. Today is the bold one.
+              style: T.chip(selected ? C.onMark : C.ink).copyWith(
                 letterSpacing: 0,
-                fontWeight: _isToday ? FontWeight.w600 : FontWeight.w400,
+                fontWeight: _isToday ? FontWeight.w700 : FontWeight.w400,
               ),
             ),
           ),
@@ -345,12 +341,15 @@ class _DayColumn extends StatelessWidget {
     );
   }
 
-  Widget _bar() {
+  /// [faded] knocks the fill back rather than the whole bar, so a count on
+  /// it can switch to ink and stay readable on the paler block.
+  Widget _bar({bool faded = false}) {
     // 8px for the first, 5px per additional, capped so a brutal week does not
     // blow out the strip's height. Kept short: the strip is an early warning,
     // not the page, and every pixel here pushes the list down.
     final height = math.min(18, 8 + (bucket.length - 1) * 5).toDouble();
-    final colour = urgency(daysAway);
+    final full = urgency(daysAway);
+    final colour = faded ? full.withValues(alpha: .3) : full;
 
     return Container(
       height: height,
@@ -373,7 +372,7 @@ class _DayColumn extends StatelessWidget {
           ? Text(
               '${bucket.length}',
               style: T.flabel.copyWith(
-                color: C.onInk,
+                color: faded ? C.ink : C.onInk,
                 letterSpacing: 0,
                 fontWeight: FontWeight.w600,
               ),

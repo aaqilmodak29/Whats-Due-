@@ -172,8 +172,11 @@ void main() {
       expect(find.text('COURSEWORK'), findsOne);
 
       // One overdue; three of the five open items fall inside seven days; the
-      // undated one is open but lands in neither bucket.
-      expect(find.text('1 OVERDUE · 3 DUE WITHIN 7 DAYS · 5 OPEN'), findsOne);
+      // undated one is open but lands in neither bucket. The triage counts sit
+      // in the title row, one to a line; how many are open is on the tab.
+      expect(find.text('1 OVERDUE'), findsOne);
+      expect(find.text('3 DUE WITHIN 7 DAYS'), findsOne);
+      expect(find.text('OPEN (5)'), findsOne);
     }, seed: _seed());
 
     appTest(
@@ -245,7 +248,8 @@ void main() {
         expect(find.text('Lab report titration'), findsOne);
         expect(find.text('Comparative essay'), findsNothing);
 
-        await tester.tap(find.text('ALL 5'));
+        // All carries no count of its own; the tab says how many show.
+        await tester.tap(find.text('ALL'));
         await tester.pumpAndSettle();
         expect(find.text('Comparative essay'), findsOne);
       },
@@ -1487,7 +1491,10 @@ void main() {
     appTest(
       'a due window narrows the list, cumulatively',
       (tester, store) async {
-        // a1 is overdue, a2 is tomorrow, a3 and a4 are four days out.
+        // a1 is overdue, a2 is tomorrow, a3 and a4 are four days out. The
+        // windows are a menu behind one control.
+        await tester.tap(find.bySemanticsLabel(RegExp('change the due window')));
+        await tester.pumpAndSettle();
         await tester.tap(find.bySemanticsLabel('Show work due within 7 days'));
         await tester.pumpAndSettle();
 
@@ -1504,18 +1511,21 @@ void main() {
       'overdue work survives every window',
       (tester, store) async {
         // A filter that hides something already late is how it gets forgotten.
+        // The windows are a menu behind one control.
+        final control = find.bySemanticsLabel(RegExp('change the due window'));
+        await tester.tap(control);
+        await tester.pumpAndSettle();
         await tester.tap(find.bySemanticsLabel('Show work due within 7 days'));
         await tester.pumpAndSettle();
         expect(find.text('Reaction mechanisms problem set'), findsOne);
 
-        // The window chips scroll sideways, so the last one starts off the
-        // right edge of a phone — tapping where it is not is how a test like
-        // this ends up asserting nothing.
+        // Tapping where the choice is not is how a test like this ends up
+        // asserting nothing, so the menu is opened again first.
+        await tester.tap(control);
+        await tester.pumpAndSettle();
         final later = find.bySemanticsLabel(
           'Show work due more than 2 months out',
         );
-        await tester.ensureVisible(later);
-        await tester.pumpAndSettle();
         await tester.tap(later);
         await tester.pumpAndSettle();
         expect(find.text('Reaction mechanisms problem set'), findsOne);
@@ -1530,10 +1540,16 @@ void main() {
     appTest(
       'tapping the active window again clears it',
       (tester, store) async {
+        // The windows are a menu behind one control, opened for each pick.
+        final control = find.bySemanticsLabel(RegExp('change the due window'));
+        await tester.tap(control);
+        await tester.pumpAndSettle();
         await tester.tap(find.bySemanticsLabel('Show work due within 7 days'));
         await tester.pumpAndSettle();
         expect(find.text('Read chapters 4-6'), findsNothing);
 
+        await tester.tap(control);
+        await tester.pumpAndSettle();
         await tester.tap(find.bySemanticsLabel('Show work due within 7 days'));
         await tester.pumpAndSettle();
         expect(find.text('Read chapters 4-6'), findsOne);
