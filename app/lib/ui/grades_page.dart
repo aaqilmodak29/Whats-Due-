@@ -36,7 +36,8 @@ class _GradesPageState extends State<GradesPage> {
 
   @override
   Widget build(BuildContext context) {
-    final grades = gradesBySubject(store.items)
+    // School work only: general work is not graded.
+    final grades = gradesBySubject(store.schoolItems)
       ..sort((a, b) => _name(a.subjectId).compareTo(_name(b.subjectId)));
     final results = grades.fold<int>(0, (n, g) => n + g.gradedCount);
 
@@ -76,7 +77,7 @@ class _GradesPageState extends State<GradesPage> {
   }
 
   SubjectGrade? _gradeOf(Subject subject) => gradesBySubject(
-    store.items,
+    store.schoolItems,
   ).where((g) => g.subjectId == subject.id).firstOrNull;
 
   String _name(String? subjectId) => _subjectOf(subjectId)?.name ?? 'Unfiled';

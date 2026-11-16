@@ -262,7 +262,10 @@ class _SubjectRowState extends State<_SubjectRow> {
     final count = widget.store.countFor(s.id);
     // Split the way the list splits them, so this agrees with the subject's
     // chip (open work) instead of showing a bigger number beside it.
-    final open = widget.store.active.where((a) => a.subjectId == s.id).length;
+    // Subjects are shared by both sections, so this counts both.
+    final open = widget.store.items
+        .where((a) => !a.done && a.subjectId == s.id)
+        .length;
     final submitted = count - open;
 
     return Padding(

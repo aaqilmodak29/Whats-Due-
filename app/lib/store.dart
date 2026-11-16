@@ -53,6 +53,7 @@ class AppStore extends ChangeNotifier {
   static const _darkKey = 'coursework:dark';
   static const _onboardedKey = 'coursework:onboarded';
   static const _semesterFilterKey = 'coursework:semesterFilter';
+  static const _sectionKey = 'coursework:section';
 
   SharedPreferences? _prefs;
 
@@ -76,6 +77,20 @@ class AppStore extends ChangeNotifier {
   /// Teaching periods subjects can be filed under. Coursework, so a backup
   /// carries them.
   List<Semester> semesters = [];
+
+  /// Which section the Assignments page is showing, and where new work goes.
+  /// Device state, remembered between launches.
+  WorkSection section = WorkSection.school;
+
+  void setSection(WorkSection value) {
+    section = value;
+    try {
+      _prefs?.setString(_sectionKey, value.name);
+    } catch (e) {
+      debugPrint('Store: could not persist the section — $e');
+    }
+    notifyListeners();
+  }
 
   String? _semesterFilter;
 
@@ -128,6 +143,7 @@ class AppStore extends ChangeNotifier {
       darkMode = _prefs!.getBool(_darkKey) ?? false;
       onboarded = _prefs!.getBool(_onboardedKey) ?? false;
       _semesterFilter = _prefs!.getString(_semesterFilterKey);
+      section = WorkSection.parse(_prefs!.getString(_sectionKey));
       // Applied before the first frame, so the app never opens light and then
       // flips.
       C.palette = darkMode ? Palette.night : Palette.light;
@@ -256,14 +272,24 @@ class AppStore extends ChangeNotifier {
 
   // --------------------------------------------------------------- selectors
 
-  /// Unsubmitted items, by due date, undated last.
+  /// Everything in the section being shown.
+  List<Assignment> get sectionItems =>
+      items.where((a) => a.section == section).toList();
+
+  /// School work only, whichever section is showing: what grades count.
+  List<Assignment> get schoolItems =>
+      items.where((a) => a.section == WorkSection.school).toList();
+
+  /// Unsubmitted items in the current section, by due date, undated last.
   List<Assignment> get active {
-    final list = items.where((a) => !a.done).toList()
+    final list = sectionItems.where((a) => !a.done).toList()
       ..sort((x, y) => sortKey(x).compareTo(sortKey(y)));
     return list;
   }
 
-  List<Assignment> get submitted => items.where((a) => a.done).toList();
+  /// Submitted items in the current section.
+  List<Assignment> get submitted =>
+      sectionItems.where((a) => a.done).toList();
 
   Subject? subjectOf(Assignment a) =>
       subjects.where((s) => s.id == a.subjectId).firstOrNull;
@@ -348,7 +374,9 @@ class AppStore extends ChangeNotifier {
     String due = '',
     double? outOf,
   }) {
+    // New work goes into whichever section is showing.
     final a = Assignment(
+      section: section,
       id: uid(),
       title: title,
       subjectId: subjectId,

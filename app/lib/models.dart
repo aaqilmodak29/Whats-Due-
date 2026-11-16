@@ -201,8 +201,29 @@ class Subject {
   };
 }
 
+/// Which half of the app a piece of work belongs to.
+///
+/// General work currently behaves exactly like school work, with its own
+/// separate list; it is a field rather than a second page so the two can
+/// diverge later without duplicating everything now.
+enum WorkSection {
+  school,
+  general;
+
+  String get label => switch (this) {
+    WorkSection.school => 'School work',
+    WorkSection.general => 'General work',
+  };
+
+  /// Anything unrecognised, including absence, is school work: that is where
+  /// everything written before sections existed belongs.
+  static WorkSection parse(Object? v) =>
+      v == 'general' ? WorkSection.general : WorkSection.school;
+}
+
 class Assignment {
   Assignment({
+    this.section = WorkSection.school,
     required this.id,
     required this.title,
     this.subjectId,
@@ -229,10 +250,14 @@ class Assignment {
     earned: _num(j['earned']),
     outOf: _num(j['outOf']),
     goal: _num(j['goal']),
+    section: WorkSection.parse(j['section']),
   );
 
   final String id;
   String title;
+
+  /// School work or general work. Only grades count school work.
+  WorkSection section;
 
   /// A reference, never an embedded copy, so renaming or recolouring a subject
   /// updates every card at once.
@@ -325,6 +350,8 @@ class Assignment {
     if (earned != null) 'earned': earned,
     if (outOf != null) 'outOf': outOf,
     if (goal != null) 'goal': goal,
+    // Omitted for school work, so existing data serialises exactly as before.
+    if (section != WorkSection.school) 'section': section.name,
   };
 }
 

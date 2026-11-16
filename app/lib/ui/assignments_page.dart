@@ -9,6 +9,7 @@ import 'assignment_card.dart';
 import 'atoms.dart';
 import 'horizon.dart';
 import 'manage_subjects.dart';
+import 'section_switch.dart';
 
 /// Filter sentinels, matching the web app's `filter` values.
 const filterAll = 'all';
@@ -167,7 +168,7 @@ class AssignmentsPage extends StatelessWidget {
 
     // Nothing tracked at all: search and due windows would have nothing to
     // narrow, so they stay out of the way until there is.
-    final hasWork = store.items.isNotEmpty;
+    final hasWork = store.sectionItems.isNotEmpty;
     final query = view.query.trim();
 
     // A panel opened from the title row takes the place of the page's
@@ -244,6 +245,25 @@ class AssignmentsPage extends StatelessWidget {
         ],
       ),
       children: [
+        // The page's top-level choice, above everything it scopes.
+        SectionSwitch(
+          current: store.section,
+          onSelect: (s) {
+            if (s == store.section) return;
+            store.setSection(s);
+            // A card, day or subject picked in one list means nothing in the
+            // other; the search and window carry over as how you are looking.
+            onView(
+              view.copyWith(
+                filter: filterAll,
+                showAdd: false,
+                clearOpenId: true,
+                clearSelectedDue: true,
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: 14),
         _UpdateLine(store: store, onUpdate: onOpenSettings),
 
         // Straight under the + that opened it, with the strip and the filters
@@ -442,7 +462,7 @@ class AssignmentsPage extends StatelessWidget {
         view.filter == filter ||
         inSubject(filter) > 0 ||
         (filter != filterUnfiled &&
-            !store.items.any((a) => a.subjectId == filter));
+            !store.sectionItems.any((a) => a.subjectId == filter));
     final semester = store.semesterFilter;
     final subjects = [
       for (final s in store.subjects)
@@ -603,7 +623,7 @@ class AssignmentsPage extends StatelessWidget {
     };
     // With nothing tracked at all, the empty list is the page's whole job,
     // so it carries the way to start: the same panel the + opens.
-    final first = !view.showAdd && store.items.isEmpty;
+    final first = !view.showAdd && store.sectionItems.isEmpty;
     return EmptyState(
       icon: first ? Icons.checklist_outlined : Icons.inbox_outlined,
       head: head,

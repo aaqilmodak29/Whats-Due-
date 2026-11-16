@@ -2314,4 +2314,41 @@ void main() {
       tab: 'Assignments',
     );
   });
+
+  group('sections', () {
+    appTest(
+      'General work is a separate list, and new work lands in it',
+      (tester, store) async {
+        expect(find.bySemanticsLabel('School work, showing'), findsOne);
+        expect(find.text('Comparative essay'), findsOne);
+
+        await tester.tap(find.bySemanticsLabel('Show General work'));
+        await tester.pumpAndSettle();
+        expect(store.section, WorkSection.general);
+        expect(find.text('Comparative essay'), findsNothing);
+        expect(find.text('Nothing tracked yet'), findsOne);
+
+        await tester.tap(find.bySemanticsLabel('Add assignment'));
+        await tester.pumpAndSettle();
+        await tester.enterText(
+          find.widgetWithText(TextField, 'e.g. Comparative essay'),
+          'Renew licence',
+        );
+        await tester.tap(find.text('TRACK IT'));
+        await tester.pumpAndSettle();
+
+        final added = store.items.firstWhere((a) => a.title == 'Renew licence');
+        expect(added.section, WorkSection.general);
+        expect(find.text('Renew licence'), findsOne);
+
+        await tester.tap(find.bySemanticsLabel('Show School work'));
+        await tester.pumpAndSettle();
+        expect(find.text('Renew licence'), findsNothing);
+        expect(find.text('Comparative essay'), findsOne);
+      },
+      seed: _seed(),
+      size: const Size(430, 2000),
+      tab: 'Assignments',
+    );
+  });
 }
