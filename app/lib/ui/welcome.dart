@@ -28,16 +28,9 @@ class _WelcomeState extends State<Welcome> {
 
   void _done() => store.markOnboarded();
 
-  /// Store-and-go answers. Saying no after a yes takes the bands back off,
-  /// so the two answers leave the same state from either screen.
   void _yes() {
     store.setBands(kDefaultBands);
     setState(() => _configuring = true);
-  }
-
-  void _no() {
-    if (_configuring) store.setBands(const []);
-    _done();
   }
 
   @override
@@ -91,7 +84,7 @@ class _WelcomeState extends State<Welcome> {
                       GhostButton(
                         label: 'No, percentages',
                         expand: true,
-                        onPressed: _no,
+                        onPressed: _done,
                       ),
                     ],
                     Text(
@@ -183,41 +176,45 @@ class _WelcomeState extends State<Welcome> {
   }
 
   /// What was answered, once it has been: the two answers as a pair with
-  /// yes filled in, so it reads as a choice made and the other is a tap away.
-  Widget _answer() {
-    Widget option(String label, {required bool chosen, VoidCallback? onTap}) =>
-        Expanded(
-          child: Tap(
-            onTap: onTap,
-            semanticLabel: chosen ? '$label, chosen' : 'Change to $label',
-            child: Container(
-              height: 38,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: chosen ? C.ink : C.card,
-                border: Border.all(color: C.ink, width: 1.5),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                spacing: 6,
-                children: [
-                  if (chosen) Icon(Icons.check, size: 15, color: C.onInk),
-                  Text(
-                    label.toUpperCase(),
-                    style: T.ghost(chosen ? C.onInk : C.ink),
-                  ),
-                ],
-              ),
+  /// yes filled in. The other answer is a plain label, not a button; the
+  /// choice is changed later in Settings, as the footer says.
+  Widget _answer() => Row(
+    children: [
+      Expanded(
+        child: Semantics(
+          label: 'Letter grades, chosen',
+          excludeSemantics: true,
+          child: Container(
+            height: 38,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: C.ink,
+              border: Border.all(color: C.ink, width: 1.5),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              spacing: 6,
+              children: [
+                Icon(Icons.check, size: 15, color: C.onInk),
+                Text('LETTER GRADES', style: T.ghost(C.onInk)),
+              ],
             ),
           ),
-        );
-    return Row(
-      children: [
-        option('Letter grades', chosen: true),
-        option('Percentages', chosen: false, onTap: _no),
-      ],
-    );
-  }
+        ),
+      ),
+      Expanded(
+        child: Semantics(
+          label: 'Percentages, not chosen',
+          excludeSemantics: true,
+          child: Container(
+            height: 38,
+            alignment: Alignment.center,
+            child: Text('PERCENTAGES', style: T.ghost(C.ink)),
+          ),
+        ),
+      ),
+    ],
+  );
 
   /// The bands a yes starts from, so the choice is made knowing what it sets
   /// up. Every one is editable on the next step.
