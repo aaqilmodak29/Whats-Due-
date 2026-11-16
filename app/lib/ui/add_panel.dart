@@ -4,6 +4,7 @@ import '../models.dart';
 import '../store.dart';
 import '../theme.dart';
 import 'atoms.dart';
+import 'edit_sheet.dart' show DueDateField, FormNumberField, kFormGap;
 import 'manage_subjects.dart' show Swatch;
 
 /// The "new assignment" panel, revealed by the + button in the header.
@@ -113,7 +114,7 @@ class _AddPanelState extends State<AddPanel> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Eyebrow('New assignment'),
-          const SizedBox(height: 12),
+          const SizedBox(height: kFormGap),
           LabelledField(
             label: 'Assignment',
             child: TextField(
@@ -125,7 +126,7 @@ class _AddPanelState extends State<AddPanel> {
               onSubmitted: (_) => _create(),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: kFormGap),
           LayoutBuilder(
             builder: (context, constraints) {
               final subject = LabelledField(
@@ -148,14 +149,13 @@ class _AddPanelState extends State<AddPanel> {
                   ],
                 ),
               );
-              final date = DateField(
-                label: 'Due date',
+              final date = DueDateField(
                 value: _due,
                 onChanged: (v) => setState(() => _due = v),
               );
               final marks = LabelledField(
                 label: 'Marks',
-                child: NumberField(
+                child: FormNumberField(
                   controller: _outOf,
                   hint: 'e.g. 40',
                   semanticLabel: 'Marks the assignment is out of',
@@ -164,7 +164,7 @@ class _AddPanelState extends State<AddPanel> {
               );
               final goal = LabelledField(
                 label: 'Goal',
-                child: NumberField(
+                child: FormNumberField(
                   controller: _goal,
                   hint: 'e.g. 30',
                   semanticLabel: 'Goal score',
@@ -176,22 +176,24 @@ class _AddPanelState extends State<AddPanel> {
               if (constraints.maxWidth < 360) {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
-                  spacing: 10,
+                  spacing: kFormGap,
                   children: [subject, date, marks, goal],
                 );
               }
+              // The edit sheet's row: the date at twice the width of each
+              // number, every box the same height.
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
-                spacing: 10,
+                spacing: kFormGap,
                 children: [
                   subject,
                   Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     spacing: 8,
                     children: [
-                      Expanded(flex: 4, child: date),
-                      Expanded(flex: 2, child: marks),
-                      Expanded(flex: 2, child: goal),
+                      Expanded(flex: 2, child: date),
+                      Expanded(child: marks),
+                      Expanded(child: goal),
                     ],
                   ),
                 ],
@@ -199,7 +201,7 @@ class _AddPanelState extends State<AddPanel> {
             },
           ),
           if (creatingSubject) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: kFormGap),
             LabelledField(
               label: 'Name the subject',
               child: TextField(
@@ -211,21 +213,24 @@ class _AddPanelState extends State<AddPanel> {
                 onSubmitted: (_) => _create(),
               ),
             ),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                for (final c in kPalette)
-                  Tap(
-                    onTap: () => setState(() => _picked = c),
-                    semanticLabel: 'Use this colour',
-                    child: Swatch(colour: hexToColor(c), on: c == _picked),
-                  ),
-              ],
+            const SizedBox(height: kFormGap),
+            LabelledField(
+              label: 'Colour',
+              child: Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final c in kPalette)
+                    Tap(
+                      onTap: () => setState(() => _picked = c),
+                      semanticLabel: 'Use this colour',
+                      child: Swatch(colour: hexToColor(c), on: c == _picked),
+                    ),
+                ],
+              ),
             ),
           ],
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           PrimaryButton(label: 'Track it', onPressed: _create),
         ],
       ),
