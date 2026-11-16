@@ -895,7 +895,10 @@ void main() {
               .text,
           isEmpty,
         );
-        // And it shows up as a filter chip immediately.
+        // And it is a filter chip as soon as the panel is closed (the chips
+        // step aside while the panel lists the subjects itself).
+        await tester.tap(find.text('HIDE SUBJECTS'));
+        await tester.pumpAndSettle();
         expect(find.text('REINFORCEMENT LEARNING 0'), findsOne);
       },
       seed: _seed(),

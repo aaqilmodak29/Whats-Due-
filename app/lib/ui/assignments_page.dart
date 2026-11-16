@@ -4,7 +4,6 @@ import '../filters.dart';
 import '../models.dart';
 import '../store.dart';
 import '../theme.dart';
-import '../updater.dart';
 import 'add_panel.dart';
 import 'assignment_card.dart';
 import 'atoms.dart';
@@ -195,9 +194,10 @@ class AssignmentsPage extends StatelessWidget {
           ).where((a) => _inSubject(a, view.filter)).toSet()
         : null;
 
-    // The subject chips stay while subjects are being managed: they are what
-    // the panel edits, so a subject just added shows up at once.
-    final chips = store.subjects.isNotEmpty && !view.showAdd
+    // While either panel is open the chips step aside: the manage panel lists
+    // the same subjects just above, and a second copy of them under it only
+    // repeats the list. Closing it brings them back, a new subject included.
+    final chips = store.subjects.isNotEmpty && !panel
         ? _subjectChips(inSubject, narrowed)
         : const <Widget>[];
     final showChips = chips.isNotEmpty;
@@ -207,21 +207,18 @@ class AssignmentsPage extends StatelessWidget {
       controller: controller,
       title: "What's due",
       // The triage counts ride in the title row rather than on a line of their
-      // own, and a waiting update is a notice at the head of them: a dot and a
-      // link, never a second filled button beside the +. A zero says nothing,
-      // so only counts that are there make it; how much is open is on the tab.
+      // own. A zero says nothing, so only counts that are there make it; how
+      // much is open is on the tab. A waiting update has its own line below.
       action: Row(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         spacing: 14,
         children: [
           _HeaderNotes(
-            store: store,
             lines: [
               if (overdue > 0) '$overdue overdue',
               if (thisWeek > 0) '$thisWeek due within 7 days',
             ],
-            onUpdate: onOpenSettings,
           ),
           IconSquare(
             icon: view.showAdd ? Icons.close : Icons.add,
@@ -234,6 +231,8 @@ class AssignmentsPage extends StatelessWidget {
         ],
       ),
       children: [
+        _UpdateLine(store: store, onUpdate: onOpenSettings),
+
         // Straight under the + that opened it, with the strip and the filters
         // stepped aside, so the form is the first thing on the page.
         if (view.showAdd) ...[
@@ -281,34 +280,36 @@ class AssignmentsPage extends StatelessWidget {
           const SizedBox(height: 10),
         ],
 
-        // ---- one filter row: when, then which subject ----
+        // ---- the filters: when, then which subject ----
         // The due window is one control that opens its choices; the subjects
-        // are a single run that scrolls sideways under a fade rather than
-        // wrapping onto more rows. A subject with nothing in the current tab
-        // steps out of the run (the selected one never does); while subjects
-        // are being managed every one shows.
+        // follow it and wrap onto a second line rather than running off the
+        // edge, so every chip is whole and the selected one is always in
+        // view. A subject with nothing in the current tab steps out (the
+        // selected one never does).
         if (showWindow || showChips) ...[
-          Row(
+          Wrap(
+            spacing: 4,
+            runSpacing: 6,
             children: [
-              if (showWindow) ...[
-                _WindowControl(
-                  window: view.window,
-                  count: inWindow,
-                  onPick: (w) => onView(
-                    w == null
-                        ? view.copyWith(clearWindow: true, clearOpenId: true)
-                        : view.copyWith(window: w, clearOpenId: true),
+              if (showWindow)
+                Padding(
+                  // A little more air after the window than between subjects:
+                  // it is a different kind of filter.
+                  padding: EdgeInsets.only(right: showChips ? 4 : 0),
+                  child: _WindowControl(
+                    window: view.window,
+                    count: inWindow,
+                    onPick: (w) => onView(
+                      w == null
+                          ? view.copyWith(clearWindow: true, clearOpenId: true)
+                          : view.copyWith(window: w, clearOpenId: true),
+                    ),
                   ),
                 ),
-                if (showChips) const SizedBox(width: 8),
-              ],
-              if (showChips)
-                Expanded(
-                  child: _ChipRun(chips: chips),
-                ),
+              ...chips,
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
         ],
 
         // ---- tabs, with the subjects link and the search on the same rule ----
@@ -352,7 +353,7 @@ class AssignmentsPage extends StatelessWidget {
           _FillRest(child: _empty())
         else
           Column(
-            spacing: 8,
+            spacing: 12,
             children: [
               for (final a in shown)
                 AssignmentCard(
@@ -369,16 +370,13 @@ class AssignmentsPage extends StatelessWidget {
             ],
           ),
 
-        // What a filtered or submitted list is, and the way back to all of
-        // it. Left-aligned with the cards above it, like every hint.
-        if (shown.isNotEmpty && (_showSubmitted || narrowed)) ...[
-          const SizedBox(height: 12),
-          Text(
-            _footer(),
-            // Ink, not muted: muted sans on the paper ground fails contrast.
-            style: T.emptyBody.copyWith(color: C.ink),
+        // The list's end, said once: that this is all of it, and for a
+        // filtered or submitted list what it is and the way back to the rest.
+        if (shown.isNotEmpty)
+          _ListEnd(
+            head: _endHead(),
+            note: _footer(elsewhere: chipPool.length - shown.length),
           ),
-        ],
 
         if (store.storageBlocked) ...[
           const SizedBox(height: 16),
@@ -394,8 +392,13 @@ class AssignmentsPage extends StatelessWidget {
 
   /// All, then each subject with something in the current tab, then Unfiled.
   List<Widget> _subjectChips(int Function(String) inSubject, bool narrowed) {
+    // A subject with no work anywhere yet is offered too: it is new, and
+    // hiding it would make adding it look like it failed.
     bool offered(String filter) =>
-        view.showManage || view.filter == filter || inSubject(filter) > 0;
+        view.filter == filter ||
+        inSubject(filter) > 0 ||
+        (filter != filterUnfiled &&
+            !store.items.any((a) => a.subjectId == filter));
     final subjects = [
       for (final s in store.subjects)
         if (offered(s.id))
@@ -436,19 +439,37 @@ class AssignmentsPage extends StatelessWidget {
     onPressed: () => onView(view.copyWith(showManage: !view.showManage)),
   );
 
+  String? get _subjectName => switch (view.filter) {
+    filterAll => null,
+    filterUnfiled => 'Unfiled',
+    final id => store.subjects.where((s) => s.id == id).firstOrNull?.name,
+  };
+
+  /// The end-of-list line: this is everything the filters let through.
+  String _endHead() {
+    final subject = _subjectName;
+    if (subject != null) return "That's everything in $subject";
+    return _showSubmitted
+        ? "That's everything submitted"
+        : "That's everything due";
+  }
+
   /// What a filtered or submitted list is, and the way back to all of it —
   /// the chip already on screen, named rather than duplicated. The counts
   /// are on the summary line and the tabs, so this does not repeat them.
-  String _footer() {
-    final subject = switch (view.filter) {
-      filterAll => null,
-      filterUnfiled => 'Unfiled',
-      final id => store.subjects.where((s) => s.id == id).firstOrNull?.name,
-    };
-    if (subject == null) {
+  /// [elsewhere] is how many more the tab holds in other subjects.
+  String? _footer({required int elsewhere}) {
+    if (_subjectName != null) {
+      final where = _showSubmitted ? 'submitted' : 'open';
+      return elsewhere > 0
+          ? '$elsewhere more $where in other subjects. Tap All above to see '
+                'every subject.'
+          : 'Tap All above to see every subject.';
+    }
+    if (_showSubmitted) {
       return 'Submitted work stays here. Tap a card to move it back to Open.';
     }
-    return '$subject only. Tap All above to see every subject.';
+    return null;
   }
 
   void _select(String filter) =>
@@ -499,7 +520,7 @@ class AssignmentsPage extends StatelessWidget {
   Widget _empty() {
     final query = view.query.trim();
     if (query.isNotEmpty) {
-      return _Empty(
+      return EmptyState(
         icon: Icons.search_off,
         head: 'Nothing here',
         body: 'Nothing matches “$query”.',
@@ -508,7 +529,7 @@ class AssignmentsPage extends StatelessWidget {
       );
     }
     if (view.window != null) {
-      return _Empty(
+      return EmptyState(
         icon: Icons.event_available_outlined,
         head: 'Nothing here',
         body: 'Nothing due within ${view.window!.label.toLowerCase()}.',
@@ -540,7 +561,7 @@ class AssignmentsPage extends StatelessWidget {
     // With nothing tracked at all, the empty list is the page's whole job,
     // so it carries the way to start: the same panel the + opens.
     final first = !view.showAdd && store.items.isEmpty;
-    return _Empty(
+    return EmptyState(
       icon: first ? Icons.checklist_outlined : Icons.inbox_outlined,
       head: head,
       body: body,
@@ -551,62 +572,47 @@ class AssignmentsPage extends StatelessWidget {
   }
 }
 
-/// The "nothing here" message, with the one control that undoes whatever
-/// emptied the list when there is a single obvious one.
-///
-/// A stand-in for the shared `EmptyState` (atoms.dart, shared thread, round 5)
-/// drawn to the same measurements: icon, heading, one sentence and at most one
-/// action, centred and unboxed, with the same fields, so it can be swapped for
-/// `EmptyState(icon:, head:, body:, action:, onAction:, primary:)` once that
-/// lands without anything moving. [_FillRest] sets it in the middle of the
-/// space under the filters. Lime only for the first assignment on a fresh
-/// install, the page's one call to action; undoing a filter is outlined.
-class _Empty extends StatelessWidget {
-  const _Empty({
-    required this.icon,
-    required this.head,
-    required this.body,
-    this.action,
-    this.onAction,
-    this.primary = false,
-  });
+/// The end of a list that has something in it: a short rule and one quiet
+/// line saying this is all of it, then, for a filtered or submitted list, the
+/// sentence on what it is and the way back. Centred, like the empty state, so
+/// the list closes rather than trailing off into bare paper.
+class _ListEnd extends StatelessWidget {
+  const _ListEnd({required this.head, this.note});
 
-  final IconData icon;
   final String head;
-  final String body;
-  final String? action;
-  final VoidCallback? onAction;
-
-  /// Lime, for the one case where this is the page's main call to action.
-  final bool primary;
+  final String? note;
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
+    padding: const EdgeInsets.fromLTRB(24, 22, 24, 8),
     child: Column(
-      mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 32, color: C.ink),
-        const SizedBox(height: 12),
-        Text(head, style: T.emptyHead, textAlign: TextAlign.center),
-        const SizedBox(height: 4),
+        Container(width: 24, height: 1, color: C.ink),
+        const SizedBox(height: 10),
         Text(
-          body,
-          style: T.emptyBody.copyWith(color: C.ink),
+          head.toUpperCase(),
+          style: T.count(C.ink),
           textAlign: TextAlign.center,
         ),
-        if (action != null && onAction != null) ...[
-          const SizedBox(height: 14),
-          GhostButton(label: action!, filled: primary, onPressed: onAction!),
+        if (note != null) ...[
+          const SizedBox(height: 6),
+          Text(
+            note!,
+            // Ink, not muted: muted sans on the paper ground fails contrast.
+            style: T.emptyBody.copyWith(color: C.ink),
+            textAlign: TextAlign.center,
+          ),
         ],
       ],
     ),
   );
 }
 
-/// Centres [child] in whatever height is left between where it starts and the
+/// Sets [child] in whatever height is left between where it starts and the
 /// bottom of the page, so an empty state sits in the middle of the free space
-/// rather than hugging the filters with bare paper below it.
+/// rather than hugging the filters with bare paper below it. Optically
+/// centred: a little above the true middle, where a centred block reads as
+/// centred rather than as sinking.
 ///
 /// The page is one scrolling list, which gives its children no height to
 /// centre in, so this measures its own offset once laid out and sizes itself
@@ -647,7 +653,7 @@ class _FillRestState extends State<_FillRest> {
     WidgetsBinding.instance.addPostFrameCallback(_measure);
     return ConstrainedBox(
       constraints: BoxConstraints(minHeight: _height),
-      child: Center(child: widget.child),
+      child: Align(alignment: const Alignment(0, -0.2), child: widget.child),
     );
   }
 }
@@ -765,57 +771,43 @@ class _WindowControl extends StatelessWidget {
   }
 }
 
-/// The subject chips as one sideways-scrolling run, fading out at the right
-/// edge so a chip that runs past it reads as "more this way" rather than as a
-/// label cut off mid-word.
-class _ChipRun extends StatelessWidget {
-  const _ChipRun({required this.chips});
+/// The title row's triage counts, right-aligned against the +.
+class _HeaderNotes extends StatelessWidget {
+  const _HeaderNotes({required this.lines});
 
-  final List<Widget> chips;
-
-  static const _fade = 14.0;
+  final List<String> lines;
 
   @override
-  Widget build(BuildContext context) => Stack(
-    children: [
-      SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Padding(
-          // Room past the last chip, so scrolled to the end it clears the fade.
-          padding: const EdgeInsets.only(right: _fade),
-          child: Row(spacing: 4, children: chips),
-        ),
-      ),
-      Positioned(
-        top: 0,
-        bottom: 0,
-        right: 0,
-        width: _fade,
-        child: IgnorePointer(
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [C.paper.withValues(alpha: 0), C.paper],
-              ),
+  Widget build(BuildContext context) {
+    if (lines.isEmpty) return const SizedBox.shrink();
+    // The title keeps its one line: on a narrow phone the counts wrap
+    // instead, inside what the wordmark and the + leave over.
+    final room = MediaQuery.sizeOf(context).width - 32 - 170 - 54;
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: room < 80 ? 80 : room),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        spacing: 2,
+        children: [
+          for (final l in lines)
+            Text(
+              l.toUpperCase(),
+              style: T.count(C.ink),
+              textAlign: TextAlign.right,
             ),
-          ),
-        ),
+        ],
       ),
-    ],
-  );
+    );
+  }
 }
 
-/// The title row's notes: a waiting update first, as a link with a marker dot,
-/// then the triage counts. Right-aligned against the +.
-class _HeaderNotes extends StatelessWidget {
-  const _HeaderNotes({
-    required this.store,
-    required this.lines,
-    required this.onUpdate,
-  });
+/// A waiting update, on a slim line of its own under the title: a marker dot
+/// and a link into Settings, where the install happens. The highlighter is
+/// only the dot, so the line never competes with the + or the page's counts.
+class _UpdateLine extends StatelessWidget {
+  const _UpdateLine({required this.store, required this.onUpdate});
 
   final AppStore store;
-  final List<String> lines;
   final VoidCallback onUpdate;
 
   @override
@@ -823,57 +815,44 @@ class _HeaderNotes extends StatelessWidget {
     listenable: store.updater,
     builder: (context, _) {
       final release = store.updater.release;
-      if (release == null && lines.isEmpty) return const SizedBox.shrink();
-      // The title keeps its one line: on a narrow phone the counts wrap
-      // instead, inside what the wordmark and the + leave over.
-      final room = MediaQuery.sizeOf(context).width - 32 - 170 - 54;
-      return ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: room < 80 ? 80 : room),
-        child: _notes(release),
-      );
-    },
-  );
-
-  Widget _notes(Release? release) => Column(
-    crossAxisAlignment: CrossAxisAlignment.end,
-    spacing: 2,
-    children: [
-      if (release != null)
-        Tap(
-          onTap: onUpdate,
-          semanticLabel:
-              'Version ${release.version} is available, tap to install',
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            spacing: 6,
-            children: [
-              // The highlighter on its own vanishes against the paper,
-              // so the dot carries an ink ring.
-              Container(
-                width: 9,
-                height: 9,
-                decoration: BoxDecoration(
-                  color: C.mark,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: C.ink),
-                ),
+      if (release == null) return const SizedBox.shrink();
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 14),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Tap(
+            onTap: onUpdate,
+            semanticLabel:
+                'Version ${release.version} is available, tap to install',
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                spacing: 8,
+                children: [
+                  // The highlighter on its own vanishes against the paper,
+                  // so the dot carries an ink ring.
+                  Container(
+                    width: 9,
+                    height: 9,
+                    decoration: BoxDecoration(
+                      color: C.mark,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: C.ink),
+                    ),
+                  ),
+                  Text(
+                    'Version ${release.version} is ready'.toUpperCase(),
+                    style: T.count(C.ink),
+                  ),
+                  Text('Update'.toUpperCase(), style: T.link),
+                ],
               ),
-              Flexible(
-                child: Text(
-                  'Update ${release.version}'.toUpperCase(),
-                  style: T.link,
-                ),
-              ),
-            ],
+            ),
           ),
         ),
-      for (final l in lines)
-        Text(
-          l.toUpperCase(),
-          style: T.count(C.ink),
-          textAlign: TextAlign.right,
-        ),
-    ],
+      );
+    },
   );
 }
 
@@ -1057,7 +1036,9 @@ class _SearchFieldState extends State<_SearchField> {
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         if (open) ...[
-          Flexible(child: tabs(width)),
+          // The tabs keep their own width and the field runs from them to
+          // the right edge, flush with the cards below.
+          tabs(width - 12 - 120),
           const SizedBox(width: 12),
           Expanded(child: field),
         ] else ...[
