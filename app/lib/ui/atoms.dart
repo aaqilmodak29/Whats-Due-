@@ -730,6 +730,9 @@ class _DatePickerSheetState extends State<_DatePickerSheet> {
   @override
   Widget build(BuildContext context) {
     final l10n = MaterialLocalizations.of(context);
+    // The frame of every other sheet in the app (the delete confirm, the edit
+    // sheet): a 3px ink rule on top, 16 in from each side, 16 above the
+    // headline, 18 from the content to the button row and 20 below it.
     return Dialog(
       alignment: Alignment.bottomCenter,
       insetPadding: EdgeInsets.zero,
@@ -751,7 +754,9 @@ class _DatePickerSheetState extends State<_DatePickerSheet> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 14, 8, 6),
+                    // 4 on the right: the pencil's 44px target then puts its
+                    // glyph on the same 16px edge as the buttons below.
+                    padding: const EdgeInsets.fromLTRB(16, 16, 4, 0),
                     child: Row(
                       children: [
                         Expanded(
@@ -787,13 +792,17 @@ class _DatePickerSheetState extends State<_DatePickerSheet> {
                       ],
                     ),
                   ),
-                  Container(height: 1, color: C.rule),
+                  // Inset like the content, not a full-bleed divider.
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                    child: Container(height: 1, color: C.rule),
+                  ),
                   if (_typing)
                     Form(
                       key: _form,
                       autovalidateMode: _validate,
                       child: Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+                        padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
                         child: InputDatePickerFormField(
                           initialDate: _selected,
                           firstDate: widget.first,
@@ -805,15 +814,27 @@ class _DatePickerSheetState extends State<_DatePickerSheet> {
                       ),
                     )
                   else
-                    CalendarDatePicker(
-                      initialDate: _selected,
-                      currentDate: widget.today,
-                      firstDate: widget.first,
-                      lastDate: widget.last,
-                      onDateChanged: _changed,
+                    // Full width: Material insets its grid 12 and each day's
+                    // square 4 more, which puts the squares on the sheet's
+                    // 16px edges.
+                    SizedBox(
+                      // Material's month row (52) and seven 40px rows
+                      // (weekdays and six weeks) rather than its 48px ones:
+                      // the grid is a quick choice, not the whole screen.
+                      height: _calendarHeight,
+                      child: CalendarDatePicker(
+                        initialDate: _selected,
+                        currentDate: widget.today,
+                        firstDate: widget.first,
+                        lastDate: widget.last,
+                        onDateChanged: _changed,
+                      ),
                     ),
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+                    // 14 here plus the 4 Material leaves under the last row
+                    // of days makes the 18 the delete confirm has above its
+                    // buttons.
+                    padding: EdgeInsets.fromLTRB(16, _typing ? 18 : 14, 16, 20),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       spacing: 8,
@@ -838,6 +859,8 @@ class _DatePickerSheetState extends State<_DatePickerSheet> {
       ),
     );
   }
+
+  static const double _calendarHeight = 52 + 40.0 * 7;
 }
 
 /// The task tick box. CSS `.box`, with the check drawn to match the web app's
