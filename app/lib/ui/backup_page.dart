@@ -156,18 +156,14 @@ class _BackupSectionsState extends State<BackupSections> {
               style: T.body,
             ),
             ?_remindersWarning(),
-            // Less than a block's gap: a link carries 9.5px of tap padding
-            // above its text, where a boxed button's border sits right at its
-            // edge, so this puts the link text about as far from the prose as
-            // a button's box would be.
-            const SizedBox(height: 6),
-            // Checks rather than the section's main action, so links.
+            const SizedBox(height: SettingsSection.blockGap),
+            // Outlined, like every other section's actions on this page.
             Wrap(
-              spacing: 12,
+              spacing: 8,
+              runSpacing: 8,
               children: [
                 GhostButton(
                   label: 'Send a test',
-                  quiet: true,
                   onPressed: () async {
                     final ok = await Reminders.sendTest();
                     if (!mounted) return;
@@ -183,7 +179,6 @@ class _BackupSectionsState extends State<BackupSections> {
                 ),
                 GhostButton(
                   label: 'Recount',
-                  quiet: true,
                   onPressed: _refreshPending,
                 ),
               ],
@@ -206,8 +201,9 @@ class _BackupSectionsState extends State<BackupSections> {
               style: T.body,
             ),
             const SizedBox(height: SettingsSection.blockGap),
+            // Two ways to take the same copy out, so one style for both.
             Wrap(
-              spacing: 16,
+              spacing: 8,
               runSpacing: 8,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
@@ -228,10 +224,8 @@ class _BackupSectionsState extends State<BackupSections> {
                     }
                   },
                 ),
-                // The aside beside the section's main action: a link.
                 GhostButton(
                   label: 'Copy to clipboard',
-                  quiet: true,
                   onPressed: () async {
                     await Clipboard.setData(
                       ClipboardData(text: store.exportJson()),
@@ -279,9 +273,6 @@ class _BackupSectionsState extends State<BackupSections> {
               children: [
                 GhostButton(
                   label: 'Paste from clipboard',
-                  // Once there is something to import, the import is the
-                  // action and pasting again is the aside.
-                  quiet: _paste.text.trim().isNotEmpty,
                   onPressed: () async {
                     final data = await Clipboard.getData('text/plain');
                     if (data?.text == null) {
@@ -356,8 +347,9 @@ class _BackupSectionsState extends State<BackupSections> {
 /// rule, so a coloured rule on this page always means the same thing.
 ///
 /// Actions follow one rule across the page: the highlighter for the page's
-/// one primary (Update now), an outlined ink box for a section's own action,
-/// and an underlined link for a check or an aside beside it.
+/// one primary (Update now) and an outlined ink box for every other action a
+/// card offers, checks included, so a row of actions never mixes a box with
+/// a bare link. Red outline only for the one destructive action.
 ///
 /// A section with a switch puts it beside the title, with the state it is in
 /// ([status]) underneath, so a toggle reads as one settings row.
