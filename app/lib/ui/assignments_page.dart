@@ -575,7 +575,9 @@ class AssignmentsPage extends StatelessWidget {
 /// The end of a list that has something in it: a short rule and one quiet
 /// line saying this is all of it, then, for a filtered or submitted list, the
 /// sentence on what it is and the way back. Centred, like the empty state, so
-/// the list closes rather than trailing off into bare paper.
+/// the list closes rather than trailing off into bare paper. Extra room
+/// under it, so scrolled to the end the last card and this line stop well
+/// clear of the nav bar rather than tucked against it.
 class _ListEnd extends StatelessWidget {
   const _ListEnd({required this.head, this.note});
 
@@ -584,7 +586,7 @@ class _ListEnd extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(24, 22, 24, 8),
+    padding: const EdgeInsets.fromLTRB(24, 22, 24, 40),
     child: Column(
       children: [
         Container(width: 24, height: 1, color: C.ink),
