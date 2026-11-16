@@ -46,7 +46,7 @@ class HorizonStrip extends StatefulWidget {
   final ValueChanged<String?> onSelect;
 
   static const _days = 14;
-  static const _barsHeight = 46.0;
+  static const _barsHeight = 34.0;
   static const _labelHeight = 16.0;
 
   /// Pages either side of the current fortnight — about seven years each way.
@@ -319,9 +319,10 @@ class _DayColumn extends StatelessWidget {
   }
 
   Widget _bar() {
-    // 12px for the first, 9px per additional, capped so a brutal week does not
-    // blow out the strip's height.
-    final height = math.min(40, 12 + (bucket.length - 1) * 9).toDouble();
+    // 12px for the first, 8px per additional, capped so a brutal week does not
+    // blow out the strip's height. Kept short: the strip is an early warning,
+    // not the page, and every pixel here pushes the list down.
+    final height = math.min(30, 12 + (bucket.length - 1) * 8).toDouble();
     final colour = urgency(daysAway);
 
     return Container(

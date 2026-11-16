@@ -364,6 +364,28 @@ class AppStore extends ChangeNotifier {
     _commit();
   }
 
+  /// Moves the task at [from] so it ends up at [to] in [a]'s list. Order is
+  /// just list order, so the saved and backed-up JSON keeps its shape.
+  void moveTask(Assignment a, int from, int to) {
+    if (_move(a.tasks, from, to)) _commit();
+  }
+
+  /// Moves the step at [from] so it ends up at [to] under [t].
+  void moveSubtask(Task t, int from, int to) {
+    if (_move(t.subtasks, from, to)) _commit();
+  }
+
+  /// False, and nothing saved, when either index is out of range or nothing
+  /// would move.
+  static bool _move<E>(List<E> list, int from, int to) {
+    if (from == to) return false;
+    if (from < 0 || from >= list.length || to < 0 || to >= list.length) {
+      return false;
+    }
+    list.insert(to, list.removeAt(from));
+    return true;
+  }
+
   void clearAll() {
     subjects = [];
     items = [];
