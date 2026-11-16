@@ -29,39 +29,49 @@ class SettingsPage extends StatelessWidget {
     title: 'Settings',
     children: [
       UpdateSection(updater: store.updater),
-      const SizedBox(height: 16),
-      GradingSection(store: store),
-      const SizedBox(height: 16),
-      _appearance(),
-      const SizedBox(height: 16),
+      const SizedBox(height: 12),
+      // The two one-line preferences share a card: each alone was a whole
+      // card for a single row.
+      Surface(
+        padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            GradingSection(store: store),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Container(height: 1, color: C.rule),
+            ),
+            _appearance(),
+          ],
+        ),
+      ),
+      const SizedBox(height: 12),
       BackupSections(store: store),
     ],
   );
 
-  /// The theme switch. The header names the theme in force, the same way
-  /// Grading's header names its state; the row says what the switch does.
-  Widget _appearance() => Surface(
-    padding: const EdgeInsets.fromLTRB(14, 14, 14, 8),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
+  /// The theme switch: the title with the theme in force beneath it, the way
+  /// Reminders shows its state, and the switch labelled with what it does.
+  Widget _appearance() => Row(
+    spacing: 10,
+    children: [
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          spacing: 4,
           children: [
-            Expanded(child: Eyebrow('Appearance', color: C.ink)),
-            Text(store.darkMode ? 'DARK' : 'LIGHT', style: T.eyebrow(C.muted)),
+            Eyebrow('Appearance', color: C.ink),
+            Text(store.darkMode ? 'DARK' : 'LIGHT', style: T.count(C.ink)),
           ],
         ),
-        Row(
-          children: [
-            Expanded(child: Text('Dark mode', style: T.body)),
-            LabelledSwitch(
-              label: 'Dark mode',
-              value: store.darkMode,
-              onChanged: store.setDarkMode,
-            ),
-          ],
-        ),
-      ],
-    ),
+      ),
+      Text('Dark mode', style: T.body),
+      LabelledSwitch(
+        label: 'Dark mode',
+        value: store.darkMode,
+        onChanged: store.setDarkMode,
+      ),
+    ],
   );
 }

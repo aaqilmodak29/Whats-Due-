@@ -264,10 +264,19 @@ class T {
 
   static TextStyle get body => _sans(14, 400, height: 1.45);
 
-  /// The chosen date at the head of the date picker — the page title's face,
-  /// a size down so a long weekday and month fit the dialog.
+  /// The chosen date at the head of the date picker. Mono and upper case
+  /// ("THU 6 AUG"), the same treatment every other date in the app gets.
   static TextStyle get pickerHeadline =>
-      _sans(26, 800, em: -.03, height: 1.1);
+      _mono(24, weight: 600, em: .04, height: 1.1);
+
+  /// A quiet text action: a secondary button with no box, underlined so it
+  /// still reads as tappable. Semibold, because the regular mono's hairlines
+  /// anti-alias to grey at this size.
+  static TextStyle get link => _mono(
+    11,
+    weight: 600,
+    em: .08,
+  ).copyWith(decoration: TextDecoration.underline, decorationColor: C.ink);
 }
 
 /// Page furniture shared by every screen: paper background, a 620px column.
@@ -322,6 +331,11 @@ SwitchThemeData buildSwitchTheme() {
     ),
     trackOutlineColor: WidgetStatePropertyAll(C.ink),
     trackOutlineWidth: const WidgetStatePropertyAll(1.5),
+    // An empty icon in both states: Material shrinks the thumb when off and no
+    // icon is set, which made on and off look like two different controls.
+    // With one, the thumb is the same size either way; only the side and the
+    // fill change.
+    thumbIcon: const WidgetStatePropertyAll(Icon(null)),
     overlayColor: const WidgetStatePropertyAll(Colors.transparent),
   );
 }
@@ -382,8 +396,12 @@ DatePickerThemeData buildDatePickerTheme() {
     yearForegroundColor: byState(selected: C.onInk, normal: C.ink),
     yearBackgroundColor: byState(selected: C.ink, normal: Colors.transparent),
 
-    weekdayStyle: T.flabel,
+    weekdayStyle: T.count(C.muted),
     dividerColor: C.rule,
+    // The month above the grid ("AUGUST 2026") and its arrows. Material draws
+    // it at 60% of the text colour, which read as disabled.
+    toggleButtonTextStyle: T.count(C.ink),
+    subHeaderForegroundColor: C.ink,
     // Square, mono and upper case like every other button: plain ink to back
     // out, filled ink to commit. Callers pass upper-case labels, because a
     // ButtonStyle cannot change case.
