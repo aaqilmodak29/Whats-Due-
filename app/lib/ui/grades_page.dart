@@ -754,33 +754,20 @@ class _GradesPageState extends State<GradesPage> {
     // PageBody's own chrome above and below the list: its padding, the
     // "Coursework" eyebrow, the title and the gap under it.
     const chrome = 20 + 14 + 3 + 33.6 + 18 + 32;
+    // The Assignments page spends about this much more on its tab strip, so
+    // leaving it out of the centring puts the block at the same height as
+    // that page's empty state.
+    const tabs = 80;
     final free = height - MediaQuery.paddingOf(context).vertical - chrome;
-
-    // The colours and marks the cards will use are already known, so the
-    // foot of the page carries the same key the cards have over it, rather
-    // than leaving it blank. The empty state centres in the room left above.
-    return ConstrainedBox(
-      constraints: BoxConstraints(minHeight: free < 24 ? 0 : free - 24),
-      child: IntrinsicHeight(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: EmptyState(
-                icon: Icons.insights_outlined,
-                head: 'Nothing to total yet',
-                body: 'Each subject gets a card here. To start, open an '
-                    'assignment, tap Edit and fill in what it is out of.',
-                action: 'Open Assignments',
-                primary: true,
-                onAction: _openAssignments,
-              ),
-            ),
-            const SizedBox(height: 16),
-            _key(const []),
-          ],
-        ),
-      ),
+    return EmptyState(
+      icon: Icons.insights_outlined,
+      head: 'Nothing to total yet',
+      body: 'Each subject gets a card here. To start, open an assignment, '
+          'tap Edit and fill in what it is out of.',
+      action: 'Open Assignments',
+      primary: true,
+      onAction: _openAssignments,
+      minHeight: free - tabs < 0 ? 0 : free - tabs,
     );
   }
 
