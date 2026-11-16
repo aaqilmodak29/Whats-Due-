@@ -143,10 +143,6 @@ class _AssignmentCardState extends State<AssignmentCard> {
   /// adds read as two different levels.
   Widget _steps(AppStore store, Task t, {required bool handled}) {
     final stepHandles = t.subtasks.length > 1;
-    // Where a step's text starts, so the marks and time line up with it.
-    final textIndent = (stepHandles ? _kStepGrip + _kStepGap : 0) +
-        _kStepCheck +
-        _kStepGap;
     return Container(
       // The rail drops from the task's checkbox centre; the steps start just
       // inside it.
@@ -163,7 +159,7 @@ class _AssignmentCardState extends State<AssignmentCard> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: EdgeInsets.only(left: textIndent, bottom: 4),
+            padding: const EdgeInsets.only(top: 2, bottom: 8),
             child: _taskMeta(store, t),
           ),
           _Reorderable(
@@ -211,57 +207,61 @@ class _AssignmentCardState extends State<AssignmentCard> {
     );
   }
 
-  /// The open task's rubric marks and effort estimate: one quiet line in the
-  /// data face, each a small label then its control, wrapping rather than
-  /// crowding on a narrow phone.
+  /// The open task's rubric marks and effort estimate: two labelled fields
+  /// side by side, the marks a small boxed number and the estimate a boxed
+  /// row of presets of the same height, so the pair reads as one row of a
+  /// form rather than loose words.
   ///
   /// The estimate is a row of preset words rather than a free number field: a
   /// student guessing to the minute is inventing precision, and the rough shape
   /// of the work is all this is for. One tap sets it, tapping the active one
   /// clears it.
-  Widget _taskMeta(AppStore store, Task t) => Wrap(
-    spacing: 12,
-    runSpacing: 6,
-    crossAxisAlignment: WrapCrossAlignment.center,
+  Widget _taskMeta(AppStore store, Task t) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    spacing: 10,
     children: [
-      Row(
-        mainAxisSize: MainAxisSize.min,
-        spacing: 5,
-        children: [
-          Text('MARKS', style: T.flabel),
-          SizedBox(
-            width: 44,
-            child: NumberField(
-              controller: _pointsControllerFor(t),
-              hint: 'pt',
-              dense: true,
-              semanticLabel: 'Marks for ${t.text}',
-              onChanged: (v) => store.setTaskPoints(t, v),
+      SizedBox(
+        width: _kMarksField,
+        child: LabelledField(
+          label: 'Marks',
+          child: NumberField(
+            controller: _pointsControllerFor(t),
+            hint: 'e.g. 5',
+            dense: true,
+            semanticLabel: 'Marks for ${t.text}',
+            onChanged: (v) => store.setTaskPoints(t, v),
+          ),
+        ),
+      ),
+      Expanded(
+        child: LabelledField(
+          label: 'Time',
+          child: Container(
+            height: _kMetaHeight,
+            decoration: BoxDecoration(
+              color: C.field,
+              border: Border.all(color: C.rule),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (final (i, m) in kEstimateChoices.indexed)
+                  Expanded(
+                    child: _EstimateChip(
+                      label: formatMinutes(m),
+                      on: t.minutes == m,
+                      divided: i > 0,
+                      semanticLabel: t.minutes == m
+                          ? 'Clear the ${formatMinutes(m)} estimate'
+                          : 'Estimate ${formatMinutes(m)}',
+                      onTap: () =>
+                          store.setTaskMinutes(t, t.minutes == m ? null : m),
+                    ),
+                  ),
+              ],
             ),
           ),
-        ],
-      ),
-      Row(
-        mainAxisSize: MainAxisSize.min,
-        spacing: 5,
-        children: [
-          Text('TIME', style: T.flabel),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (final m in kEstimateChoices)
-                _EstimateChip(
-                  label: formatMinutes(m),
-                  on: t.minutes == m,
-                  semanticLabel: t.minutes == m
-                      ? 'Clear the ${formatMinutes(m)} estimate'
-                      : 'Estimate ${formatMinutes(m)}',
-                  onTap: () =>
-                      store.setTaskMinutes(t, t.minutes == m ? null : m),
-                ),
-            ],
-          ),
-        ],
+        ),
       ),
     ],
   );
@@ -822,29 +822,35 @@ class _StepField extends StatelessWidget {
   );
 }
 
-/// An effort preset in an open task. Off is a plain word; on is filled ink —
-/// exactly the list's due-window filters, so the chosen estimate is
-/// unmistakable and nothing here is a style of its own. No box round the set.
+/// An effort preset in an open task: one cell of the boxed TIME control.
+/// Off is a plain word on the field; on is filled ink, exactly the list's
+/// due-window filters, so the chosen estimate is unmistakable. Cells after
+/// the first are split from their neighbour by a hairline.
 class _EstimateChip extends StatelessWidget {
   const _EstimateChip({
     required this.label,
     required this.on,
     required this.onTap,
     required this.semanticLabel,
+    this.divided = false,
   });
 
   final String label;
   final bool on;
   final VoidCallback onTap;
   final String semanticLabel;
+  final bool divided;
 
   @override
   Widget build(BuildContext context) => Tap(
     onTap: onTap,
     semanticLabel: semanticLabel,
     child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
-      color: on ? C.ink : Colors.transparent,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: on ? C.ink : null,
+        border: divided ? Border(left: BorderSide(color: C.rule)) : null,
+      ),
       // Not uppercased: 15M would read as months.
       child: Text(label, style: T.chip(on ? C.onInk : C.ink)),
     ),
@@ -859,13 +865,23 @@ const double _kStepGrip = 14;
 const double _kStepGap = 8;
 const double _kStepCheck = 15;
 
+/// The open task's MARKS box and TIME control: one width for the number,
+/// one height for both, so the pair is a single row of a form.
+const double _kMarksField = 76;
+const double _kMetaHeight = 36;
+
 /// The open card's DUE, TASKS and SUBJECT values each sit in a slot this
 /// tall, so the three share one baseline.
 const double _kFactHeight = 16;
 
 /// A task's or step's text. Ticked work is struck through but stays ink, so
-/// it is still readable on the night card; the strike itself is muted.
-TextStyle _taskStyle(bool done) => T.task(done: done).copyWith(color: C.ink);
+/// it is still readable on the night card; the strike itself is a thin muted
+/// hairline, so a done row reads as crossed off rather than blacked out.
+TextStyle _taskStyle(bool done) => T.task(done: done).copyWith(
+  color: C.ink,
+  decorationColor: C.muted,
+  decorationThickness: done ? 0.5 : null,
+);
 
 /// One of the open card's facts: a label over a value in a fixed-height slot.
 class _Fact extends StatelessWidget {

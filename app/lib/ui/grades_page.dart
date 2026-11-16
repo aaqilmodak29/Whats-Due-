@@ -49,29 +49,33 @@ class _GradesPageState extends State<GradesPage> {
     return PageBody(
       controller: widget.controller,
       title: 'Grades',
-      eyebrow: grades.isEmpty
-          ? null
-          : '${grades.length} ${grades.length == 1 ? 'subject' : 'subjects'}'
-                ' · $results ${results == 1 ? 'result' : 'results'}',
       children: [
         if (grades.isEmpty)
           _empty(height)
         else ...[
+          // The count heads the list it counts, in the semibold mono the
+          // cards' figures use: the page's thin grey eyebrow fails contrast.
+          Text(
+            '${grades.length} ${grades.length == 1 ? 'subject' : 'subjects'}'
+                    ' · $results ${results == 1 ? 'result' : 'results'}'
+                .toUpperCase(),
+            style: T.count(C.ink),
+          ),
+          const SizedBox(height: 10),
           for (final g in grades) ...[
             _subjectCard(g),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
           ],
-          const SizedBox(height: 14),
-          _key(
-            toCome: grades.any((g) => g.remainingOutOf > 0),
-            goals: grades.any(
-              (g) => _subjectOf(g.subjectId)?.goalPercent != null,
-            ),
-          ),
+          const SizedBox(height: 18),
+          _key(grades),
         ],
       ],
     );
   }
+
+  SubjectGrade? _gradeOf(Subject subject) => gradesBySubject(
+    store.items,
+  ).where((g) => g.subjectId == subject.id).firstOrNull;
 
   String _name(String? subjectId) => _subjectOf(subjectId)?.name ?? 'Unfiled';
 
@@ -207,60 +211,37 @@ class _GradesPageState extends State<GradesPage> {
   /// Without the second, a single perfect quiz would fill the bar and read as a
   /// finished subject.
   ///
-  /// Marked work is solid (banked in the grade's colour, dropped in grey);
-  /// work still to come is an empty outline, a box not filled in yet. A goal
-  /// is an ink tick on the same scale, named right above it.
+  /// Three segments, left to right, each with a hairline of card between it
+  /// and the next so they read apart: banked in the grade's colour, dropped
+  /// in solid grey, and work still to come as an empty outline, a box not
+  /// filled in yet. A goal is an ink tick standing proud of the bar, named
+  /// above it with room to spare.
   Widget _bar(SubjectGrade g, double? goal) {
-    final marked = g.totalOutOf <= 0
+    final total = g.totalOutOf;
+    final banked = total <= 0 ? 0.0 : g.securedFraction.clamp(0.0, 1.0);
+    final marked = total <= 0
         ? 0.0
-        : (g.markedOutOf / g.totalOutOf).clamp(0.0, 1.0);
+        : (g.markedOutOf / total).clamp(0.0, 1.0);
     final at = goal == null ? null : (goal / 100).clamp(0.0, 1.0);
+    // Coloured by the average, not by how much is banked — a subject one
+    // assignment in has banked very little of itself and would read as a
+    // fail all semester.
+    final tone = g.average == null ? C.ink : _colour(g.average!);
     final bar = SizedBox(
-      height: 14,
+      height: _barBox,
       child: LayoutBuilder(
         builder: (context, box) {
           final w = box.maxWidth;
           return Stack(
             clipBehavior: Clip.none,
             children: [
-              // Still to come: the whole subject, outlined.
-              Positioned(
-                left: 0,
-                right: 0,
-                top: 4,
-                height: 6,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    border: Border.all(color: C.muted),
-                  ),
-                ),
-              ),
-              // Marked: banked plus dropped.
-              Positioned(
-                left: 0,
-                top: 4,
-                height: 6,
-                width: w * marked,
-                child: ColoredBox(color: C.rule),
-              ),
-              Positioned(
-                left: 0,
-                top: 4,
-                height: 6,
-                width: w * g.securedFraction.clamp(0.0, 1.0),
-                // Coloured by the average, not by how much is banked — a
-                // subject one assignment in has banked very little of itself
-                // and would read as a fail all semester.
-                child: ColoredBox(
-                  color: g.average == null ? C.ink : _colour(g.average!),
-                ),
-              ),
+              ..._segments(w, banked, marked, tone),
               if (at != null)
                 Positioned(
                   left: (w * at - 1).clamp(0, w - 2),
                   top: 0,
                   width: 2,
-                  height: 14,
+                  height: _barBox,
                   child: ColoredBox(color: C.ink),
                 ),
             ],
@@ -272,109 +253,225 @@ class _GradesPageState extends State<GradesPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // The caption the tick needs: one word, over the tick itself.
+        // The caption the tick needs, over the tick itself and clear of the
+        // bar: the tick rises into the gap to meet it.
         Align(
           alignment: Alignment(at * 2 - 1, 0),
           child: ExcludeSemantics(
             child: Text('GOAL', style: T.chip(C.ink)),
           ),
         ),
-        const SizedBox(height: 2),
+        const SizedBox(height: 3),
         bar,
       ],
     );
   }
 
+  /// The bar's height, and the box round it the goal tick fills.
+  static const _barHeight = 10.0;
+  static const _barBox = _barHeight + 8;
+
+  /// Banked, dropped and to come as three blocks with a 2px gap between
+  /// neighbours. A segment too thin to see is left out with its gap.
+  List<Widget> _segments(double w, double banked, double marked, Color tone) {
+    const gap = 2.0;
+    final parts = <(double, Widget)>[
+      (w * banked, ColoredBox(color: tone)),
+      (w * (marked - banked), ColoredBox(color: C.rule)),
+      (
+        w * (1 - marked),
+        DecoratedBox(
+          decoration: BoxDecoration(border: Border.all(color: C.muted)),
+        ),
+      ),
+    ].where((p) => p.$1 >= 1).toList();
+    final out = <Widget>[];
+    var edge = 0.0;
+    for (var i = 0; i < parts.length; i++) {
+      final end = i == parts.length - 1 ? w : edge + parts[i].$1;
+      final left = i == 0 ? edge : edge + gap / 2;
+      final right = i == parts.length - 1 ? end : end - gap / 2;
+      out.add(
+        Positioned(
+          left: left,
+          top: (_barBox - _barHeight) / 2,
+          height: _barHeight,
+          width: math.max(1, right - left),
+          child: parts[i].$2,
+        ),
+      );
+      edge = end;
+    }
+    return out;
+  }
+
   /// The colours and marks every card uses, explained once under the last
-  /// card: the band scale as one stepped strip, high to low, then what the
-  /// bar's parts mean on a single line.
-  Widget _key({required bool toCome, required bool goals}) {
-    Widget item(Widget mark, String label) => Row(
-      mainAxisSize: MainAxisSize.min,
-      spacing: 6,
+  /// card, at a size meant to be read: first the bar's parts, each drawn the
+  /// way the bar draws it with a plain sentence beside it, then the bands
+  /// high to low with every subject placed in the band it sits in now.
+  Widget _key(List<SubjectGrade> grades) {
+    final toCome = grades.any((g) => g.remainingOutOf > 0);
+    final goals = grades.any(
+      (g) => _subjectOf(g.subjectId)?.goalPercent != null,
+    );
+    final ordered = bands.reversed.toList();
+    final lettered = ordered.length >= 2;
+
+    // Banked takes whichever band colour the subject is in, so its swatch
+    // shows the scale, high to low.
+    final bankedSwatch = lettered
+        ? Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (final b in ordered)
+                Expanded(child: ColoredBox(color: colourOfBand(b, bands))),
+            ],
+          )
+        : ColoredBox(color: C.ink);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(width: 14, height: 14, child: Center(child: mark)),
-        Text(label, style: T.chip(C.ink)),
+        _keyHeading('Reading the bar'),
+        _barKeyRow(
+          bankedSwatch,
+          'Banked',
+          lettered
+              ? 'Marks earned, in the colour of the band you are in'
+              : 'Marks earned so far',
+        ),
+        _barKeyRow(
+          ColoredBox(color: C.rule),
+          'Dropped',
+          'Marks lost on work already marked',
+        ),
+        if (toCome)
+          _barKeyRow(
+            DecoratedBox(
+              decoration: BoxDecoration(border: Border.all(color: C.muted)),
+            ),
+            'To come',
+            'Work with a total but no score yet',
+          ),
+        if (goals)
+          _barKeyRow(
+            Center(
+              child: SizedBox(
+                width: 2,
+                height: _barBox,
+                child: ColoredBox(color: C.ink),
+              ),
+            ),
+            'Goal',
+            'The grade you are aiming for',
+            boxed: false,
+          ),
+        if (lettered) ...[
+          const SizedBox(height: 22),
+          _keyHeading('Bands, and where each subject sits'),
+          for (final b in ordered) _bandKeyRow(b, grades),
+        ],
       ],
     );
+  }
 
-    final ordered = bands.reversed.toList();
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 2),
-      child: Column(
+  Widget _keyHeading(String text) => Padding(
+    padding: const EdgeInsets.only(bottom: 8),
+    child: Row(
+      spacing: 8,
+      children: [
+        Text(text.toUpperCase(), style: T.eyebrow(C.ink)),
+        Expanded(child: Container(height: 1, color: C.rule)),
+      ],
+    ),
+  );
+
+  /// One part of the bar: drawn at the bar's own height, named in mono,
+  /// explained in a sentence.
+  Widget _barKeyRow(
+    Widget swatch,
+    String name,
+    String meaning, {
+    bool boxed = true,
+  }) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 6),
+    child: Row(
+      spacing: 12,
+      children: [
+        SizedBox(
+          width: 36,
+          height: boxed ? _barHeight : _barBox,
+          child: swatch,
+        ),
+        SizedBox(
+          width: 64,
+          child: Text(name.toUpperCase(), style: T.count(C.ink)),
+        ),
+        Expanded(child: Text(meaning, style: _meta)),
+      ],
+    ),
+  );
+
+  /// A band, high to low: its colour as the rule the marks-needed rows and
+  /// the goal sheet use, its name and floor, then the subjects whose average
+  /// lands in it. An empty band is just left empty.
+  Widget _bandKeyRow(GradeBand b, List<SubjectGrade> grades) {
+    final here = [
+      for (final g in grades)
+        if (g.average != null && bandFor(g.average! * 100, bands) == b) g,
+    ];
+    return Container(
+      margin: const EdgeInsets.only(top: 4),
+      padding: const EdgeInsets.fromLTRB(10, 7, 0, 7),
+      decoration: BoxDecoration(
+        border: Border(
+          left: BorderSide(color: colourOfBand(b, bands), width: 4),
+        ),
+      ),
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
+        spacing: 10,
         children: [
-          if (ordered.length >= 2) ...[
-            Text('BANDS', style: T.eyebrow(C.ink)),
-            const SizedBox(height: 8),
-            Row(
+          Expanded(
+            flex: 5,
+            child: Row(
+              spacing: 8,
+              children: [
+                Flexible(
+                  child: Text(
+                    b.name,
+                    style: _meta,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Text(bandFloor(b), style: T.count(C.ink)),
+              ],
+            ),
+          ),
+          Expanded(
+            flex: 6,
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               spacing: 4,
               children: [
-                // Each column is as wide as its own words, so every name
-                // sits on one line and the floors share one baseline; a
-                // name too long for the row is cut, never wrapped.
-                for (final b in ordered)
-                  Expanded(
-                    flex: math.max(b.name.length, bandFloor(b).length + 1),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(height: 6, color: colourOfBand(b, bands)),
-                        const SizedBox(height: 6),
-                        Text(bandFloor(b), style: T.count(C.ink)),
-                        Text(
-                          b.name,
+                for (final g in here)
+                  Row(
+                    spacing: 6,
+                    children: [
+                      Dot(_swatch(g.subjectId)),
+                      Expanded(
+                        child: Text(
+                          _name(g.subjectId),
                           style: _meta,
                           maxLines: 1,
-                          softWrap: false,
                           overflow: TextOverflow.ellipsis,
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
               ],
             ),
-            const SizedBox(height: 16),
-          ],
-          Wrap(
-            spacing: 14,
-            runSpacing: 6,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              Text('THE BAR', style: T.eyebrow(C.ink)),
-              // Banked takes whichever band colour the subject is in.
-              item(
-                ordered.length < 2
-                    ? BandSwatch(C.ink, height: 6)
-                    : Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          for (final b in ordered.reversed)
-                            BandSwatch(
-                              colourOfBand(b, bands),
-                              width: 14 / ordered.length,
-                              height: 6,
-                            ),
-                        ],
-                      ),
-                'BANKED',
-              ),
-              item(BandSwatch(C.rule, height: 6), 'DROPPED'),
-              if (toCome)
-                item(
-                  Container(
-                    width: 14,
-                    height: 6,
-                    decoration: BoxDecoration(
-                      border: Border.all(color: C.muted),
-                    ),
-                  ),
-                  'TO COME',
-                ),
-              if (goals)
-                item(BandSwatch(C.ink, width: 2, height: 14), 'GOAL'),
-            ],
           ),
         ],
       ),
@@ -413,6 +510,11 @@ class _GradesPageState extends State<GradesPage> {
       subjectName: subject.name,
       bands: bands,
       current: goal,
+      average: _gradeOf(subject)?.average,
+      standing: switch (_gradeOf(subject)) {
+        final g? => _summary(g),
+        null => null,
+      },
     );
     if (picked != null) store.setSubjectGoal(subject, picked.percent);
   }
@@ -633,21 +735,29 @@ class _GradesPageState extends State<GradesPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.insights_outlined, size: 40, color: C.ink),
-              const SizedBox(height: 14),
+              Container(
+                width: 76,
+                height: 76,
+                alignment: Alignment.center,
+                color: C.card,
+                child: Icon(Icons.insights_outlined, size: 40, color: C.ink),
+              ),
+              const SizedBox(height: 18),
               Text(
                 'Nothing to total yet',
                 style: T.emptyHead,
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 5),
+              const SizedBox(height: 6),
               Text(
-                'Open an assignment, tap Edit and fill in what it is out of. '
-                'Once your score is back, its subject gets a card here.',
+                'Each subject gets a card like this one. To start, open an '
+                'assignment, tap Edit and fill in what it is out of.',
                 style: _meta,
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 18),
+              _example(),
+              const SizedBox(height: 20),
               GhostButton(
                 label: 'Open Assignments',
                 filled: true,
@@ -655,6 +765,55 @@ class _GradesPageState extends State<GradesPage> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  /// What a subject card will look like, drawn small and marked as an
+  /// example: the header line and the bar, nothing that reads as a mark of
+  /// the user's own.
+  Widget _example() {
+    const average = .68;
+    return ExcludeSemantics(
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 300),
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+        decoration: BoxDecoration(
+          border: Border.all(color: C.rule),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          spacing: 10,
+          children: [
+            Row(
+              spacing: 6,
+              children: [
+                Dot(C.muted),
+                Expanded(child: Eyebrow('Example subject', color: C.ink)),
+                if (_band(average).isNotEmpty)
+                  Text(_band(average), style: T.count(_colour(average))),
+                Text(
+                  formatPercent(average),
+                  style: T.monoInput.copyWith(color: _percentColour(average)),
+                ),
+              ],
+            ),
+            SizedBox(
+              height: _barBox,
+              child: LayoutBuilder(
+                builder: (context, box) => Stack(
+                  children: _segments(
+                    box.maxWidth,
+                    .34,
+                    .5,
+                    _colour(average),
+                  ),
+                ),
+              ),
+            ),
+            Text('34 of 50 marked · 50 still to come', style: _meta),
+          ],
         ),
       ),
     );

@@ -315,28 +315,29 @@ ThemeData buildTheme() {
   );
 }
 
-/// Every switch in the app: ink when on, an ink outline round a card-coloured
-/// track when off.
+/// Every switch in the app, unmistakable either way in both palettes: on is
+/// a filled ink track with a full-size reversed-out thumb at the right; off
+/// is an empty card-coloured track drawn as an ink outline, with a smaller
+/// grey thumb at the left.
 ///
-/// Material's stock off state is a grey thumb on a grey track, which reads as
-/// disabled rather than as "off". Ink rather than the highlighter for "on",
-/// because the highlighter is kept for the one primary action on a screen.
+/// Round 5 drew the off thumb full-size in ink, and next to an on switch the
+/// two read as the same heavy control pointing different ways. Now the fill,
+/// the thumb's colour, its size and its side all change together. Ink rather
+/// than the highlighter for "on", because the highlighter is kept for the one
+/// primary action on a screen.
 SwitchThemeData buildSwitchTheme() {
   bool on(Set<WidgetState> s) => s.contains(WidgetState.selected);
   return SwitchThemeData(
     thumbColor: WidgetStateProperty.resolveWith(
-      (s) => on(s) ? C.onInk : C.ink,
+      (s) => on(s) ? C.onInk : C.muted,
     ),
     trackColor: WidgetStateProperty.resolveWith(
       (s) => on(s) ? C.ink : C.card,
     ),
     trackOutlineColor: WidgetStatePropertyAll(C.ink),
     trackOutlineWidth: const WidgetStatePropertyAll(1.5),
-    // An empty icon in both states: Material shrinks the thumb when off and no
-    // icon is set, which made on and off look like two different controls.
-    // With one, the thumb is the same size either way; only the side and the
-    // fill change.
-    thumbIcon: const WidgetStatePropertyAll(Icon(null)),
+    // No thumb icon, so Material keeps its own size change: 24px on, 16px
+    // off. The smaller thumb is half of what makes off read as empty.
     overlayColor: const WidgetStatePropertyAll(Colors.transparent),
   );
 }

@@ -154,83 +154,65 @@ class _EditSheetState extends State<_EditSheet> {
             ),
           ),
           const SizedBox(height: kFormGap),
-          // Exactly the add panel's row: the date at twice the width of each
-          // number, every box the shared field height. Then the one field
-          // only an existing assignment has, the score, with what the numbers
-          // add up to beside it. Marks before score: "out of 40, I got 34".
-          // Weighting used to sit here too and has been removed for now.
-          // The labels name the numbers, so the boxes carry no hint text.
+          // The add panel's row with the one field only an existing
+          // assignment has, the score, on the end: every number box one
+          // width, the date a box and a half. Marks before score: "out of 40,
+          // I got 34". Weighting used to sit here too and has been removed
+          // for now. What the numbers add up to is a line of its own under
+          // the row, full width, rather than a paragraph squeezed beside a box.
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             spacing: 8,
             children: [
               Expanded(
-                flex: 2,
+                flex: 3,
                 child: DueDateField(
                   value: _due,
                   onChanged: (v) => setState(() => _due = v),
                 ),
               ),
               Expanded(
+                flex: 2,
                 child: LabelledField(
                   label: 'Marks',
                   child: NumberField(
                     controller: _outOf,
+                    hint: kMarksHint,
                     semanticLabel: 'Marks the assignment is out of',
                     onChanged: (v) => setState(() => _outOfValue = v),
                   ),
                 ),
               ),
               Expanded(
+                flex: 2,
                 child: LabelledField(
                   label: 'Goal',
                   child: NumberField(
                     controller: _goal,
+                    hint: kGoalHint,
                     semanticLabel: 'Goal score',
                     onChanged: (v) => setState(() => _goalValue = v),
                   ),
                 ),
               ),
+              Expanded(
+                flex: 2,
+                child: LabelledField(
+                  label: 'Your score',
+                  child: NumberField(
+                    controller: _earned,
+                    hint: kScoreHint,
+                    semanticLabel: 'Your score',
+                    onChanged: (v) => setState(() => _earnedValue = v),
+                  ),
+                ),
+              ),
             ],
           ),
-          const SizedBox(height: kFormGap),
-          LayoutBuilder(
-            builder: (context, box) {
-              // One number's width, so the score lines up under the marks
-              // column's grid rather than stretching.
-              final unit = (box.maxWidth - 3 * 8) / 4;
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                spacing: 12,
-                children: [
-                  SizedBox(
-                    width: unit,
-                    child: LabelledField(
-                      label: 'Your score',
-                      child: NumberField(
-                        controller: _earned,
-                        semanticLabel: 'Your score',
-                        onChanged: (v) => setState(() => _earnedValue = v),
-                      ),
-                    ),
-                  ),
-                  // Prose, so sans: the mono data face made two sentences of
-                  // advice read as a dense log line. Ink, short, and level
-                  // with the box it explains.
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: Text(
-                        _marksNote(),
-                        style: T.emptyBody.copyWith(color: C.ink),
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-
+          const SizedBox(height: 8),
+          // Prose, so sans: the mono data face made two sentences of advice
+          // read as a dense log line.
+          Text(_marksNote(), style: T.emptyBody.copyWith(color: C.ink)),
           const SizedBox(height: 18),
           Row(
             spacing: 8,
@@ -319,6 +301,12 @@ class SheetDialog extends StatelessWidget {
 /// Vertical gap between rows of fields, shared by the add panel and the edit
 /// sheet so the two forms keep one rhythm.
 const double kFormGap = 12;
+
+/// Hints for the number boxes the add panel and the edit sheet share, so an
+/// empty box says what goes in it. Short enough for the narrowest box.
+const String kMarksHint = 'e.g. 40';
+const String kGoalHint = 'e.g. 30';
+const String kScoreHint = 'e.g. 34';
 
 /// The due date, used by both the add panel and the edit sheet: the shared
 /// picker field under a plain DUE label. The field itself shows the date in

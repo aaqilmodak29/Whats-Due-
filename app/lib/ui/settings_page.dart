@@ -27,29 +27,36 @@ class SettingsPage extends StatelessWidget {
   Widget build(BuildContext context) => PageBody(
     controller: controller,
     title: 'Settings',
+    // Four groups, a wide gap between groups and a narrow one inside them:
+    // the version; how the app reads (grading, appearance); reminders; and
+    // the data on the phone (export, import, erase).
     children: [
       UpdateSection(updater: store.updater),
-      const SizedBox(height: 12),
+      const SizedBox(height: SettingsSection.groupGap),
       // Grading has a card to itself: opened, its switch and band list are
       // one group, and Appearance sharing the card made three unrelated
       // groups at one weight.
       Surface(
-        padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+        padding: SettingsSection.padding,
         child: GradingSection(store: store),
       ),
-      const SizedBox(height: 12),
+      const SizedBox(height: SettingsSection.cardGap),
       _appearance(),
-      const SizedBox(height: 12),
+      const SizedBox(height: SettingsSection.groupGap),
       BackupSections(store: store),
     ],
   );
 
-  /// The theme switch, laid out like Reminders: the title, what the switch
-  /// does beneath it, and the switch beside both. The switch alone says
-  /// which theme is in force, so the page says it once.
+  /// The theme switch, laid out like Reminders and Grading: the title, the
+  /// state in mono beneath it ("DARK MODE OFF", as Grading says "LETTER
+  /// GRADES ON"), and the switch beside both, so off is said in words as
+  /// well as by the empty track.
   Widget _appearance() => SettingsSection(
     title: 'Appearance',
-    status: Text('Dark mode', style: T.body),
+    status: Text(
+      store.darkMode ? 'DARK MODE ON' : 'DARK MODE OFF',
+      style: T.count(C.ink),
+    ),
     trailing: LabelledSwitch(
       label: 'Dark mode',
       value: store.darkMode,

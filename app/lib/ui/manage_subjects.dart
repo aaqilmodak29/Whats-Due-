@@ -68,11 +68,15 @@ class _ManageSubjectsState extends State<ManageSubjects> {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(14, 12, 14, 4),
-          // The counts are a table: one right-aligned column for open work
-          // and one for submitted, headed once here, so every row's numbers
-          // line up however long the subject's name is.
+        // The counts are a table: one right-aligned column for open work and
+        // one for submitted, headed once here, so every row's numbers line up
+        // however long the subject's name is. A rule closes the heading and
+        // a hairline sits between rows, so the panel reads as one list.
+        Container(
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
+          decoration: BoxDecoration(
+            border: Border(bottom: BorderSide(color: C.rule)),
+          ),
           child: Row(
             spacing: _kRowGap,
             children: [
@@ -89,10 +93,10 @@ class _ManageSubjectsState extends State<ManageSubjects> {
           ),
         ),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14),
+          padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
           child: store.subjects.isEmpty
               ? Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  padding: const EdgeInsets.only(top: 10),
                   child: Text(
                     'No subjects yet. Name one below.',
                     style: T.emptyBody,
@@ -101,10 +105,17 @@ class _ManageSubjectsState extends State<ManageSubjects> {
               : Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    for (final s in store.subjects)
-                      _SubjectRow(store: store, subject: s),
+                    for (final (i, s) in store.subjects.indexed)
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          border: i == 0
+                              ? null
+                              : Border(top: BorderSide(color: C.rule)),
+                        ),
+                        child: _SubjectRow(store: store, subject: s),
+                      ),
                     Padding(
-                      padding: const EdgeInsets.only(top: 6, bottom: 4),
+                      padding: const EdgeInsets.only(top: 4),
                       child: Text(
                         'Tap a colour to change it. Deleting keeps its work.',
                         style: T.emptyBody,
@@ -120,7 +131,6 @@ class _ManageSubjectsState extends State<ManageSubjects> {
         // Below a rule, so the form reads as apart from the list.
         Container(
           width: double.infinity,
-          margin: const EdgeInsets.only(top: 10),
           padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
           decoration: BoxDecoration(
             border: Border(top: BorderSide(color: C.rule)),
@@ -160,11 +170,12 @@ class _ManageSubjectsState extends State<ManageSubjects> {
                   ],
                 ),
               ),
+              // The palette spread across the panel's width rather than
+              // bunched at the left with a gap at the end.
               LabelledField(
                 label: 'Colour',
-                child: Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     for (final c in kPalette)
                       Tap(
@@ -235,7 +246,7 @@ class _SubjectRowState extends State<_SubjectRow> {
     final submitted = count - open;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         spacing: _kRowGap,
         children: [
