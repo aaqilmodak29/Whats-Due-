@@ -4,12 +4,12 @@ import '../filters.dart';
 import '../models.dart';
 import '../store.dart';
 import '../theme.dart';
+import '../updater.dart';
 import 'add_panel.dart';
 import 'assignment_card.dart';
 import 'atoms.dart';
 import 'horizon.dart';
 import 'manage_subjects.dart';
-import 'update_section.dart';
 
 /// Filter sentinels, matching the web app's `filter` values.
 const filterAll = 'all';
@@ -102,19 +102,23 @@ class AssignmentsPage extends StatelessWidget {
   /// Every filter but the subject one: search, due window and, on the Open
   /// tab, the day picked on the strip. Shared by the list and every count on
   /// the page, so a number never describes something other than what shows.
-  List<Assignment> _narrow(List<Assignment> list, {bool byDay = true}) =>
-      applyFilters(
-        list
-            .where(
-              (a) =>
-                  !byDay ||
-                  view.selectedDue == null ||
-                  a.due == view.selectedDue,
-            )
-            .toList(),
-        query: view.query,
-        window: view.window,
-      );
+  /// [window] stands in for the current due window, so the window menu can
+  /// count what each choice would show.
+  List<Assignment> _narrow(
+    List<Assignment> list, {
+    bool byDay = true,
+    DueWindow? window,
+    bool anyWindow = false,
+  }) => applyFilters(
+    list
+        .where(
+          (a) =>
+              !byDay || view.selectedDue == null || a.due == view.selectedDue,
+        )
+        .toList(),
+    query: view.query,
+    window: anyWindow ? null : (window ?? view.window),
+  );
 
   bool _inSubject(Assignment a, String filter) => switch (filter) {
     filterAll => true,
@@ -141,6 +145,15 @@ class AssignmentsPage extends StatelessWidget {
     int inSubject(String filter) =>
         chipPool.where((a) => _inSubject(a, filter)).length;
 
+    // What each due window would show on the current tab, every other filter
+    // as it is: the same count the tab would carry after picking it.
+    int inWindow(DueWindow? w) => _narrow(
+      _showSubmitted ? store.submitted : active,
+      byDay: !_showSubmitted,
+      window: w,
+      anyWindow: w == null,
+    ).where((a) => _inSubject(a, view.filter)).length;
+
     final overdue = open.where((a) {
       final n = daysUntil(a.due);
       return n != null && n < 0;
@@ -155,54 +168,61 @@ class AssignmentsPage extends StatelessWidget {
     final hasWork = store.items.isNotEmpty;
     final query = view.query.trim();
 
+    // A panel opened from the title row takes the place of the page's
+    // filters: the form sits straight under the title with the list below it,
+    // and closing it puts the strip and the filters back.
+    final panel = view.showAdd || view.showManage;
+
     // The strip is the page's fixed early warning, so once anything is
-    // tracked it holds its place on every tab and through every filter: the
-    // page no longer jumps by a chart's height when a tab or search changes.
-    // With nothing tracked at all it would chart an empty fortnight above the
-    // empty state, so it waits until there is something to chart.
-    final showStrip = hasWork;
+    // tracked it holds its place on every tab and through every filter. With
+    // nothing tracked it would chart an empty fortnight above the empty state.
+    final showStrip = hasWork && !panel;
 
-    // A subject filter says how much of the whole it is showing, so the ALL
-    // chip's larger count reads as the total rather than a contradiction.
     final narrowed = view.filter != filterAll;
-
-    // Any filter at all: the summary then says how much of the open work is
-    // showing rather than restating counts of a list that is not on screen.
     final filtered =
         narrowed ||
         query.isNotEmpty ||
         view.window != null ||
         view.selectedDue != null;
 
+    // What the list is showing, before the day filter: the strip fades every
+    // bar with none of it, so a search that matches nothing does not leave
+    // red bars warning about work the list has hidden.
+    final inView = filtered
+        ? _narrow(
+            active,
+            byDay: false,
+          ).where((a) => _inSubject(a, view.filter)).toSet()
+        : null;
+
+    // The subject chips stay while subjects are being managed: they are what
+    // the panel edits, so a subject just added shows up at once.
+    final chips = store.subjects.isNotEmpty && !view.showAdd
+        ? _subjectChips(inSubject, narrowed)
+        : const <Widget>[];
+    final showChips = chips.isNotEmpty;
+    final showWindow = hasWork && !panel;
+
     return PageBody(
       controller: controller,
       title: "What's due",
-      // On Submitted the triage counts describe a list that is not showing,
-      // so the line names what is. Both follow the filters, like the tabs.
-      // Nothing tracked at all: a line of zeroes would only restate the
-      // empty state below it.
-      // A zero says nothing the open count does not, so only counts that are
-      // there make the line.
-      eyebrow: !hasWork
-          ? null
-          : _showSubmitted
-          ? '${submitted.length} submitted · ${open.length} open'
-          : [
-              if (overdue > 0) '$overdue overdue',
-              if (thisWeek > 0) '$thisWeek due within 7 days',
-              filtered
-                  ? '${open.length} of ${active.length} open'
-                  : '${open.length} open',
-            ].join(' · '),
-      // Ink, not red or muted: both fail contrast as 10px mono on the paper
-      // ground. Urgency is carried by the cards' rails and countdowns.
-      eyebrowColor: C.ink,
-      // A waiting update rides in the title row beside the +, rather than
-      // costing a full-width band above the filters.
+      // The triage counts ride in the title row rather than on a line of their
+      // own, and a waiting update is a notice at the head of them: a dot and a
+      // link, never a second filled button beside the +. A zero says nothing,
+      // so only counts that are there make it; how much is open is on the tab.
       action: Row(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        spacing: 14,
         children: [
-          UpdateBanner(updater: store.updater, onTap: onOpenSettings),
+          _HeaderNotes(
+            store: store,
+            lines: [
+              if (overdue > 0) '$overdue overdue',
+              if (thisWeek > 0) '$thisWeek due within 7 days',
+            ],
+            onUpdate: onOpenSettings,
+          ),
           IconSquare(
             icon: view.showAdd ? Icons.close : Icons.add,
             open: view.showAdd,
@@ -214,9 +234,8 @@ class AssignmentsPage extends StatelessWidget {
         ],
       ),
       children: [
-        // Straight under the + that opened it, ahead of the strip and the
-        // filters, so the form is the first thing on the page rather than
-        // something found below a chart.
+        // Straight under the + that opened it, with the strip and the filters
+        // stepped aside, so the form is the first thing on the page.
         if (view.showAdd) ...[
           AddPanel(
             store: store,
@@ -238,15 +257,17 @@ class AssignmentsPage extends StatelessWidget {
           ),
           const SizedBox(height: 16),
         ],
+        if (view.showManage) ...[
+          ManageSubjects(store: store),
+          const SizedBox(height: 12),
+        ],
 
-        // Back on the page it filters, so tapping a day no longer means
-        // crossing a page boundary to see the result.
         if (showStrip) ...[
           HorizonStrip(
             active: active,
             // Display only: every bar keeps its count and its tap, and the
-            // ones outside the chosen subject fade.
-            focus: narrowed ? (a) => _inSubject(a, view.filter) : null,
+            // ones with nothing the list is showing fade.
+            focus: inView?.contains,
             selectedDue: view.selectedDue,
             onSelect: (due) => onView(
               view.copyWith(
@@ -260,117 +281,45 @@ class AssignmentsPage extends StatelessWidget {
           const SizedBox(height: 10),
         ],
 
-        // ---- filters: when, then which subject ----
-        // The due windows are plain words with the active one filled. They
-        // scroll rather than wrap, and all six fit a 430px phone.
-        if (hasWork)
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              spacing: 4,
-              children: [
-                _Chip(
-                  label: 'Any time',
-                  plain: true,
-                  on: view.window == null,
-                  onTap: () => onView(
-                    view.copyWith(clearWindow: true, clearOpenId: true),
+        // ---- one filter row: when, then which subject ----
+        // The due window is one control that opens its choices; the subjects
+        // are a single run that scrolls sideways under a fade rather than
+        // wrapping onto more rows. A subject with nothing in the current tab
+        // steps out of the run (the selected one never does); while subjects
+        // are being managed every one shows.
+        if (showWindow || showChips) ...[
+          Row(
+            children: [
+              if (showWindow) ...[
+                _WindowControl(
+                  window: view.window,
+                  count: inWindow,
+                  onPick: (w) => onView(
+                    w == null
+                        ? view.copyWith(clearWindow: true, clearOpenId: true)
+                        : view.copyWith(window: w, clearOpenId: true),
                   ),
-                  semanticLabel: 'Show work due any time',
                 ),
-                for (final w in DueWindow.values)
-                  _Chip(
-                    label: w.label,
-                    plain: true,
-                    on: view.window == w,
-                    onTap: () => onView(
-                      view.window == w
-                          ? view.copyWith(clearWindow: true, clearOpenId: true)
-                          : view.copyWith(window: w, clearOpenId: true),
-                    ),
-                    semanticLabel: w.semanticLabel,
-                  ),
+                if (showChips) const SizedBox(width: 8),
               ],
-            ),
+              if (showChips)
+                Expanded(
+                  child: _ChipRun(chips: chips),
+                ),
+            ],
           ),
-        // Subjects wrap rather than scroll: a scrolling row always cut its
-        // last chip off mid-word at the screen edge. A subject with nothing
-        // in the current tab steps out of the run (the selected one never
-        // does), so the row only offers choices that show something. While
-        // the subjects are being managed every one shows, so a subject just
-        // added appears at once. The way to edit them closes the run, beside
-        // the chips it changes.
-        if (store.subjects.isNotEmpty) ...[
-          if (hasWork) const SizedBox(height: 4),
-          Builder(
-            builder: (context) {
-              bool offered(String filter) =>
-                  view.showManage ||
-                  view.filter == filter ||
-                  inSubject(filter) > 0;
-              final subjects = [
-                for (final s in store.subjects)
-                  if (offered(s.id))
-                    _Chip(
-                      label: s.name,
-                      count: inSubject(s.id),
-                      dot: s.swatch,
-                      on: view.filter == s.id,
-                      onTap: () => _select(s.id),
-                    ),
-                if (active.any((a) => a.subjectId == null) &&
-                    offered(filterUnfiled))
-                  _Chip(
-                    label: 'Unfiled',
-                    count: inSubject(filterUnfiled),
-                    on: view.filter == filterUnfiled,
-                    onTap: () => _select(filterUnfiled),
-                  ),
-              ];
-              return Wrap(
-                spacing: 4,
-                runSpacing: 4,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  // All is only a choice when there is something to choose
-                  // between, or a subject to get back out of.
-                  if (subjects.isNotEmpty || narrowed)
-                    _Chip(
-                      label: 'All',
-                      count: inSubject(filterAll),
-                      on: view.filter == filterAll,
-                      onTap: () => _select(filterAll),
-                    ),
-                  ...subjects,
-                  Padding(
-                    padding: const EdgeInsets.only(left: 4),
-                    child: _manageButton(),
-                  ),
-                ],
-              );
-            },
-          ),
-        ],
-        if (view.showManage) ...[
-          const SizedBox(height: 10),
-          ManageSubjects(store: store),
+          const SizedBox(height: 8),
         ],
 
-        // ---- tabs, with the search riding on the same rule ----
-        SizedBox(height: hasWork || store.subjects.isNotEmpty ? 10 : 0),
-        LayoutBuilder(
-          builder: (context, box) {
-            final search = _SearchField(
-              value: view.query,
-              onChanged: (q) =>
-                  onView(view.copyWith(query: q, clearOpenId: true)),
-            );
-            // Beside the tabs where there is room for both; on a narrow phone,
-            // or when the tab rule also has to carry the subjects link, it
-            // takes its own line above them rather than squeeze either.
-            final inline =
-                hasWork && store.subjects.isNotEmpty && box.maxWidth >= 380;
-            final tabs = Row(
+        // ---- tabs, with the subjects link and the search on the same rule ----
+        Container(
+          decoration: BoxDecoration(
+            border: Border(bottom: BorderSide(color: C.rule)),
+          ),
+          child: _SearchField(
+            value: view.query,
+            enabled: hasWork,
+            leading: Row(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.end,
               spacing: 16,
@@ -388,49 +337,11 @@ class AssignmentsPage extends StatelessWidget {
                   onTap: () => _show(AssignmentTab.submitted),
                 ),
               ],
-            );
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (hasWork && !inline) ...[search, const SizedBox(height: 10)],
-                Container(
-                  decoration: BoxDecoration(
-                    border: Border(bottom: BorderSide(color: C.rule)),
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      if (inline) ...[
-                        tabs,
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.only(bottom: 6),
-                            child: search,
-                          ),
-                        ),
-                      ] else
-                        // Scrolls rather than overflows on the narrowest
-                        // phones; at 360px and up both tabs fit.
-                        Expanded(
-                          child: SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: tabs,
-                          ),
-                        ),
-                      // With no subjects there is no chip row to close, so the
-                      // way to add one rides on the tab rule instead.
-                      if (store.subjects.isEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(left: 12, bottom: 6),
-                          child: _manageButton(),
-                        ),
-                    ],
-                  ),
-                ),
-              ],
-            );
-          },
+            ),
+            trailing: _manageButton(),
+            onChanged: (q) =>
+                onView(view.copyWith(query: q, clearOpenId: true)),
+          ),
         ),
 
         if (view.selectedDue != null) _dayFilterBar(),
@@ -438,7 +349,7 @@ class AssignmentsPage extends StatelessWidget {
         // ---- list ----
         const SizedBox(height: 8),
         if (shown.isEmpty)
-          _empty()
+          _FillRest(child: _empty())
         else
           Column(
             spacing: 8,
@@ -458,11 +369,8 @@ class AssignmentsPage extends StatelessWidget {
             ],
           ),
 
-        // A short list otherwise ends in bare paper, which reads as one that
-        // failed to load. The line under it says what it is a part of, from
-        // the same counts as the tabs and chips.
-        // Left-aligned with the cards above it, like every other hint on
-        // the page.
+        // What a filtered or submitted list is, and the way back to all of
+        // it. Left-aligned with the cards above it, like every hint.
         if (shown.isNotEmpty && (_showSubmitted || narrowed)) ...[
           const SizedBox(height: 12),
           Text(
@@ -482,6 +390,44 @@ class AssignmentsPage extends StatelessWidget {
         ],
       ],
     );
+  }
+
+  /// All, then each subject with something in the current tab, then Unfiled.
+  List<Widget> _subjectChips(int Function(String) inSubject, bool narrowed) {
+    bool offered(String filter) =>
+        view.showManage || view.filter == filter || inSubject(filter) > 0;
+    final subjects = [
+      for (final s in store.subjects)
+        if (offered(s.id))
+          _Chip(
+            label: s.name,
+            count: inSubject(s.id),
+            dot: s.swatch,
+            on: view.filter == s.id,
+            onTap: () => _select(s.id),
+          ),
+      if (store.active.any((a) => a.subjectId == null) &&
+          offered(filterUnfiled))
+        _Chip(
+          label: 'Unfiled',
+          count: inSubject(filterUnfiled),
+          on: view.filter == filterUnfiled,
+          onTap: () => _select(filterUnfiled),
+        ),
+    ];
+    return [
+      // All is only a choice when there is something to choose between, or a
+      // subject to get back out of. It carries no count: how many are showing
+      // is on the tab, once.
+      if (subjects.isNotEmpty || narrowed)
+        _Chip(
+          label: 'All',
+          on: view.filter == filterAll,
+          onTap: () => _select(filterAll),
+          semanticLabel: 'Show every subject',
+        ),
+      ...subjects,
+    ];
   }
 
   Widget _manageButton() => EyebrowButton(
@@ -606,12 +552,13 @@ class AssignmentsPage extends StatelessWidget {
 }
 
 /// The "nothing here" message, with the one control that undoes whatever
-/// emptied the list when there is a single obvious one. The same action as
-/// the control that set it, offered where the eye already is.
+/// emptied the list when there is a single obvious one.
 ///
-/// Set on the page rather than in a white card: a lone box over bare paper
-/// read as a list that failed to load. Unboxed, under an icon and with room
-/// above it, it reads as the page saying there is nothing to show.
+/// The app's one empty-state pattern, the same as Grades: an icon, what
+/// happened, one sentence and at most one action, centred, unboxed on the
+/// page, and set in the middle of the space under the filters by [_FillRest].
+/// Undoing a filter is an inline action, so it is an underlined link; only
+/// the first assignment on a fresh install is the page's lime call to action.
 class _Empty extends StatelessWidget {
   const _Empty({
     required this.icon,
@@ -631,36 +578,305 @@ class _Empty extends StatelessWidget {
   /// Lime, for the one case where this is the page's main call to action.
   final bool primary;
 
-  // Left-aligned with the list it stands in for, and with the hints under a
-  // short list, so the page keeps one edge whatever state it is in.
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(4, 28, 4, 24),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      spacing: 14,
+    padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 32, color: C.ink),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(head, style: T.emptyHead),
-              const SizedBox(height: 4),
-              Text(body, style: T.emptyBody.copyWith(color: C.ink)),
-              if (action != null) ...[
-                const SizedBox(height: 14),
-                GhostButton(
-                  label: action!,
-                  filled: primary,
-                  onPressed: onAction!,
+        Icon(icon, size: 40, color: C.ink),
+        const SizedBox(height: 14),
+        Text(head, style: T.emptyHead, textAlign: TextAlign.center),
+        const SizedBox(height: 5),
+        Text(
+          body,
+          style: T.emptyBody.copyWith(color: C.ink),
+          textAlign: TextAlign.center,
+        ),
+        if (action != null) ...[
+          SizedBox(height: primary ? 16 : 8),
+          GhostButton(
+            label: action!,
+            filled: primary,
+            quiet: !primary,
+            onPressed: onAction!,
+          ),
+        ],
+      ],
+    ),
+  );
+}
+
+/// Centres [child] in whatever height is left between where it starts and the
+/// bottom of the page, so an empty state sits in the middle of the free space
+/// rather than hugging the filters with bare paper below it.
+///
+/// The page is one scrolling list, which gives its children no height to
+/// centre in, so this measures its own offset once laid out and sizes itself
+/// to the rest of the viewport. Taller content simply grows past it.
+class _FillRest extends StatefulWidget {
+  const _FillRest({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_FillRest> createState() => _FillRestState();
+}
+
+class _FillRestState extends State<_FillRest> {
+  double _height = 0;
+
+  /// The list's own bottom padding, which the free space does not include.
+  static const _pagePadding = 32.0;
+
+  void _measure(Duration _) {
+    if (!mounted) return;
+    final box = context.findRenderObject();
+    final scrollable = Scrollable.maybeOf(context);
+    if (box is! RenderBox || !box.attached || scrollable == null) return;
+    final viewport = scrollable.context.findRenderObject();
+    if (viewport is! RenderBox) return;
+    final position = scrollable.position;
+    final top =
+        box.localToGlobal(Offset.zero, ancestor: viewport).dy +
+        position.pixels;
+    final rest = position.viewportDimension - top - _pagePadding;
+    final next = rest < 0 ? 0.0 : rest;
+    if ((next - _height).abs() > 1) setState(() => _height = next);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback(_measure);
+    return ConstrainedBox(
+      constraints: BoxConstraints(minHeight: _height),
+      child: Center(child: widget.child),
+    );
+  }
+}
+
+/// The due-window control: the window in force as one chip, which opens the
+/// same choices as a menu anchored under it, each with how many it would show.
+/// Filled ink when a window is narrowing the list, like an active chip.
+class _WindowControl extends StatelessWidget {
+  const _WindowControl({
+    required this.window,
+    required this.count,
+    required this.onPick,
+  });
+
+  final DueWindow? window;
+  final int Function(DueWindow?) count;
+
+  /// Null for any time.
+  final ValueChanged<DueWindow?> onPick;
+
+  static const _any = -1;
+
+  Future<void> _open(BuildContext context) async {
+    final box = context.findRenderObject()! as RenderBox;
+    final overlay =
+        Overlay.of(context).context.findRenderObject()! as RenderBox;
+    final topLeft = box.localToGlobal(
+      Offset(0, box.size.height + 4),
+      ancestor: overlay,
+    );
+    final picked = await showMenu<int>(
+      context: context,
+      position: RelativeRect.fromRect(
+        topLeft & const Size(1, 1),
+        Offset.zero & overlay.size,
+      ),
+      color: C.card,
+      elevation: 0,
+      shape: RoundedRectangleBorder(side: BorderSide(color: C.ink, width: 1.5)),
+      menuPadding: const EdgeInsets.symmetric(vertical: 4),
+      constraints: const BoxConstraints(minWidth: 200),
+      items: [
+        _item(_any, 'Any time', 'Show work due any time', window == null),
+        for (final w in DueWindow.values)
+          _item(w.index, w.label, w.semanticLabel, window == w),
+      ],
+    );
+    if (picked == null) return;
+    // Picking the window already in force clears it, as tapping an active
+    // chip did.
+    final w = picked == _any ? null : DueWindow.values[picked];
+    onPick(w == window ? null : w);
+  }
+
+  PopupMenuItem<int> _item(int value, String label, String said, bool on) {
+    final n = count(value == _any ? null : DueWindow.values[value]);
+    return PopupMenuItem<int>(
+      value: value,
+      height: 36,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Semantics(
+        label: said,
+        selected: on,
+        child: ExcludeSemantics(
+          child: Container(
+            color: on ? C.ink : null,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    label.toUpperCase(),
+                    style: T.chip(on ? C.onInk : C.ink),
+                  ),
                 ),
+                Text('$n', style: T.chip(on ? C.onInk : C.ink)),
               ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final on = window != null;
+    final label = window?.label ?? 'Any time';
+    return Builder(
+      builder: (context) => Tap(
+        onTap: () => _open(context),
+        semanticLabel: on
+            ? 'Due within ${window!.label}, change the due window'
+            : 'Due any time, change the due window',
+        child: Container(
+          // A chip like the subject ones beside it, with the chevron that
+          // says it opens rather than toggles.
+          color: on ? C.ink : C.card,
+          padding: const EdgeInsets.fromLTRB(8, 4, 4, 4),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            spacing: 2,
+            children: [
+              Text(label.toUpperCase(), style: T.chip(on ? C.onInk : C.ink)),
+              Icon(
+                Icons.expand_more,
+                size: 13,
+                color: on ? C.onInk : C.ink,
+              ),
             ],
           ),
         ),
-      ],
-    ),
+      ),
+    );
+  }
+}
+
+/// The subject chips as one sideways-scrolling run, fading out at the right
+/// edge so a chip that runs past it reads as "more this way" rather than as a
+/// label cut off mid-word.
+class _ChipRun extends StatelessWidget {
+  const _ChipRun({required this.chips});
+
+  final List<Widget> chips;
+
+  static const _fade = 14.0;
+
+  @override
+  Widget build(BuildContext context) => Stack(
+    children: [
+      SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Padding(
+          // Room past the last chip, so scrolled to the end it clears the fade.
+          padding: const EdgeInsets.only(right: _fade),
+          child: Row(spacing: 4, children: chips),
+        ),
+      ),
+      Positioned(
+        top: 0,
+        bottom: 0,
+        right: 0,
+        width: _fade,
+        child: IgnorePointer(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [C.paper.withValues(alpha: 0), C.paper],
+              ),
+            ),
+          ),
+        ),
+      ),
+    ],
+  );
+}
+
+/// The title row's notes: a waiting update first, as a link with a marker dot,
+/// then the triage counts. Right-aligned against the +.
+class _HeaderNotes extends StatelessWidget {
+  const _HeaderNotes({
+    required this.store,
+    required this.lines,
+    required this.onUpdate,
+  });
+
+  final AppStore store;
+  final List<String> lines;
+  final VoidCallback onUpdate;
+
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: store.updater,
+    builder: (context, _) {
+      final release = store.updater.release;
+      if (release == null && lines.isEmpty) return const SizedBox.shrink();
+      // The title keeps its one line: on a narrow phone the counts wrap
+      // instead, inside what the wordmark and the + leave over.
+      final room = MediaQuery.sizeOf(context).width - 32 - 170 - 54;
+      return ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: room < 80 ? 80 : room),
+        child: _notes(release),
+      );
+    },
+  );
+
+  Widget _notes(Release? release) => Column(
+    crossAxisAlignment: CrossAxisAlignment.end,
+    spacing: 2,
+    children: [
+      if (release != null)
+        Tap(
+          onTap: onUpdate,
+          semanticLabel:
+              'Version ${release.version} is available, tap to install',
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            spacing: 6,
+            children: [
+              // The highlighter on its own vanishes against the paper,
+              // so the dot carries an ink ring.
+              Container(
+                width: 9,
+                height: 9,
+                decoration: BoxDecoration(
+                  color: C.mark,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: C.ink),
+                ),
+              ),
+              Flexible(
+                child: Text(
+                  'Update ${release.version}'.toUpperCase(),
+                  style: T.link,
+                ),
+              ),
+            ],
+          ),
+        ),
+      for (final l in lines)
+        Text(
+          l.toUpperCase(),
+          style: T.count(C.ink),
+          textAlign: TextAlign.right,
+        ),
+    ],
   );
 }
 
@@ -675,20 +891,16 @@ class _Chip extends StatelessWidget {
     this.count,
     this.dot,
     this.semanticLabel,
-    this.plain = false,
   });
 
   final String label;
   final int? count;
 
-  /// No fill when off: a word on the page rather than a chip.
-  final bool plain;
   final bool on;
   final VoidCallback onTap;
   final Color? dot;
 
-  /// Overrides the spoken text. A due window reads as `7 DAYS`, which on its
-  /// own is indistinguishable from a countdown.
+  /// Overrides the spoken text, for the chip that carries no count.
   final String? semanticLabel;
 
   @override
@@ -696,11 +908,11 @@ class _Chip extends StatelessWidget {
     onTap: onTap,
     semanticLabel: semanticLabel ?? 'Filter by $label, $count shown',
     child: Container(
-      color: on ? C.ink : (plain ? null : C.card),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      color: on ? C.ink : C.card,
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
       child: Row(
         mainAxisSize: MainAxisSize.min,
-        spacing: 6,
+        spacing: 5,
         children: [
           if (dot != null) Dot(dot!),
           Text(
@@ -737,16 +949,35 @@ class _Tab extends StatelessWidget {
   );
 }
 
-/// The title search.
+/// The tab rule: the tabs, then the subjects link and the list search.
 ///
-/// Stateful only to hold its own controller: rebuilding a [TextField] with a
+/// Folded to a search glyph until it is used, so the tab rule has room for
+/// the tabs and the subjects link; focused or holding a query it opens to the
+/// rest of the rule, and the link steps aside until it folds again.
+///
+/// Stateful to hold its own controller: rebuilding a [TextField] with a
 /// freshly constructed one on every keystroke resets the cursor to the start,
 /// which makes the field unusable after the second character.
 class _SearchField extends StatefulWidget {
-  const _SearchField({required this.value, required this.onChanged});
+  const _SearchField({
+    required this.value,
+    required this.onChanged,
+    required this.leading,
+    required this.trailing,
+    this.enabled = true,
+  });
+
+  /// The tabs. On the narrowest phones they scroll rather than overflow.
+  final Widget leading;
 
   final String value;
   final ValueChanged<String> onChanged;
+
+  /// The subjects link, shown while the search is folded.
+  final Widget trailing;
+
+  /// With nothing tracked there is nothing to search, so only the link shows.
+  final bool enabled;
 
   @override
   State<_SearchField> createState() => _SearchFieldState();
@@ -754,34 +985,98 @@ class _SearchField extends StatefulWidget {
 
 class _SearchFieldState extends State<_SearchField> {
   late final _controller = TextEditingController(text: widget.value);
+  final _focus = FocusNode();
+
+  static const _folded = 34.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _focus.addListener(() => setState(() {}));
+  }
 
   @override
   void didUpdateWidget(_SearchField old) {
     super.didUpdateWidget(old);
-    // Cleared from elsewhere on the page, e.g. the empty state's button.
+    // Cleared from elsewhere on the page, e.g. the empty state's link.
     if (widget.value != _controller.text) _controller.text = widget.value;
   }
 
   @override
   void dispose() {
     _controller.dispose();
+    _focus.dispose();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) => TextField(
+  Widget build(BuildContext context) {
+    final open =
+        widget.enabled && (_focus.hasFocus || _controller.text.isNotEmpty);
+    final link = Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: widget.trailing,
+    );
+    final tabs = SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: widget.leading,
+    );
+    if (!widget.enabled) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [Expanded(child: tabs), const SizedBox(width: 12), link],
+      );
+    }
+    // Its own semantics node, sized to the field: left to merge upwards it
+    // took the whole tab rule as its bounds, and the contrast check then read
+    // the paper either side of it as the text's background.
+    final field = Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Semantics(container: true, child: _field(open)),
+    );
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        if (open) ...[
+          Flexible(child: tabs),
+          const SizedBox(width: 12),
+          Expanded(child: field),
+        ] else ...[
+          Expanded(child: tabs),
+          const SizedBox(width: 12),
+          link,
+          const SizedBox(width: 12),
+          SizedBox(width: _folded, child: field),
+        ],
+      ],
+    );
+  }
+
+  Widget _field(bool open) => TextField(
     controller: _controller,
+    focusNode: _focus,
     style: T.input,
     textInputAction: TextInputAction.search,
-    onChanged: widget.onChanged,
+    onChanged: (q) {
+      widget.onChanged(q);
+      setState(() {});
+    },
     // No wrapping Semantics here. An ExcludeSemantics around the field takes
     // the clear button's label with it, leaving a control a screen reader
-    // cannot name — the hint is what the field announces anyway.
+    // cannot name — the hint is what the field announces anyway, folded or
+    // not, so it stays set and is only painted once there is room for it.
     decoration: fieldDecoration(hint: 'Search assignments').copyWith(
-      // Compact, to sit on the tab rule beside the tabs rather than take a
-      // full-width row of its own above them.
-      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      // Unfilled, with an ink outline: part of the tab rule rather than a
+      // white box on it, outlined like the app's other secondary controls,
+      // and the typed text reads against the paper.
+      filled: false,
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.zero,
+        borderSide: BorderSide(color: C.ink),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       hintMaxLines: 1,
+      hintStyle: open ? null : T.input.copyWith(color: Colors.transparent),
       prefixIcon: Icon(Icons.search, size: 17, color: C.ink),
       prefixIconConstraints: const BoxConstraints(minWidth: 30),
       suffixIcon: _controller.text.isEmpty
