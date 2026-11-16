@@ -124,7 +124,7 @@ class _BackupSectionsState extends State<BackupSections> {
 
     return Column(
       children: [
-        _Section(
+        SettingsSection(
           title: 'Reminders',
           // The state sits under the title and the switch beside both, the
           // way a settings row reads, rather than on a line of its own.
@@ -157,7 +157,7 @@ class _BackupSectionsState extends State<BackupSections> {
             ),
             ?_remindersWarning(),
             const SizedBox(height: 4),
-            // Both are checks rather than settings, so neither is boxed.
+            // Checks rather than the section's main action, so links.
             Wrap(
               spacing: 12,
               children: [
@@ -188,7 +188,7 @@ class _BackupSectionsState extends State<BackupSections> {
         ),
         const SizedBox(height: 12),
 
-        _Section(
+        SettingsSection(
           title: 'Export',
           children: [
             Text(
@@ -223,6 +223,7 @@ class _BackupSectionsState extends State<BackupSections> {
                     }
                   },
                 ),
+                // The aside beside the section's main action: a link.
                 GhostButton(
                   label: 'Copy to clipboard',
                   quiet: true,
@@ -240,7 +241,7 @@ class _BackupSectionsState extends State<BackupSections> {
         ),
         const SizedBox(height: 12),
 
-        _Section(
+        SettingsSection(
           title: 'Import',
           children: [
             // Merge and Replace only appear once there is something to import,
@@ -286,9 +287,10 @@ class _BackupSectionsState extends State<BackupSections> {
                   },
                 ),
                 if (_paste.text.trim().isNotEmpty) ...[
+                  // Outlined, not the highlighter: Update now keeps the page's
+                  // one lime button.
                   GhostButton(
                     label: 'Merge',
-                    filled: true,
                     onPressed: () => _runImport(merge: true),
                   ),
                   GhostButton(
@@ -312,7 +314,7 @@ class _BackupSectionsState extends State<BackupSections> {
         ),
         const SizedBox(height: 12),
 
-        _Section(
+        SettingsSection(
           accent: C.red,
           title: 'Danger',
           children: [
@@ -348,10 +350,15 @@ class _BackupSectionsState extends State<BackupSections> {
 /// A Settings section. Plain by default; only Danger carries a coloured
 /// rule, so a coloured rule on this page always means the same thing.
 ///
+/// Actions follow one rule across the page: the highlighter for the page's
+/// one primary (Update now), an outlined ink box for a section's own action,
+/// and an underlined link for a check or an aside beside it.
+///
 /// A section with a switch puts it beside the title, with the state it is in
 /// ([status]) underneath, so a toggle reads as one settings row.
-class _Section extends StatelessWidget {
-  const _Section({
+class SettingsSection extends StatelessWidget {
+  const SettingsSection({
+    super.key,
     required this.title,
     required this.children,
     this.accent,
@@ -388,8 +395,10 @@ class _Section extends StatelessWidget {
             ?trailing,
           ],
         ),
-        const SizedBox(height: 8),
-        ...children,
+        if (children.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          ...children,
+        ],
       ],
     ),
   );

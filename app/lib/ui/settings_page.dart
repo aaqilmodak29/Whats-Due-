@@ -30,48 +30,31 @@ class SettingsPage extends StatelessWidget {
     children: [
       UpdateSection(updater: store.updater),
       const SizedBox(height: 12),
-      // The two one-line preferences share a card: each alone was a whole
-      // card for a single row.
+      // Grading has a card to itself: opened, its switch and band list are
+      // one group, and Appearance sharing the card made three unrelated
+      // groups at one weight.
       Surface(
         padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            GradingSection(store: store),
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Container(height: 1, color: C.rule),
-            ),
-            _appearance(),
-          ],
-        ),
+        child: GradingSection(store: store),
       ),
+      const SizedBox(height: 12),
+      _appearance(),
       const SizedBox(height: 12),
       BackupSections(store: store),
     ],
   );
 
-  /// The theme switch: the title with the theme in force beneath it, the way
-  /// Reminders shows its state, and the switch labelled with what it does.
-  Widget _appearance() => Row(
-    spacing: 10,
-    children: [
-      Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          spacing: 4,
-          children: [
-            Eyebrow('Appearance', color: C.ink),
-            Text(store.darkMode ? 'DARK' : 'LIGHT', style: T.count(C.ink)),
-          ],
-        ),
-      ),
-      Text('Dark mode', style: T.body),
-      LabelledSwitch(
-        label: 'Dark mode',
-        value: store.darkMode,
-        onChanged: store.setDarkMode,
-      ),
-    ],
+  /// The theme switch, laid out like Reminders: the title, what the switch
+  /// does beneath it, and the switch beside both. The switch alone says
+  /// which theme is in force, so the page says it once.
+  Widget _appearance() => SettingsSection(
+    title: 'Appearance',
+    status: Text('Dark mode', style: T.body),
+    trailing: LabelledSwitch(
+      label: 'Dark mode',
+      value: store.darkMode,
+      onChanged: store.setDarkMode,
+    ),
+    children: const [],
   );
 }

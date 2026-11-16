@@ -1378,13 +1378,13 @@ void main() {
       await tester.pumpAndSettle();
 
       // The calendar is up, and today is the selection it opened on.
-      expect(find.byType(DatePickerDialog), findsOne);
+      expect(find.byType(CalendarDatePicker), findsOne);
 
       // Proves the themed properties are actually reaching the dialog, not
       // merely correct in isolation: a perfect theme nothing calls would look
       // identical to every unit test.
       final theme = Theme.of(
-        tester.element(find.byType(DatePickerDialog)),
+        tester.element(find.byType(CalendarDatePicker)),
       ).datePickerTheme;
       const selected = {WidgetState.selected};
       expect(
@@ -2042,7 +2042,11 @@ void main() {
 
         expect(store.darkMode, isTrue);
         expect(C.isDark, isTrue);
-        expect(find.text('DARK'), findsOne);
+        // The switch itself shows the theme in force.
+        expect(
+          tester.getSemantics(find.bySemanticsLabel('Dark mode')),
+          containsSemantics(isToggled: true),
+        );
 
         // Survives a reload, which is the whole point of persisting it.
         final reloaded = AppStore();

@@ -265,9 +265,10 @@ class T {
   static TextStyle get body => _sans(14, 400, height: 1.45);
 
   /// The chosen date at the head of the date picker. Mono and upper case
-  /// ("THU 6 AUG"), the same treatment every other date in the app gets.
+  /// ("THU 6 AUG"), the same treatment every other date in the app gets, at
+  /// the size of a card title rather than a stock dialog's display type.
   static TextStyle get pickerHeadline =>
-      _mono(24, weight: 600, em: .04, height: 1.1);
+      _mono(17, weight: 600, em: .04, height: 1.25);
 
   /// A quiet text action: a secondary button with no box, underlined so it
   /// still reads as tappable. Semibold, because the regular mono's hairlines
@@ -371,12 +372,8 @@ DatePickerThemeData buildDatePickerTheme() {
       RoundedRectangleBorder(borderRadius: BorderRadius.zero),
     ),
 
-    // The header is a card like every other panel, not a block of ink: the
-    // date itself is the headline, in the page title's face.
-    headerBackgroundColor: C.card,
-    headerForegroundColor: C.ink,
-    headerHelpStyle: T.eyebrow(C.ink),
-    headerHeadlineStyle: T.pickerHeadline,
+    // The frame, headline and buttons are the app's own (DateField's sheet);
+    // this dresses the Material grid and typed-entry field inside it.
     dayStyle: T.monoInput,
     yearStyle: T.monoInput,
 
@@ -402,21 +399,23 @@ DatePickerThemeData buildDatePickerTheme() {
     // it at 60% of the text colour, which read as disabled.
     toggleButtonTextStyle: T.count(C.ink),
     subHeaderForegroundColor: C.ink,
-    // Square, mono and upper case like every other button: plain ink to back
-    // out, filled ink to commit. Callers pass upper-case labels, because a
-    // ButtonStyle cannot change case.
-    cancelButtonStyle: _pickerButton(filled: false),
-    confirmButtonStyle: _pickerButton(filled: true),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: C.field,
+      labelStyle: T.count(C.ink),
+      hintStyle: T.monoInput.copyWith(color: C.muted),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.zero,
+        borderSide: BorderSide(color: C.rule),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.zero,
+        borderSide: BorderSide(color: C.rule),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.zero,
+        borderSide: BorderSide(color: C.ink, width: 2),
+      ),
+    ),
   );
 }
-
-ButtonStyle _pickerButton({required bool filled}) => TextButton.styleFrom(
-  foregroundColor: filled ? C.onInk : C.ink,
-  backgroundColor: filled ? C.ink : Colors.transparent,
-  // The semibold mono: the regular weight's hairline strokes anti-alias to
-  // grey at this size and fail the contrast check.
-  textStyle: T.count(C.ink),
-  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-  minimumSize: const Size(0, 38),
-  shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-);

@@ -26,12 +26,11 @@ class UpdateSection extends StatelessWidget {
       final downloading = updater.status == UpdateStatus.downloading;
       final failed = updater.status == UpdateStatus.failed;
 
+      // Plain like every other Settings card; a coloured rule on this page
+      // means trouble (a failed check here, Danger further down). A lime rule
+      // over the lime Update now made two highlighter marks on one screen.
       return Surface(
-        topBorder: failed
-            ? C.red
-            : release != null
-            ? C.mark
-            : C.ink,
+        topBorder: failed ? C.red : null,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -158,8 +157,10 @@ class UpdateSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Eyebrow("What's new"),
+        Eyebrow("What's new", color: C.ink),
         const SizedBox(height: 8),
+        // Ink bullets and ink text: the highlighter vanished on white, and
+        // grey notes read as disabled.
         for (final line in lines)
           Padding(
             padding: const EdgeInsets.only(bottom: 5),
@@ -167,10 +168,12 @@ class UpdateSection extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Padding(
-                  padding: const EdgeInsets.only(top: 1, right: 8),
-                  child: Text('·', style: T.count(C.mark)),
+                  padding: const EdgeInsets.only(top: 7, right: 9),
+                  child: Dot(C.ink, size: 4),
                 ),
-                Expanded(child: Text(line, style: T.emptyBody)),
+                Expanded(
+                  child: Text(line, style: T.emptyBody.copyWith(color: C.ink)),
+                ),
               ],
             ),
           ),

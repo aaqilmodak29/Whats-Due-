@@ -123,11 +123,17 @@ class GhostButton extends StatelessWidget {
     this.icon,
     this.expand = false,
     this.quiet = false,
+    this.solid = false,
   });
 
   final String label;
   final VoidCallback onPressed;
   final bool filled;
+
+  /// Filled with [color] (ink when null) and the label reversed out: the
+  /// commit button of a dialog, where the highlighter would make a second
+  /// primary over a screen that already has one.
+  final bool solid;
 
   /// No box at all: an underlined label, for the secondary actions beside a
   /// section's main one, so a section has one button that looks like a button.
@@ -150,7 +156,15 @@ class GhostButton extends StatelessWidget {
     final line = color ?? C.ink;
     final text = Text(
       label.toUpperCase(),
-      style: quiet ? T.link : T.ghost(filled ? C.onMark : C.ink),
+      style: quiet
+          ? T.link
+          : T.ghost(
+              solid
+                  ? C.onInk
+                  : filled
+                  ? C.onMark
+                  : C.ink,
+            ),
     );
     if (quiet) {
       return Tap(
@@ -172,7 +186,11 @@ class GhostButton extends StatelessWidget {
         alignment: expand ? Alignment.center : null,
         padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
         decoration: BoxDecoration(
-          color: filled ? C.mark : Colors.transparent,
+          color: solid
+              ? line
+              : filled
+              ? C.mark
+              : Colors.transparent,
           border: Border.all(color: filled ? C.ink : line, width: 1.5),
         ),
         child: icon == null
@@ -180,7 +198,10 @@ class GhostButton extends StatelessWidget {
             : Row(
                 mainAxisSize: MainAxisSize.min,
                 spacing: 6,
-                children: [Icon(icon, size: 15, color: line), text],
+                children: [
+                  Icon(icon, size: 15, color: solid ? C.onInk : line),
+                  text,
+                ],
               ),
       ),
     );
@@ -357,26 +378,69 @@ class PageBody extends StatelessWidget {
   );
 }
 
-/// The white card carrying a "nothing here" explanation. Used by every list in
-/// the app, which all have several distinct reasons to be empty.
+/// The app's one "nothing here" pattern: an icon, a heading, one sentence and
+/// at most one action, all centred, set on the page rather than in a card (a
+/// lone box over bare paper reads as a list that failed to load).
+///
+/// [minHeight] is for a list that is the page's whole content: pass the height
+/// left below the page's chrome and the block sits in the vertical middle of
+/// it rather than hugging the top. Without it the block takes its own height.
 class EmptyState extends StatelessWidget {
-  const EmptyState({super.key, required this.head, required this.body});
+  const EmptyState({
+    super.key,
+    required this.head,
+    required this.body,
+    this.icon,
+    this.action,
+    this.onAction,
+    this.primary = false,
+    this.minHeight,
+  });
 
   final String head;
   final String body;
+  final IconData? icon;
+
+  /// The one control that undoes whatever emptied the list, or starts it.
+  final String? action;
+  final VoidCallback? onAction;
+
+  /// Lime, only where this is the screen's one call to action.
+  final bool primary;
+
+  final double? minHeight;
 
   @override
-  Widget build(BuildContext context) => Container(
-    color: C.card,
-    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 26),
-    child: Column(
-      children: [
-        Text(head, style: T.emptyHead, textAlign: TextAlign.center),
-        const SizedBox(height: 5),
-        Text(body, style: T.emptyBody, textAlign: TextAlign.center),
-      ],
-    ),
-  );
+  Widget build(BuildContext context) {
+    final block = Padding(
+      padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 32, color: C.ink),
+            const SizedBox(height: 12),
+          ],
+          Text(head, style: T.emptyHead, textAlign: TextAlign.center),
+          const SizedBox(height: 4),
+          Text(
+            body,
+            style: T.emptyBody.copyWith(color: C.ink),
+            textAlign: TextAlign.center,
+          ),
+          if (action != null && onAction != null) ...[
+            const SizedBox(height: 14),
+            GhostButton(label: action!, filled: primary, onPressed: onAction!),
+          ],
+        ],
+      ),
+    );
+    if (minHeight == null) return Center(child: block);
+    return ConstrainedBox(
+      constraints: BoxConstraints(minHeight: minHeight!),
+      child: Center(child: block),
+    );
+  }
 }
 
 /// A small numeric field, rendered in mono like every other piece of data.
@@ -420,6 +484,11 @@ class NumberField extends StatelessWidget {
           mono: true,
           dense: dense,
         ).copyWith(
+          // Undense, the [DateField]'s 45px, so a date and the numbers in one
+          // row of a form are one height of box.
+          contentPadding: dense
+              ? null
+              : const EdgeInsets.symmetric(horizontal: 10, vertical: 12.5),
           suffixText: suffix,
           suffixStyle: T.monoInput.copyWith(color: C.muted),
         ),
@@ -467,21 +536,25 @@ class _PickerLocalizations extends DefaultMaterialLocalizations {
 
   /// "THU 6 AUG" — the headline, and how a due date reads on a card.
   @override
-  String formatMediumDate(DateTime date) =>
-      '${_shortDays[date.weekday - 1]} ${date.day} '
-      '${_shortMonths[date.month - 1]}';
+  String formatMediumDate(DateTime date) => shortDate(date);
 
   /// "AUGUST 2026" above the grid.
   @override
   String formatMonthYear(DateTime date) =>
       super.formatMonthYear(date).toUpperCase();
 
-  static const _shortDays = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
-  static const _shortMonths = [
-    'JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN',
-    'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC',
-  ];
 }
+
+/// A date the way the app writes one on screen: "FRI 7 AUG".
+String shortDate(DateTime date) =>
+    '${_shortDays[date.weekday - 1]} ${date.day} '
+    '${_shortMonths[date.month - 1]}';
+
+const _shortDays = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+const _shortMonths = [
+  'JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN',
+  'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC',
+];
 
 class _PickerLocalizationsDelegate
     extends LocalizationsDelegate<MaterialLocalizations> {
@@ -500,9 +573,9 @@ class _PickerLocalizationsDelegate
 
 /// A tappable date field standing in for the web app's `<input type="date">`.
 ///
-/// Shows the raw `YYYY-MM-DD` in mono, matching how the browser renders a date
-/// input, and hands back the same string form so nothing downstream has to
-/// deal with a [DateTime].
+/// Shows a picked date the way the rest of the app writes one ("FRI 7 AUG",
+/// mono), and hands back the `YYYY-MM-DD` string form so nothing downstream
+/// has to deal with a [DateTime].
 class DateField extends StatelessWidget {
   const DateField({
     super.key,
@@ -521,18 +594,9 @@ class DateField extends StatelessWidget {
     // would otherwise capture the real date and fail the following day.
     final now = midnight();
     final current = value.isEmpty ? null : DateTime.tryParse(value);
-    final picked = await showDatePicker(
+    final picked = await showDialog<DateTime>(
       context: context,
-      initialDate: current ?? now,
-      // Wide enough for a whole degree either side of today.
-      firstDate: DateTime(now.year - 2),
-      lastDate: DateTime(now.year + 6),
-      // Upper-case labels, as on every other button in the app: a ButtonStyle
-      // can colour a label but cannot change its case.
-      helpText: 'DUE DATE',
-      cancelText: 'CANCEL',
-      confirmText: 'SET DATE',
-      builder: (context, child) => Localizations.override(
+      builder: (context) => Localizations.override(
         context: context,
         // Monday-first, with dates written the way the rest of the app writes
         // them ("THU 6 AUG", "AUGUST 2026"), whatever the device locale.
@@ -541,7 +605,13 @@ class DateField extends StatelessWidget {
           data: Theme.of(context).copyWith(
             datePickerTheme: buildDatePickerTheme(),
           ),
-          child: child!,
+          child: _DatePickerSheet(
+            initial: current ?? now,
+            today: now,
+            // Wide enough for a whole degree either side of today.
+            first: DateTime(now.year - 2),
+            last: DateTime(now.year + 6),
+          ),
         ),
       ),
     );
@@ -555,6 +625,7 @@ class DateField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final date = value.isEmpty ? null : DateTime.tryParse(value);
     // The clear button is a sibling of the pick target, not a descendant of it.
     // Nesting it inside would put it under the outer button's ExcludeSemantics
     // and make it unreachable to a screen reader.
@@ -573,11 +644,18 @@ class DateField extends StatelessWidget {
                   : 'Due date $value, tap to change',
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(10, 12, 4, 12),
+                // Empty, the hint stays the raw form the field stands for.
                 child: Text(
-                  value.isEmpty ? 'yyyy-mm-dd' : value,
+                  value.isEmpty
+                      ? 'yyyy-mm-dd'
+                      : date == null
+                      ? value
+                      : shortDate(date),
                   style: T.monoInput.copyWith(
                     color: value.isEmpty ? C.muted : C.ink,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ),
@@ -596,6 +674,169 @@ class DateField extends StatelessWidget {
     );
     if (label == null) return field;
     return LabelledField(label: label!, child: field);
+  }
+}
+
+/// The date picker: a sheet anchored to the bottom like the app's other
+/// dialogs, with the chosen date as its headline, Material's calendar grid in
+/// the middle and the app's own buttons at the foot.
+///
+/// The grid and the typed-entry field are Material's; only the frame around
+/// them is the app's, so picking, typing and validating a date work exactly as
+/// the stock dialog did.
+class _DatePickerSheet extends StatefulWidget {
+  const _DatePickerSheet({
+    required this.initial,
+    required this.today,
+    required this.first,
+    required this.last,
+  });
+
+  final DateTime initial;
+  final DateTime today;
+  final DateTime first;
+  final DateTime last;
+
+  @override
+  State<_DatePickerSheet> createState() => _DatePickerSheetState();
+}
+
+class _DatePickerSheetState extends State<_DatePickerSheet> {
+  final _form = GlobalKey<FormState>();
+  late DateTime _selected = widget.initial;
+  bool _typing = false;
+  AutovalidateMode _validate = AutovalidateMode.disabled;
+
+  void _toggleMode() => setState(() {
+    if (_typing) _form.currentState!.save();
+    _validate = AutovalidateMode.disabled;
+    _typing = !_typing;
+  });
+
+  void _confirm() {
+    if (_typing) {
+      final form = _form.currentState!;
+      if (!form.validate()) {
+        setState(() => _validate = AutovalidateMode.always);
+        return;
+      }
+      form.save();
+    }
+    Navigator.of(context).pop(_selected);
+  }
+
+  void _changed(DateTime date) => setState(() => _selected = date);
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = MaterialLocalizations.of(context);
+    return Dialog(
+      alignment: Alignment.bottomCenter,
+      insetPadding: EdgeInsets.zero,
+      backgroundColor: C.card,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+      child: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: C.ink, width: 3)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Center(
+            heightFactor: 1,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 588),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 14, 8, 6),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            spacing: 4,
+                            children: [
+                              Eyebrow('Due date', color: C.ink),
+                              Text(
+                                shortDate(_selected),
+                                style: T.pickerHeadline,
+                              ),
+                            ],
+                          ),
+                        ),
+                        Tap(
+                          onTap: _toggleMode,
+                          semanticLabel: _typing
+                              ? l10n.calendarModeButtonLabel
+                              : l10n.inputDateModeButtonLabel,
+                          child: SizedBox(
+                            width: 44,
+                            height: 44,
+                            child: Icon(
+                              _typing
+                                  ? Icons.calendar_today_outlined
+                                  : Icons.edit_outlined,
+                              size: 20,
+                              color: C.ink,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(height: 1, color: C.rule),
+                  if (_typing)
+                    Form(
+                      key: _form,
+                      autovalidateMode: _validate,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+                        child: InputDatePickerFormField(
+                          initialDate: _selected,
+                          firstDate: widget.first,
+                          lastDate: widget.last,
+                          onDateSubmitted: _changed,
+                          onDateSaved: _changed,
+                          autofocus: true,
+                        ),
+                      ),
+                    )
+                  else
+                    CalendarDatePicker(
+                      initialDate: _selected,
+                      currentDate: widget.today,
+                      firstDate: widget.first,
+                      lastDate: widget.last,
+                      onDateChanged: _changed,
+                    ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      spacing: 8,
+                      children: [
+                        GhostButton(
+                          label: 'Cancel',
+                          onPressed: () => Navigator.of(context).pop(),
+                        ),
+                        GhostButton(
+                          label: 'Set date',
+                          solid: true,
+                          onPressed: _confirm,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
