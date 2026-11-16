@@ -9,6 +9,7 @@ import 'package:whats_due/models.dart';
 import 'package:whats_due/store.dart';
 import 'package:whats_due/theme.dart';
 import 'package:whats_due/ui/assignment_card.dart';
+import 'package:whats_due/ui/band_colours.dart';
 import 'package:whats_due/ui/horizon.dart';
 
 String _iso(int offsetDays) =>
@@ -1818,10 +1819,12 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        expect(colourOf(tester, '30%'), C.red);
+        // The band word carries the colour; the percentage beside it is
+        // plain ink, so the grade is not coloured twice.
         expect(colourOf(tester, 'FAIL'), C.red);
-        expect(colourOf(tester, '92%'), C.green);
+        expect(colourOf(tester, '30%'), C.ink);
         expect(colourOf(tester, 'HIGH DISTINCTION'), C.green);
+        expect(colourOf(tester, '92%'), C.ink);
       },
       seed: _seed(),
       bands: kDefaultBands,
@@ -1839,7 +1842,12 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(colourOf(tester, '70%'), C.ink);
-        expect(colourOf(tester, 'CREDIT'), C.ink);
+        // Credit takes its own step on the band scale: neither the red below
+        // the pass mark nor the green at the top.
+        final credit = colourOf(tester, 'CREDIT');
+        expect(credit, bandColour(70, kDefaultBands));
+        expect(credit, isNot(C.red));
+        expect(credit, isNot(C.green));
       },
       seed: _seed(),
       bands: kDefaultBands,
