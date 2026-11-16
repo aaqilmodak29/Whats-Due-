@@ -59,8 +59,8 @@ class HorizonStrip extends StatefulWidget {
   final ValueChanged<String?> onSelect;
 
   static const _days = 14;
-  static const _barsHeight = 20.0;
-  static const _labelHeight = 13.0;
+  static const _barsHeight = 28.0;
+  static const _labelHeight = 16.0;
 
   /// The legend's column: room for `28 AUG → 10 SEP` on one line.
   static const _legendWidth = 112.0;
@@ -99,7 +99,7 @@ class _HorizonStripState extends State<HorizonStrip> {
     // The legend sits beside the chart rather than on a row above it: the
     // same two facts, a line of height less, so the list starts sooner.
     return SizedBox(
-      height: HorizonStrip._barsHeight + 1 + HorizonStrip._labelHeight,
+      height: HorizonStrip._barsHeight + 2 + HorizonStrip._labelHeight,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
@@ -136,9 +136,10 @@ class _HorizonStripState extends State<HorizonStrip> {
                   ),
                 // Real dates rather than "Today → +14", which named neither
                 // end.
+                // Ink: the grey dates read as faint beside the ink chart.
                 Text(
                   _range(start, end),
-                  style: T.eyebrow(),
+                  style: T.eyebrow(C.ink),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -300,7 +301,7 @@ class _DayColumn extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 1),
+        const SizedBox(height: 2),
         SizedBox(
           height: HorizonStrip._labelHeight,
           child: Container(
@@ -344,10 +345,10 @@ class _DayColumn extends StatelessWidget {
   /// [faded] knocks the fill back rather than the whole bar, so a count on
   /// it can switch to ink and stay readable on the paler block.
   Widget _bar({bool faded = false}) {
-    // 8px for the first, 5px per additional, capped so a brutal week does not
-    // blow out the strip's height. Kept short: the strip is an early warning,
-    // not the page, and every pixel here pushes the list down.
-    final height = math.min(18, 8 + (bucket.length - 1) * 5).toDouble();
+    // 10px for the first, 7px per additional, capped so a brutal week does
+    // not blow out the strip's height. Steps big enough to read as one, two
+    // and three at a glance, and a short bar still leaves air above it.
+    final height = math.min(26, 10 + (bucket.length - 1) * 7).toDouble();
     final full = urgency(daysAway);
     final colour = faded ? full.withValues(alpha: .3) : full;
 

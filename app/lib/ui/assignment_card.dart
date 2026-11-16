@@ -335,7 +335,9 @@ class _AssignmentCardState extends State<AssignmentCard> {
               child: Tap(
                 onTap: widget.onToggleExpanded,
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+                  // Roomy enough that a short list reads as a few solid
+                  // cards rather than thin strips on bare paper.
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -347,8 +349,11 @@ class _AssignmentCardState extends State<AssignmentCard> {
                               children: [
                                 if (subject != null) Dot(subject.swatch),
                                 Flexible(
+                                  // Ink: muted letter-spaced caps this small
+                                  // read as faint on the card.
                                   child: Eyebrow(
                                     subject?.name ?? 'Unfiled',
+                                    color: C.ink,
                                     maxLines: 1,
                                   ),
                                 ),
@@ -368,7 +373,7 @@ class _AssignmentCardState extends State<AssignmentCard> {
                             Text(countdown(n), style: T.count(spine)),
                         ],
                       ),
-                      const SizedBox(height: 3),
+                      const SizedBox(height: 5),
                       // The mark rides beside the title rather than on a line
                       // of its own: a card is three short lines, not four.
                       // Every card, on every screen, has the same mark slot,
@@ -638,7 +643,7 @@ class _Stat extends StatelessWidget {
   final String value;
   final String label;
 
-  /// Ink for a real figure, muted for a placeholder still waiting on one.
+  /// Semibold for a real figure, regular for a placeholder still waiting.
   final bool strong;
 
   /// The grade band a mark lands in, named in place of the plain label.
@@ -651,8 +656,13 @@ class _Stat extends StatelessWidget {
     textBaseline: TextBaseline.alphabetic,
     spacing: 5,
     children: [
-      if (band == null) Text(label.toUpperCase(), style: T.flabel),
-      Text(value, style: strong ? T.count(C.ink) : T.frac),
+      // Ink throughout: the grey 9px label read as faint. A real figure is
+      // still told apart from a placeholder by its weight.
+      if (band == null) Text(label.toUpperCase(), style: T.eyebrow(C.ink)),
+      Text(
+        value,
+        style: strong ? T.count(C.ink) : T.frac.copyWith(color: C.ink),
+      ),
       if (band != null) Text(band!.toUpperCase(), style: T.eyebrow(C.ink)),
     ],
   );

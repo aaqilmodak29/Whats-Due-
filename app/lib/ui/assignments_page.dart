@@ -277,7 +277,7 @@ class AssignmentsPage extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 16),
         ],
 
         // ---- the filters: when, then which subject ----
@@ -309,7 +309,7 @@ class AssignmentsPage extends StatelessWidget {
               ...chips,
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
         ],
 
         // ---- tabs, with the subjects link and the search on the same rule ----
@@ -348,7 +348,7 @@ class AssignmentsPage extends StatelessWidget {
         if (view.selectedDue != null) _dayFilterBar(),
 
         // ---- list ----
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
         if (shown.isEmpty)
           _FillRest(child: _empty())
         else
@@ -494,24 +494,9 @@ class AssignmentsPage extends StatelessWidget {
       child: Tap(
         onTap: () => onView(view.copyWith(clearSelectedDue: true)),
         semanticLabel: 'Clear the day filter',
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          decoration: BoxDecoration(
-            color: C.card,
-            border: Border.all(color: C.ink),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  '${longDate(view.selectedDue!)} · $count due'.toUpperCase(),
-                  style: T.count(C.ink),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text('SHOW ALL', style: T.ghost(C.muted)),
-            ],
-          ),
+        child: _NoticeBar(
+          text: '${longDate(view.selectedDue!)} · $count due',
+          action: 'Show all',
         ),
       ),
     );
@@ -803,9 +788,10 @@ class _HeaderNotes extends StatelessWidget {
   }
 }
 
-/// A waiting update, on a slim line of its own under the title: a marker dot
-/// and a link into Settings, where the install happens. The highlighter is
-/// only the dot, so the line never competes with the + or the page's counts.
+/// A waiting update, on one line of its own under the title, in the same
+/// outlined card strip as the day filter: what is waiting on the left, the
+/// way to it (a link into Settings, where the install happens) on the right.
+/// No highlighter, so it never competes with the + for the page's one lime.
 class _UpdateLine extends StatelessWidget {
   const _UpdateLine({required this.store, required this.onUpdate});
 
@@ -820,41 +806,50 @@ class _UpdateLine extends StatelessWidget {
       if (release == null) return const SizedBox.shrink();
       return Padding(
         padding: const EdgeInsets.only(bottom: 14),
-        child: Align(
-          alignment: Alignment.centerLeft,
-          child: Tap(
-            onTap: onUpdate,
-            semanticLabel:
-                'Version ${release.version} is available, tap to install',
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 2),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                spacing: 8,
-                children: [
-                  // The highlighter on its own vanishes against the paper,
-                  // so the dot carries an ink ring.
-                  Container(
-                    width: 9,
-                    height: 9,
-                    decoration: BoxDecoration(
-                      color: C.mark,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: C.ink),
-                    ),
-                  ),
-                  Text(
-                    'Version ${release.version} is ready'.toUpperCase(),
-                    style: T.count(C.ink),
-                  ),
-                  Text('Update'.toUpperCase(), style: T.link),
-                ],
-              ),
-            ),
+        child: Tap(
+          onTap: onUpdate,
+          semanticLabel:
+              'Version ${release.version} is available, tap to install',
+          child: _NoticeBar(
+            text: 'Version ${release.version} is ready',
+            action: 'Update',
           ),
         ),
       );
     },
+  );
+}
+
+/// One line in an outlined card strip: a short notice and, at the right
+/// end, the underlined word that acts on it. The day filter and a waiting
+/// update both use it, so the page has one look for a notice.
+class _NoticeBar extends StatelessWidget {
+  const _NoticeBar({required this.text, required this.action});
+
+  final String text;
+  final String action;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+    decoration: BoxDecoration(
+      color: C.card,
+      border: Border.all(color: C.ink),
+    ),
+    child: Row(
+      children: [
+        Expanded(
+          child: Text(
+            text.toUpperCase(),
+            style: T.count(C.ink),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Text(action.toUpperCase(), style: T.link),
+      ],
+    ),
   );
 }
 
@@ -922,7 +917,14 @@ class _Tab extends StatelessWidget {
           bottom: BorderSide(color: on ? C.ink : Colors.transparent, width: 2),
         ),
       ),
-      child: Text(label.toUpperCase(), style: T.tab(on ? C.ink : C.muted)),
+      // Both in ink, since grey tracked caps read as faint; the underline and
+      // the heavier weight say which one is showing.
+      child: Text(
+        label.toUpperCase(),
+        style: on
+            ? T.tab(C.ink).copyWith(fontWeight: FontWeight.w600)
+            : T.tab(C.ink),
+      ),
     ),
   );
 }
