@@ -34,31 +34,47 @@ class _WelcomeState extends State<Welcome> {
     setState(() => _configuring = true);
   }
 
-  /// One column, title to answers, centred on the screen: the answers follow
-  /// straight on from what they decide, with no dead paper between the two.
-  /// It scrolls when the band editor makes it taller than the screen.
+  /// A page like every other: the title at the top where the other pages
+  /// put theirs, the question and what it sets up straight under it, and
+  /// the answers anchored to the foot of the screen, where a thumb is. On a
+  /// screen too short for both, it simply scrolls.
   @override
   Widget build(BuildContext context) => Scaffold(
     body: SafeArea(
       child: LayoutBuilder(
         builder: (context, box) => ListView(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
           children: [
             ConstrainedBox(
-              constraints: BoxConstraints(minHeight: box.maxHeight - 48),
+              constraints: BoxConstraints(minHeight: box.maxHeight - 40),
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Eyebrow('Coursework'),
-                  const SizedBox(height: 3),
-                  Text("What's due", style: T.h1),
-                  const SizedBox(height: 20),
-                  _question(),
-                  const SizedBox(height: 10),
-                  if (_configuring) _bands() else _ladder(),
-                  const SizedBox(height: 18),
-                  ..._actions(),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Eyebrow('Coursework'),
+                      const SizedBox(height: 3),
+                      Text("What's due", style: T.h1),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Every deadline, mark and grade, subject by subject.',
+                        style: T.body,
+                      ),
+                      const SizedBox(height: 18),
+                      _question(),
+                      const SizedBox(height: 12),
+                      if (_configuring) _bands() else _ladder(),
+                    ],
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: _actions(),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -115,7 +131,12 @@ class _WelcomeState extends State<Welcome> {
         const SizedBox(height: 16),
         // Before answering, what each answer would do; after, the answer
         // itself, still changeable.
-        if (_configuring) _answer() else _preview(),
+        if (_configuring) ...[
+          _answer(),
+          const SizedBox(height: 14),
+          _preview(),
+        ] else
+          _preview(),
       ],
     ),
   );
@@ -138,32 +159,37 @@ class _WelcomeState extends State<Welcome> {
     ),
   );
 
-  /// The difference the answer makes, on one example mark.
+  /// The difference the answer makes, on one example mark. Once yes is
+  /// answered, the one line that is now true, following the bands below as
+  /// they are edited.
   Widget _preview() {
-    Widget line(String answer, String? band) => Padding(
-      padding: const EdgeInsets.symmetric(vertical: 7),
-      child: Row(
-        spacing: 10,
-        children: [
-          SizedBox(width: 30, child: Text(answer, style: T.count(C.ink))),
-          Expanded(child: Text('Lab report', style: T.body)),
-          // The rule Grades follows: the band word in its colour, the
-          // percentage plain.
-          Text.rich(
-            TextSpan(
-              children: [
-                if (band != null)
-                  TextSpan(
-                    text: '${band.toUpperCase()} · ',
-                    style: T.count(bandColour(76, kDefaultBands)),
-                  ),
-                TextSpan(text: '76%', style: T.count(C.ink)),
-              ],
-            ),
+    Widget line(String? answer, GradeBand? band, List<GradeBand> bands) =>
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 7),
+          child: Row(
+            spacing: 10,
+            children: [
+              if (answer != null)
+                SizedBox(width: 30, child: Text(answer, style: T.count(C.ink))),
+              Expanded(child: Text('Lab report', style: T.body)),
+              // The rule Grades follows: the band word in its colour, the
+              // percentage plain.
+              Text.rich(
+                TextSpan(
+                  children: [
+                    if (band != null)
+                      TextSpan(
+                        text: '${band.name.toUpperCase()} · ',
+                        style: T.count(bandColour(76, bands)),
+                      ),
+                    TextSpan(text: '76%', style: T.count(C.ink)),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
-    );
+        );
+    final bands = _configuring ? store.bands : kDefaultBands;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
@@ -178,9 +204,13 @@ class _WelcomeState extends State<Welcome> {
             padding: const EdgeInsets.only(top: 4, bottom: 2),
             child: Text('HOW A MARK OF 38/50 SHOWS', style: T.count(C.ink)),
           ),
-          line('YES', bandFor(76, kDefaultBands)?.name),
-          Container(height: 1, color: C.rule),
-          line('NO', null),
+          if (_configuring)
+            line(null, bandFor(76, bands), bands)
+          else ...[
+            line('YES', bandFor(76, bands), bands),
+            Container(height: 1, color: C.rule),
+            line('NO', null, bands),
+          ],
         ],
       ),
     );
@@ -222,15 +252,24 @@ class _WelcomeState extends State<Welcome> {
             'The usual Australian bands. Rename or move any of them next.',
             style: T.body,
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
+          // Drawn the way Grades lists them: the band's colour as a rule
+          // down the left, its name, its floor.
           for (var i = bands.length - 1; i >= 0; i--)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
+            Container(
+              margin: const EdgeInsets.only(top: 8),
+              padding: const EdgeInsets.fromLTRB(10, 9, 0, 9),
+              decoration: BoxDecoration(
+                border: Border(
+                  left: BorderSide(
+                    color: colourOfBand(bands[i], bands),
+                    width: 4,
+                  ),
+                ),
+              ),
               child: Row(
                 spacing: 10,
                 children: [
-                  // The same colour and the same floor Grades shows.
-                  BandSwatch(colourOfBand(bands[i], bands), height: 10),
                   Expanded(child: Text(bands[i].name, style: T.body)),
                   Text(bandFloor(bands[i]), style: T.count(C.ink)),
                 ],
