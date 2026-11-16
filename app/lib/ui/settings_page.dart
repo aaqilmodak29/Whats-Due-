@@ -27,9 +27,8 @@ class SettingsPage extends StatelessWidget {
   Widget build(BuildContext context) => PageBody(
     controller: controller,
     title: 'Settings',
-    // Four groups, a wide gap between groups and a narrow one inside them:
-    // the version; how the app reads (grading, appearance); reminders; and
-    // the data on the phone (export, import, erase).
+    // The version, a wider gap, then the settings cards at one even step:
+    // grading, appearance, reminders, export, import and erasing.
     children: [
       UpdateSection(updater: store.updater),
       const SizedBox(height: SettingsSection.groupGap),
@@ -42,7 +41,7 @@ class SettingsPage extends StatelessWidget {
       ),
       const SizedBox(height: SettingsSection.cardGap),
       _appearance(),
-      const SizedBox(height: SettingsSection.groupGap),
+      const SizedBox(height: SettingsSection.cardGap),
       BackupSections(store: store),
     ],
   );

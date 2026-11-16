@@ -185,8 +185,7 @@ class _BackupSectionsState extends State<BackupSections> {
             ),
           ],
         ),
-        // Reminders is a group of its own; the backup cards are the next.
-        const SizedBox(height: SettingsSection.groupGap),
+        const SizedBox(height: SettingsSection.cardGap),
 
         SettingsSection(
           title: 'Export',
@@ -377,12 +376,16 @@ class SettingsSection extends StatelessWidget {
   /// Between blocks inside a card: prose, a field, a row of actions.
   static const blockGap = 12.0;
 
-  /// Between cards in one group.
-  static const cardGap = 12.0;
+  /// Between one settings card and the next: one even step all the way
+  /// down, since 12 inside a group and 28 between groups read as uneven
+  /// gaps rather than as groups. At 20 the Export card on the opening screen
+  /// (and with Grading open) ends clear of the nav bar and Import starts
+  /// wholly under it, so no card is cut by the bar.
+  static const cardGap = 20.0;
 
-  /// Between groups of cards. Wide enough that a card at the head of a group,
-  /// scrolled to the top of the screen, has only paper above it rather than a
-  /// strip of the card before.
+  /// Under the Version card only, which is a status rather than a setting.
+  /// Wide enough that Grading, scrolled to the top of the screen, has only
+  /// paper above it rather than a strip of the Version card.
   static const groupGap = 28.0;
 
   final String title;
