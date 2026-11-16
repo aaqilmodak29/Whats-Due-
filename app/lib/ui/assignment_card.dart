@@ -557,7 +557,7 @@ class _AssignmentCardState extends State<AssignmentCard> {
         ),
         Padding(
           padding: const EdgeInsets.only(top: 6),
-          child: _AddRow(
+          child: AddRow(
             controller: _taskController,
             focusNode: _taskFocus,
             hint: 'Add a task',
@@ -735,56 +735,6 @@ class _DragHandle extends StatelessWidget {
         ),
       ),
     ),
-  );
-}
-
-/// The task field and its add button. The button is a word, not a box: the
-/// card's one boxed button is its primary action.
-class _AddRow extends StatelessWidget {
-  const _AddRow({
-    required this.controller,
-    required this.focusNode,
-    required this.hint,
-    required this.buttonLabel,
-    required this.onSubmit,
-  });
-
-  final TextEditingController controller;
-  final FocusNode focusNode;
-  final String hint;
-
-  /// Spoken label for the button.
-  final String buttonLabel;
-  final VoidCallback onSubmit;
-
-  @override
-  Widget build(BuildContext context) => Row(
-    spacing: 4,
-    children: [
-      Expanded(
-        child: TextField(
-          controller: controller,
-          focusNode: focusNode,
-          style: T.body,
-          decoration: fieldDecoration(hint: hint).copyWith(
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 10,
-              vertical: 9,
-            ),
-          ),
-          textInputAction: TextInputAction.done,
-          onSubmitted: (_) => onSubmit(),
-        ),
-      ),
-      Tap(
-        onTap: onSubmit,
-        semanticLabel: buttonLabel,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-          child: Text('ADD', style: T.ghost(C.ink)),
-        ),
-      ),
-    ],
   );
 }
 

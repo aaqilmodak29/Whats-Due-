@@ -134,12 +134,33 @@ double? _num(Object? v) => switch (v) {
   _ => null,
 };
 
+/// A teaching period, such as "Semester 2, 2026", that subjects can be filed
+/// under so a finished one can be filtered out of the list.
+///
+/// Kept to an id and a name on purpose. Dates would invite the app to guess
+/// which semester is current, and a guess that is wrong near a boundary hides
+/// work that is still due.
+class Semester {
+  Semester({required this.id, required this.name});
+
+  factory Semester.fromJson(Map<String, dynamic> j) => Semester(
+    id: j['id'] as String? ?? uid(),
+    name: j['name'] as String? ?? 'Untitled',
+  );
+
+  final String id;
+  String name;
+
+  Map<String, dynamic> toJson() => {'id': id, 'name': name};
+}
+
 class Subject {
   Subject({
     required this.id,
     required this.name,
     required this.color,
     this.goalPercent,
+    this.semesterId,
   });
 
   factory Subject.fromJson(Map<String, dynamic> j) => Subject(
@@ -147,7 +168,13 @@ class Subject {
     name: j['name'] as String? ?? 'Untitled',
     color: j['color'] as String? ?? kPalette.first,
     goalPercent: _num(j['goalPercent']),
+    // Absent from everything written before semesters existed.
+    semesterId: j['semesterId'] as String?,
   );
+
+  /// The semester this subject belongs to, or null for none. A reference, so
+  /// renaming the semester renames it everywhere.
+  String? semesterId;
 
   final String id;
   String name;
@@ -170,6 +197,7 @@ class Subject {
     'name': name,
     'color': color,
     if (goalPercent != null) 'goalPercent': goalPercent,
+    if (semesterId != null) 'semesterId': semesterId,
   };
 }
 

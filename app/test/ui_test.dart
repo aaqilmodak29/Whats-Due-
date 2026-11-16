@@ -2192,4 +2192,39 @@ void main() {
       size: const Size(320, 900),
     );
   });
+
+  group('semesters', () {
+    appTest(
+      'a semester can be added, renamed and deleted from the manage panel',
+      (tester, store) async {
+        await tester.tap(find.text('MANAGE SUBJECTS'));
+        await tester.pumpAndSettle();
+        expect(find.text('SEMESTERS'), findsOne);
+
+        await tester.enterText(
+          find.widgetWithText(TextField, 'Add a semester'),
+          'Semester 2, 2026',
+        );
+        await tester.tap(find.bySemanticsLabel('Add semester'));
+        await tester.pumpAndSettle();
+        expect(store.semesters.single.name, 'Semester 2, 2026');
+
+        await tester.enterText(
+          find.widgetWithText(TextField, 'Semester 2, 2026'),
+          'Sem 2',
+        );
+        await tester.testTextInput.receiveAction(TextInputAction.done);
+        await tester.pumpAndSettle();
+        expect(store.semesters.single.name, 'Sem 2');
+
+        // Empty, so it goes without asking.
+        await tester.tap(find.bySemanticsLabel('Delete semester Sem 2'));
+        await tester.pumpAndSettle();
+        expect(store.semesters, isEmpty);
+      },
+      seed: _seed(),
+      size: const Size(430, 2400),
+      tab: 'Assignments',
+    );
+  });
 }

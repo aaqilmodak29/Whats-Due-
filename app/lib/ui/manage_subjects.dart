@@ -190,6 +190,7 @@ class _ManageSubjectsState extends State<ManageSubjects> {
             ],
           ),
         ),
+        _Semesters(store: store),
       ],
     ),
   );
@@ -270,29 +271,7 @@ class _SubjectRowState extends State<_SubjectRow> {
               style: T.body,
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => _commit(),
-              decoration: InputDecoration(
-                isDense: true,
-                filled: true,
-                // Transparent until focused, so the row reads as a list rather
-                // than a form.
-                fillColor: _focus.hasFocus ? C.field : Colors.transparent,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 8,
-                ),
-                border: const OutlineInputBorder(
-                  borderRadius: BorderRadius.zero,
-                  borderSide: BorderSide(color: Colors.transparent),
-                ),
-                enabledBorder: const OutlineInputBorder(
-                  borderRadius: BorderRadius.zero,
-                  borderSide: BorderSide(color: Colors.transparent),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.zero,
-                  borderSide: BorderSide(color: C.rule),
-                ),
-              ),
+              decoration: inlineNameDecoration(focused: _focus.hasFocus),
             ),
           ),
           _CountCell(width: _kOpenCol, text: '$open', style: T.count(C.ink)),
@@ -318,6 +297,198 @@ class _SubjectRowState extends State<_SubjectRow> {
               );
             },
             semanticLabel: 'Delete subject ${s.name}',
+            child: const SizedBox(
+              width: _kDeleteCol,
+              height: _kDeleteCol,
+              child: Center(child: CloseGlyph(size: 16)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A name that edits in place: transparent until focused, so the row reads as
+/// a list rather than a form. Shared by subject and semester rows.
+InputDecoration inlineNameDecoration({required bool focused}) =>
+    InputDecoration(
+      isDense: true,
+      filled: true,
+      fillColor: focused ? C.field : Colors.transparent,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      border: const OutlineInputBorder(
+        borderRadius: BorderRadius.zero,
+        borderSide: BorderSide(color: Colors.transparent),
+      ),
+      enabledBorder: const OutlineInputBorder(
+        borderRadius: BorderRadius.zero,
+        borderSide: BorderSide(color: Colors.transparent),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.zero,
+        borderSide: BorderSide(color: C.rule),
+      ),
+    );
+
+/// The semesters, below the subjects: each renames in place and deletes with
+/// the same glyph, and a new one is added with the card's task row.
+class _Semesters extends StatefulWidget {
+  const _Semesters({required this.store});
+
+  final AppStore store;
+
+  @override
+  State<_Semesters> createState() => _SemestersState();
+}
+
+class _SemestersState extends State<_Semesters> {
+  final _name = TextEditingController();
+  final _focus = FocusNode();
+
+  AppStore get store => widget.store;
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  void _add() {
+    if (store.addSemester(_name.text) == null) {
+      _focus.requestFocus();
+      return;
+    }
+    _name.clear();
+    // Keep focus, so several can be typed in a row.
+    _focus.requestFocus();
+  }
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+    decoration: BoxDecoration(
+      border: Border(top: BorderSide(color: C.rule)),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Eyebrow('Semesters'),
+        if (store.semesters.isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              'None yet. Add one to file subjects under it.',
+              style: T.emptyBody,
+            ),
+          )
+        else
+          for (final (i, s) in store.semesters.indexed)
+            DecoratedBox(
+              key: ValueKey(s.id),
+              decoration: BoxDecoration(
+                border: i == 0 ? null : Border(top: BorderSide(color: C.rule)),
+              ),
+              child: _SemesterRow(store: store, semester: s),
+            ),
+        const SizedBox(height: 8),
+        AddRow(
+          controller: _name,
+          focusNode: _focus,
+          hint: 'Add a semester',
+          buttonLabel: 'Add semester',
+          onSubmit: _add,
+        ),
+      ],
+    ),
+  );
+}
+
+class _SemesterRow extends StatefulWidget {
+  const _SemesterRow({required this.store, required this.semester});
+
+  final AppStore store;
+  final Semester semester;
+
+  @override
+  State<_SemesterRow> createState() => _SemesterRowState();
+}
+
+class _SemesterRowState extends State<_SemesterRow> {
+  late final TextEditingController _name = TextEditingController(
+    text: widget.semester.name,
+  );
+  final _focus = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    _focus.addListener(() {
+      if (!_focus.hasFocus) _commit();
+      setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  void _commit() {
+    final v = _name.text.trim();
+    if (v.isEmpty) {
+      _name.text = widget.semester.name;
+      return;
+    }
+    if (v != widget.semester.name) {
+      widget.store.renameSemester(widget.semester, v);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = widget.semester;
+    final count = widget.store.subjects
+        .where((x) => x.semesterId == s.id)
+        .length;
+    void delete() => widget.store.deleteSemester(s);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        spacing: _kRowGap,
+        children: [
+          Expanded(
+            child: Semantics(
+              label: 'Semester name',
+              child: TextField(
+                controller: _name,
+                focusNode: _focus,
+                style: T.body,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => _commit(),
+                decoration: inlineNameDecoration(focused: _focus.hasFocus),
+              ),
+            ),
+          ),
+          _CountCell(width: _kDoneCol, text: '$count SUBJ.', style: T.flabel),
+          Tap(
+            onTap: () {
+              if (count == 0) return delete();
+              confirm(
+                context,
+                title: 'Delete “${s.name}”?',
+                body:
+                    'Its $count subject${count == 1 ? '' : 's'} will have no '
+                    'semester. No subjects or work are deleted.',
+                confirmLabel: 'Delete semester',
+                onConfirm: delete,
+              );
+            },
+            semanticLabel: 'Delete semester ${s.name}',
             child: const SizedBox(
               width: _kDeleteCol,
               height: _kDeleteCol,

@@ -15,6 +15,14 @@ import 'theme.dart';
 /// "clear it". See [AppStore.setMarks].
 const Object _unchanged = Object();
 
+/// One decoded coursework document.
+typedef _Doc = ({
+  List<Subject> subjects,
+  List<Assignment> items,
+  List<GradeBand> bands,
+  List<Semester> semesters,
+});
+
 /// Outcome of an import, so the UI can report something specific.
 class ImportResult {
   const ImportResult.ok({required this.subjects, required this.items})
@@ -64,6 +72,10 @@ class AppStore extends ChangeNotifier {
 
   bool get usesLetterGrades => bands.isNotEmpty;
 
+  /// Teaching periods subjects can be filed under. Coursework, so a backup
+  /// carries them.
+  List<Semester> semesters = [];
+
   /// Whether the first-run question has been answered, either way. Device
   /// state, not coursework — a restored backup should not re-ask.
   bool onboarded = false;
@@ -111,8 +123,7 @@ class AppStore extends ChangeNotifier {
 
   // ---------------------------------------------------------------- decoding
 
-  ({List<Subject> subjects, List<Assignment> items, List<GradeBand> bands})
-  _decode(String raw) {
+  _Doc _decode(String raw) {
     final j = jsonDecode(raw);
     if (j is! Map) throw const FormatException('Expected a JSON object');
     return (
@@ -131,14 +142,18 @@ class AppStore extends ChangeNotifier {
           (b) => GradeBand.fromJson(b.cast<String, dynamic>()),
         ),
       ),
+      // Absent from everything written before semesters existed.
+      semesters: (j['semesters'] as List? ?? const [])
+          .whereType<Map>()
+          .map((s) => Semester.fromJson(s.cast<String, dynamic>()))
+          .toList(),
     );
   }
 
   /// v1 stored a bare array with a free-text `module` field. Group by
   /// case-insensitive module name, mint a subject per distinct name, rewrite
   /// the references.
-  ({List<Subject> subjects, List<Assignment> items, List<GradeBand> bands})
-  _migrateV1(String raw) {
+  _Doc _migrateV1(String raw) {
     final arr = jsonDecode(raw);
     if (arr is! List) throw const FormatException('Expected a JSON array');
     final subjects = <Subject>[];
@@ -163,16 +178,19 @@ class AppStore extends ChangeNotifier {
       }
       items.add(Assignment.fromJson(j)..subjectId = sid);
     }
-    return (subjects: subjects, items: items, bands: const <GradeBand>[]);
+    return (
+      subjects: subjects,
+      items: items,
+      bands: const <GradeBand>[],
+      semesters: <Semester>[],
+    );
   }
 
-  void _adopt(
-    ({List<Subject> subjects, List<Assignment> items, List<GradeBand> bands})
-    data,
-  ) {
+  void _adopt(_Doc data) {
     subjects = data.subjects;
     items = data.items;
     bands = data.bands;
+    semesters = data.semesters;
   }
 
   // ------------------------------------------------------------------ saving
@@ -200,6 +218,9 @@ class AppStore extends ChangeNotifier {
     // Omitted when unused, so a percentages-only document serialises exactly
     // as it did before bands existed.
     if (bands.isNotEmpty) 'bands': bands.map((b) => b.toJson()).toList(),
+    // Likewise omitted until one is added.
+    if (semesters.isNotEmpty)
+      'semesters': semesters.map((s) => s.toJson()).toList(),
   };
 
   String exportJson() => const JsonEncoder.withIndent('  ').convert(toJson());
@@ -252,6 +273,38 @@ class AppStore extends ChangeNotifier {
       if (a.subjectId == s.id) a.subjectId = null;
     }
     subjects.removeWhere((x) => x.id == s.id);
+    _commit();
+  }
+
+  Semester? semesterOf(Subject s) =>
+      semesters.where((x) => x.id == s.semesterId).firstOrNull;
+
+  Semester? addSemester(String name) {
+    if (name.trim().isEmpty) return null;
+    final s = Semester(id: uid(), name: name.trim());
+    semesters.add(s);
+    _commit();
+    return s;
+  }
+
+  void renameSemester(Semester s, String name) {
+    if (name.trim().isEmpty) return;
+    s.name = name.trim();
+    _commit();
+  }
+
+  /// Like deleting a subject, this never loses anything: its subjects simply
+  /// stop belonging to a semester.
+  void deleteSemester(Semester s) {
+    for (final x in subjects) {
+      if (x.semesterId == s.id) x.semesterId = null;
+    }
+    semesters.removeWhere((x) => x.id == s.id);
+    _commit();
+  }
+
+  void setSubjectSemester(Subject s, String? semesterId) {
+    s.semesterId = semesterId;
     _commit();
   }
 
@@ -389,6 +442,7 @@ class AppStore extends ChangeNotifier {
   void clearAll() {
     subjects = [];
     items = [];
+    semesters = [];
     _commit();
   }
 
@@ -455,8 +509,7 @@ class AppStore extends ChangeNotifier {
     final text = raw.trim();
     if (text.isEmpty) return const ImportResult.failed('Nothing to import.');
 
-    ({List<Subject> subjects, List<Assignment> items, List<GradeBand> bands})
-    incoming;
+    _Doc incoming;
     try {
       incoming = text.startsWith('[') ? _migrateV1(text) : _decode(text);
     } on FormatException catch (e) {
@@ -475,6 +528,7 @@ class AppStore extends ChangeNotifier {
       subjects = incoming.subjects;
       items = incoming.items;
       bands = incoming.bands;
+      semesters = incoming.semesters;
       _commit();
       return ImportResult.ok(subjects: subjects.length, items: items.length);
     }
@@ -482,6 +536,21 @@ class AppStore extends ChangeNotifier {
     var addedSubjects = 0;
     var addedItems = 0;
     final remap = <String, String>{};
+
+    // Semesters merge by name, like subjects.
+    final semesterRemap = <String, String>{};
+    for (final s in incoming.semesters) {
+      final existing = semesters
+          .where((x) => x.name.toUpperCase() == s.name.toUpperCase())
+          .firstOrNull;
+      if (existing != null) {
+        semesterRemap[s.id] = existing.id;
+      } else {
+        final fresh = Semester(id: uid(), name: s.name);
+        semesters.add(fresh);
+        semesterRemap[s.id] = fresh.id;
+      }
+    }
 
     for (final s in incoming.subjects) {
       final existing = subjects
@@ -495,6 +564,7 @@ class AppStore extends ChangeNotifier {
           name: s.name,
           color: s.color,
           goalPercent: s.goalPercent,
+          semesterId: s.semesterId == null ? null : semesterRemap[s.semesterId],
         );
         subjects.add(fresh);
         remap[s.id] = fresh.id;

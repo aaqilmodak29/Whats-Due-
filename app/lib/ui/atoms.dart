@@ -1029,3 +1029,55 @@ Color gradeBarColour(double percent, List<GradeBand> bands) {
   final t = passing <= 1 ? 1.0 : rank / (passing - 1);
   return C.green.withValues(alpha: .55 + .45 * t);
 }
+
+/// A one-line field and its add button: the card's task row, and the
+/// semester row in the subjects panel. The button is a word, not a box: the
+/// card's one boxed button is its primary action.
+class AddRow extends StatelessWidget {
+  const AddRow({
+    super.key,
+    required this.controller,
+    required this.focusNode,
+    required this.hint,
+    required this.buttonLabel,
+    required this.onSubmit,
+  });
+
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final String hint;
+
+  /// Spoken label for the button.
+  final String buttonLabel;
+  final VoidCallback onSubmit;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    spacing: 4,
+    children: [
+      Expanded(
+        child: TextField(
+          controller: controller,
+          focusNode: focusNode,
+          style: T.body,
+          decoration: fieldDecoration(hint: hint).copyWith(
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 10,
+              vertical: 9,
+            ),
+          ),
+          textInputAction: TextInputAction.done,
+          onSubmitted: (_) => onSubmit(),
+        ),
+      ),
+      Tap(
+        onTap: onSubmit,
+        semanticLabel: buttonLabel,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          child: Text('ADD', style: T.ghost(C.ink)),
+        ),
+      ),
+    ],
+  );
+}
