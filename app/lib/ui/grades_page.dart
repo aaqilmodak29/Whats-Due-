@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../bands.dart';
@@ -309,17 +311,25 @@ class _GradesPageState extends State<GradesPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               spacing: 4,
               children: [
+                // Each column is as wide as its own words, so every name
+                // sits on one line and the floors share one baseline; a
+                // name too long for the row is cut, never wrapped.
                 for (final b in ordered)
                   Expanded(
+                    flex: math.max(b.name.length, bandFloor(b).length + 1),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Container(height: 6, color: colourOfBand(b, bands)),
                         const SizedBox(height: 6),
-                        // The floor first, so the figures line up even when
-                        // a long name wraps.
                         Text(bandFloor(b), style: T.count(C.ink)),
-                        Text(b.name, style: _meta),
+                        Text(
+                          b.name,
+                          style: _meta,
+                          maxLines: 1,
+                          softWrap: false,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ],
                     ),
                   ),
