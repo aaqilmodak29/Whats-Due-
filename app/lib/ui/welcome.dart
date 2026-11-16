@@ -93,6 +93,7 @@ class _WelcomeState extends State<Welcome> {
             expand: true,
             onPressed: _done,
           ),
+          ..._settingsNote,
         ]
       : [
           GhostButton(
@@ -107,13 +108,18 @@ class _WelcomeState extends State<Welcome> {
             expand: true,
             onPressed: _done,
           ),
-          const SizedBox(height: 10),
-          Text(
-            'You can change this later in Settings.',
-            style: T.body,
-            textAlign: TextAlign.center,
-          ),
+          ..._settingsNote,
         ];
+
+  /// The same reassurance under either step's answers.
+  List<Widget> get _settingsNote => [
+    const SizedBox(height: 10),
+    Text(
+      'You can change this later in Settings.',
+      style: T.body,
+      textAlign: TextAlign.center,
+    ),
+  ];
 
   Widget _question() => Surface(
     topBorder: C.ink,
@@ -217,7 +223,8 @@ class _WelcomeState extends State<Welcome> {
   }
 
   /// What was answered, once it has been: a statement, not a control. The
-  /// choice is changed later in Settings, which the same line says.
+  /// choice is changed later in Settings, which the note under the button
+  /// says.
   Widget _answer() => Semantics(
     label: 'Letter grades, chosen. You can change this later in Settings.',
     excludeSemantics: true,
@@ -226,13 +233,6 @@ class _WelcomeState extends State<Welcome> {
       children: [
         Icon(Icons.check, size: 15, color: C.ink),
         Text('LETTER GRADES', style: T.count(C.ink)),
-        Text('·', style: T.count(C.ink)),
-        Expanded(
-          child: Text(
-            'change later in Settings',
-            style: T.emptyBody.copyWith(color: C.ink),
-          ),
-        ),
       ],
     ),
   );
