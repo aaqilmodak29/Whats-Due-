@@ -1294,6 +1294,9 @@ void main() {
         await tester.pumpAndSettle();
 
         await tester.enterText(find.bySemanticsLabel('Marks for Q6-Q10'), '15');
+        // The presets open from the TIME box.
+        await tester.tap(find.bySemanticsLabel(RegExp(r'^Time for Q6-Q10')));
+        await tester.pumpAndSettle();
         await tester.tap(find.bySemanticsLabel('Estimate 1h'));
         await tester.pumpAndSettle();
 
@@ -1305,6 +1308,8 @@ void main() {
         expect(t.minutes, 60);
 
         // Tapping the active estimate clears it rather than being a dead end.
+        await tester.tap(find.bySemanticsLabel(RegExp(r'^Time for Q6-Q10')));
+        await tester.pumpAndSettle();
         await tester.tap(find.bySemanticsLabel('Clear the 1h estimate'));
         await tester.pumpAndSettle();
         expect(t.minutes, isNull);
@@ -1366,13 +1371,17 @@ void main() {
         await tester.tap(find.bySemanticsLabel('Q6-Q10, tap to add steps'));
         await tester.pumpAndSettle();
 
+        await tester.tap(find.bySemanticsLabel(RegExp(r'^Time for Q6-Q10')));
+        await tester.pumpAndSettle();
         await tester.tap(find.bySemanticsLabel('Estimate 2h'));
         await tester.pumpAndSettle();
         final task = store.items.firstWhere((x) => x.id == 'a1').tasks.last;
         expect(task.minutes, 120);
-        // Shown beside the task itself, not just on the chip that set it.
+        // Shown beside the task itself, not just in the box that set it.
         expect(find.text('2h'), findsNWidgets(2));
 
+        await tester.tap(find.bySemanticsLabel(RegExp(r'^Time for Q6-Q10')));
+        await tester.pumpAndSettle();
         await tester.tap(find.bySemanticsLabel('Clear the 2h estimate'));
         await tester.pumpAndSettle();
         expect(task.minutes, isNull);

@@ -132,8 +132,9 @@ class _AssignmentCardState extends State<AssignmentCard> {
   }
 
   /// Steps sit one level down from their task: hung off a hairline dropped
-  /// from its checkbox, with a smaller box, a
-  /// smaller grip and remove, and tighter rows. No box around any of it.
+  /// from its checkbox, with a smaller box and tighter rows, but the task's
+  /// grip and remove, so the card has one size of icon. No box around any of
+  /// it.
   ///
   /// [handled] is whether the task rows carry grips, so the rail drops from
   /// the checkbox wherever it sits.
@@ -189,7 +190,6 @@ class _AssignmentCardState extends State<AssignmentCard> {
                       _RowRemove(
                         onTap: () => store.deleteSubtask(t, s),
                         semanticLabel: 'Remove step ${s.text}',
-                        glyph: 13,
                       ),
                     ],
                   ),
@@ -207,15 +207,15 @@ class _AssignmentCardState extends State<AssignmentCard> {
     );
   }
 
-  /// The open task's rubric marks and effort estimate: two labelled fields
-  /// side by side, the marks a small boxed number and the estimate a boxed
-  /// row of presets of the same height, so the pair reads as one row of a
-  /// form rather than loose words.
+  /// The open task's rubric marks and effort estimate: two small labelled
+  /// boxes of one height side by side, so the pair reads as one row of a form
+  /// and leaves the rail room to breathe.
   ///
-  /// The estimate is a row of preset words rather than a free number field: a
+  /// The estimate is a choice of presets rather than a free number field: a
   /// student guessing to the minute is inventing precision, and the rough shape
-  /// of the work is all this is for. One tap sets it, tapping the active one
-  /// clears it.
+  /// of the work is all this is for. Its box opens the presets as a menu, like
+  /// the list's due window; picking one sets it, picking the active one clears
+  /// it.
   Widget _taskMeta(AppStore store, Task t) => Row(
     crossAxisAlignment: CrossAxisAlignment.start,
     spacing: 10,
@@ -233,33 +233,14 @@ class _AssignmentCardState extends State<AssignmentCard> {
           ),
         ),
       ),
-      Expanded(
+      SizedBox(
+        width: _kTimeField,
         child: LabelledField(
           label: 'Time',
-          child: Container(
-            height: _kMetaHeight,
-            decoration: BoxDecoration(
-              color: C.field,
-              border: Border.all(color: C.rule),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (final (i, m) in kEstimateChoices.indexed)
-                  Expanded(
-                    child: _EstimateChip(
-                      label: formatMinutes(m),
-                      on: t.minutes == m,
-                      divided: i > 0,
-                      semanticLabel: t.minutes == m
-                          ? 'Clear the ${formatMinutes(m)} estimate'
-                          : 'Estimate ${formatMinutes(m)}',
-                      onTap: () =>
-                          store.setTaskMinutes(t, t.minutes == m ? null : m),
-                    ),
-                  ),
-              ],
-            ),
+          child: _EstimatePicker(
+            minutes: t.minutes,
+            task: t.text,
+            onPick: (m) => store.setTaskMinutes(t, m),
           ),
         ),
       ),
@@ -694,7 +675,7 @@ class _DragHandle extends StatelessWidget {
   final int index;
   final String label;
 
-  /// Smaller for a step than for a task.
+  /// The glyph's size; a task's and a step's are the same.
   final double size;
 
   @override
@@ -822,52 +803,115 @@ class _StepField extends StatelessWidget {
   );
 }
 
-/// An effort preset in an open task: one cell of the boxed TIME control.
-/// Off is a plain word on the field; on is filled ink, exactly the list's
-/// due-window filters, so the chosen estimate is unmistakable. Cells after
-/// the first are split from their neighbour by a hairline.
-class _EstimateChip extends StatelessWidget {
-  const _EstimateChip({
-    required this.label,
-    required this.on,
-    required this.onTap,
-    required this.semanticLabel,
-    this.divided = false,
+/// The open task's TIME box: the estimate in force (or a dash), with the
+/// chevron that says it opens. The presets open as a menu anchored under it,
+/// the active one filled ink as in the list's due-window menu. Picking a
+/// preset sets it; picking the active one clears it.
+class _EstimatePicker extends StatelessWidget {
+  const _EstimatePicker({
+    required this.minutes,
+    required this.task,
+    required this.onPick,
   });
 
-  final String label;
-  final bool on;
-  final VoidCallback onTap;
-  final String semanticLabel;
-  final bool divided;
+  final int? minutes;
+  final String task;
+  final ValueChanged<int?> onPick;
 
-  @override
-  Widget build(BuildContext context) => Tap(
-    onTap: onTap,
-    semanticLabel: semanticLabel,
-    child: Container(
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: on ? C.ink : null,
-        border: divided ? Border(left: BorderSide(color: C.rule)) : null,
+  Future<void> _open(BuildContext context) async {
+    final box = context.findRenderObject()! as RenderBox;
+    final overlay =
+        Overlay.of(context).context.findRenderObject()! as RenderBox;
+    final topLeft = box.localToGlobal(
+      Offset(0, box.size.height + 4),
+      ancestor: overlay,
+    );
+    final picked = await showMenu<int>(
+      context: context,
+      position: RelativeRect.fromRect(
+        topLeft & const Size(1, 1),
+        Offset.zero & overlay.size,
       ),
-      // Not uppercased: 15M would read as months.
-      child: Text(label, style: T.chip(on ? C.onInk : C.ink)),
+      color: C.card,
+      elevation: 0,
+      shape: RoundedRectangleBorder(side: BorderSide(color: C.ink, width: 1.5)),
+      menuPadding: const EdgeInsets.symmetric(vertical: 4),
+      constraints: const BoxConstraints(minWidth: _kTimeField),
+      items: [
+        for (final m in kEstimateChoices) _item(m, minutes == m),
+      ],
+    );
+    if (picked == null) return;
+    onPick(picked == minutes ? null : picked);
+  }
+
+  PopupMenuItem<int> _item(int m, bool on) => PopupMenuItem<int>(
+    value: m,
+    height: 34,
+    padding: const EdgeInsets.symmetric(horizontal: 4),
+    child: Semantics(
+      label: on
+          ? 'Clear the ${formatMinutes(m)} estimate'
+          : 'Estimate ${formatMinutes(m)}',
+      selected: on,
+      child: ExcludeSemantics(
+        child: Container(
+          width: double.infinity,
+          color: on ? C.ink : null,
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+          // Not uppercased: 15M would read as months.
+          child: Text(formatMinutes(m), style: T.chip(on ? C.onInk : C.ink)),
+        ),
+      ),
     ),
   );
+
+  @override
+  Widget build(BuildContext context) {
+    final set = minutes != null;
+    return Builder(
+      builder: (context) => Tap(
+        onTap: () => _open(context),
+        semanticLabel: set
+            ? 'Time for $task, ${formatMinutes(minutes!)}, change it'
+            : 'Time for $task, not set, set it',
+        child: Container(
+          height: _kMetaHeight,
+          padding: const EdgeInsets.only(left: 10, right: 6),
+          decoration: BoxDecoration(
+            color: C.field,
+            border: Border.all(color: C.rule),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  set ? formatMinutes(minutes!) : 'e.g. 1h',
+                  style: set ? T.monoInput : T.monoInput.copyWith(color: C.muted),
+                ),
+              ),
+              Icon(Icons.expand_more, size: 16, color: C.ink),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
-/// Task rows: grip, gap, checkbox. Steps are a size down on each.
+/// Task rows: grip, gap, checkbox. A step's box and gap are a size down;
+/// its grip and remove are the task's, so every icon in the card is one size.
 const double _kGrip = 16;
 const double _kRowGap = 10;
 const double _kCheck = 19;
-const double _kStepGrip = 14;
+const double _kStepGrip = _kGrip;
 const double _kStepGap = 8;
 const double _kStepCheck = 15;
 
 /// The open task's MARKS box and TIME control: one width for the number,
 /// one height for both, so the pair is a single row of a form.
 const double _kMarksField = 76;
+const double _kTimeField = 96;
 const double _kMetaHeight = 36;
 
 /// The open card's DUE, TASKS and SUBJECT values each sit in a slot this
@@ -931,21 +975,17 @@ class _Check extends StatelessWidget {
   );
 }
 
-/// Remove, for a task or a step: the same quiet glyph in the same 24px box as
-/// the drag handle opposite it, so a row carries one weight of control at
+/// Remove, for a task or a step: one quiet glyph, one size at both levels,
+/// in the same 24px box as the drag handle opposite it, so a row carries one weight of control at
 /// each end rather than a mix.
 class _RowRemove extends StatelessWidget {
   const _RowRemove({
     required this.onTap,
     required this.semanticLabel,
-    this.glyph = 16,
   });
 
   final VoidCallback onTap;
   final String semanticLabel;
-
-  /// Smaller for a step than for a task.
-  final double glyph;
 
   @override
   Widget build(BuildContext context) => Tap(
@@ -954,7 +994,7 @@ class _RowRemove extends StatelessWidget {
     child: SizedBox(
       width: 24,
       height: 24,
-      child: Center(child: CloseGlyph(size: glyph)),
+      child: const Center(child: CloseGlyph()),
     ),
   );
 }
