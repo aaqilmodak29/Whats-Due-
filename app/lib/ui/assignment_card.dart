@@ -880,7 +880,7 @@ const double _kFactHeight = 16;
 TextStyle _taskStyle(bool done) => T.task(done: done).copyWith(
   color: C.ink,
   decorationColor: C.muted,
-  decorationThickness: done ? 0.4 : null,
+  decorationThickness: done ? 0.5 : null,
 );
 
 /// One of the open card's facts: a label over a value in a fixed-height slot.
