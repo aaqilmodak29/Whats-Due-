@@ -154,25 +154,23 @@ class _EditSheetState extends State<_EditSheet> {
             ),
           ),
           const SizedBox(height: kFormGap),
-          // The add panel's row with the one field only an existing
-          // assignment has, the score, on the end: every number box one
-          // width, the date a box and a half. Marks before score: "out of 40,
-          // I got 34". Weighting used to sit here too and has been removed
-          // for now. What the numbers add up to is a line of its own under
-          // the row, full width, rather than a paragraph squeezed beside a box.
+          // The date on a row of its own, full width like the title above
+          // it, then the three numbers in three even boxes: four fields in
+          // one row left each too narrow to read. Marks before score: "out
+          // of 40, I got 34". Weighting used to sit here too and has been
+          // removed for now. What the numbers add up to is a line of its own
+          // under the row, full width, rather than a paragraph squeezed
+          // beside a box.
+          DueDateField(
+            value: _due,
+            onChanged: (v) => setState(() => _due = v),
+          ),
+          const SizedBox(height: kFormGap),
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             spacing: 8,
             children: [
               Expanded(
-                flex: 3,
-                child: DueDateField(
-                  value: _due,
-                  onChanged: (v) => setState(() => _due = v),
-                ),
-              ),
-              Expanded(
-                flex: 2,
                 child: LabelledField(
                   label: 'Marks',
                   child: NumberField(
@@ -184,7 +182,6 @@ class _EditSheetState extends State<_EditSheet> {
                 ),
               ),
               Expanded(
-                flex: 2,
                 child: LabelledField(
                   label: 'Goal',
                   child: NumberField(
@@ -196,7 +193,6 @@ class _EditSheetState extends State<_EditSheet> {
                 ),
               ),
               Expanded(
-                flex: 2,
                 child: LabelledField(
                   label: 'Your score',
                   child: NumberField(
