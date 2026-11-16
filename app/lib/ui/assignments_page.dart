@@ -1010,21 +1010,43 @@ class _SearchFieldState extends State<_SearchField> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, c) => _row(c.maxWidth),
+  );
+
+  Widget _row(double width) {
     final open =
         widget.enabled && (_focus.hasFocus || _controller.text.isNotEmpty);
     final link = Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: widget.trailing,
     );
-    final tabs = SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: widget.leading,
+    // The tabs take their own width first, up to all but a sliver for the
+    // link and the search; only past that do they scroll.
+    Widget tabs(double max) => ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: max < 0 ? 0 : max),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: widget.leading,
+      ),
+    );
+    // The tabs are the rule's point, so they keep their full width and the
+    // link gives way: scaled down rather than sitting on top of a tab where
+    // the room runs out (very narrow phones, large text).
+    final fitLink = Expanded(
+      child: Align(
+        alignment: Alignment.bottomRight,
+        child: FittedBox(fit: BoxFit.scaleDown, child: link),
+      ),
     );
     if (!widget.enabled) {
       return Row(
         crossAxisAlignment: CrossAxisAlignment.end,
-        children: [Expanded(child: tabs), const SizedBox(width: 12), link],
+        children: [
+          tabs(width - 12 - 48),
+          const SizedBox(width: 12),
+          fitLink,
+        ],
       );
     }
     // Its own semantics node, sized to the field: left to merge upwards it
@@ -1038,13 +1060,13 @@ class _SearchFieldState extends State<_SearchField> {
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         if (open) ...[
-          Flexible(child: tabs),
+          Flexible(child: tabs(width)),
           const SizedBox(width: 12),
           Expanded(child: field),
         ] else ...[
-          Expanded(child: tabs),
+          tabs(width - 12 - 48 - 12 - _folded),
           const SizedBox(width: 12),
-          link,
+          fitLink,
           const SizedBox(width: 12),
           SizedBox(width: _folded, child: field),
         ],
