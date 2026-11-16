@@ -54,76 +54,118 @@ class _ManageSubjectsState extends State<ManageSubjects> {
     _focus.requestFocus();
   }
 
+  /// A panel of its own rather than one more band in the list: an ink
+  /// outline all round (the open card's language for "the thing being worked
+  /// on") under a heading that names it, the subjects as a list, and adding
+  /// as a labelled form at the foot.
   @override
-  Widget build(BuildContext context) => Surface(
-    topBorder: C.ink,
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    decoration: BoxDecoration(
+      color: C.card,
+      border: Border.all(color: C.ink),
+    ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Eyebrow('Subjects'),
-        const SizedBox(height: 6),
-        if (store.subjects.isEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: 4, bottom: 4),
-            child: Text('No subjects yet. Name one below.', style: T.note),
-          )
-        else ...[
-          for (final s in store.subjects) _SubjectRow(store: store, subject: s),
-          Padding(
-            padding: const EdgeInsets.only(top: 10),
-            child: Text(
-              'Deleting a subject keeps its assignments.',
-              style: T.note,
-            ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 4),
+          child: Row(
+            children: [
+              const Expanded(child: Eyebrow('Subjects')),
+              Text('${store.subjects.length}', style: T.count(C.ink)),
+            ],
           ),
-        ],
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          child: store.subjects.isEmpty
+              ? Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  child: Text(
+                    'No subjects yet. Name one below.',
+                    style: T.emptyBody,
+                  ),
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (final s in store.subjects)
+                      _SubjectRow(store: store, subject: s),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6, bottom: 4),
+                      child: Text(
+                        'Tap a colour to change it. Deleting keeps its work.',
+                        style: T.emptyBody,
+                      ),
+                    ),
+                  ],
+                ),
+        ),
 
         // Adding lives here as well as in the add-assignment panel. Creating a
         // subject inline while adding an assignment only works when you happen
         // to be adding one; setting a semester up in advance is its own job.
-        const SizedBox(height: 14),
-        Container(height: 1, color: C.rule),
-        const SizedBox(height: 12),
-        Text('ADD A SUBJECT', style: T.flabel),
-        const SizedBox(height: 5),
-        Row(
-          spacing: 6,
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _name,
-                focusNode: _focus,
-                style: T.body,
-                textInputAction: TextInputAction.done,
-                decoration: fieldDecoration(hint: 'e.g. Organic Chemistry'),
-                onSubmitted: (_) => _add(),
+        // Below a rule, so the form reads as apart from the list.
+        Container(
+          width: double.infinity,
+          margin: const EdgeInsets.only(top: 10),
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+          decoration: BoxDecoration(
+            border: Border(top: BorderSide(color: C.rule)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            spacing: 12,
+            children: [
+              LabelledField(
+                label: 'New subject',
+                child: Row(
+                  spacing: 6,
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _name,
+                        focusNode: _focus,
+                        style: T.input,
+                        textInputAction: TextInputAction.done,
+                        decoration: fieldDecoration(
+                          hint: 'e.g. Organic Chemistry',
+                        ),
+                        onSubmitted: (_) => _add(),
+                      ),
+                    ),
+                    Tap(
+                      onTap: _add,
+                      semanticLabel: 'Add subject',
+                      child: Container(
+                        height: 44,
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        color: C.ink,
+                        alignment: Alignment.center,
+                        child: Text('ADD', style: T.ghost(C.onInk)),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            Tap(
-              onTap: _add,
-              semanticLabel: 'Add subject',
-              child: Container(
-                height: 42,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                color: C.ink,
-                alignment: Alignment.center,
-                child: Text('ADD', style: T.ghost(C.onInk)),
+              LabelledField(
+                label: 'Colour',
+                child: Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    for (final c in kPalette)
+                      Tap(
+                        onTap: () => setState(() => _picked = c),
+                        semanticLabel: 'Use this colour for the new subject',
+                        child: Swatch(colour: hexToColor(c), on: c == _colour),
+                      ),
+                  ],
+                ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Wrap(
-          spacing: 6,
-          runSpacing: 6,
-          children: [
-            for (final c in kPalette)
-              Tap(
-                onTap: () => setState(() => _picked = c),
-                semanticLabel: 'Use this colour for the new subject',
-                child: Swatch(colour: hexToColor(c), on: c == _colour),
-              ),
-          ],
+            ],
+          ),
         ),
       ],
     ),

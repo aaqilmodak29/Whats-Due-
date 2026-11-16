@@ -79,20 +79,17 @@ class _EditSheetState extends State<_EditSheet> {
     final score = _earnedValue;
 
     if (score != null && marks != null && score > marks) {
-      return 'A score of ${trimNumber(score)} is more than the '
-          '${trimNumber(marks)} marks available. Grades will still count it, '
-          'but check the numbers.';
+      return '${trimNumber(score)} is more than the ${trimNumber(marks)} marks '
+          'available. It still counts; check the numbers.';
     }
     if (marks == null && score == null) {
-      return 'Set what this is marked out of, and your score once it comes '
-          'back. Both are needed before it counts towards Grades.';
+      return 'Counts towards Grades once both marks and score are in.';
     }
     if (score == null) {
       return 'Out of ${trimNumber(marks!)}. Add your score when it comes back.';
     }
     if (marks == null) {
-      return 'Add what it is marked out of, or the score cannot be read as a '
-          'percentage.';
+      return 'Add the marks it is out of to read the score as a percentage.';
     }
     final fraction = score / marks;
     final band = bandFor(fraction * 100, widget.store.bands);
@@ -110,6 +107,7 @@ class _EditSheetState extends State<_EditSheet> {
   @override
   Widget build(BuildContext context) {
     final a = widget.assignment;
+    final subject = widget.store.subjectOf(a);
     final unchanged =
         _title.text.trim() == a.title &&
         _due == a.due &&
@@ -125,7 +123,23 @@ class _EditSheetState extends State<_EditSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Eyebrow('Edit assignment'),
+          // The subject rides in the heading: it is changed on the card
+          // itself, so here it is context rather than a field.
+          Row(
+            spacing: 6,
+            children: [
+              const Eyebrow('Edit assignment'),
+              const Spacer(),
+              if (subject != null) Dot(subject.swatch),
+              Flexible(
+                child: Eyebrow(
+                  subject?.name ?? 'Unfiled',
+                  color: C.ink,
+                  maxLines: 1,
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 12),
           LabelledField(
             label: 'Assignment',
@@ -139,32 +153,31 @@ class _EditSheetState extends State<_EditSheet> {
               onSubmitted: (_) => _save(),
             ),
           ),
-          const SizedBox(height: 12),
-          DateField(
-            label: 'Due date',
-            value: _due,
-            onChanged: (v) => setState(() => _due = v),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            _due.isEmpty
-                ? 'Leaving the date empty keeps this off the 14-day strip.'
-                : longDate(_due),
-            style: T.note,
-          ),
-
-          const SizedBox(height: 14),
-          // Marks then score: "out of 40, I got 34". Weighting used to sit
-          // in front of these and has been removed for now, so what an
-          // assignment is worth towards the subject is not tracked.
+          const SizedBox(height: kFormGap),
+          // The add panel's row: the date, then the numbers. Marks then
+          // score: "out of 40, I got 34". Weighting used to sit in front of
+          // these and has been removed for now, so what an assignment is
+          // worth towards the subject is not tracked.
+          // Exactly the add panel's row: the date at twice the width of each
+          // number, every box the same height. Then the one field only an
+          // existing assignment has, the score, with what the numbers add up
+          // to beside it. Marks before score: "out of 40, I got 34".
+          // Weighting used to sit here too and has been removed for now.
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
-            spacing: 10,
+            spacing: 8,
             children: [
+              Expanded(
+                flex: 2,
+                child: DueDateField(
+                  value: _due,
+                  onChanged: (v) => setState(() => _due = v),
+                ),
+              ),
               Expanded(
                 child: LabelledField(
                   label: 'Marks',
-                  child: NumberField(
+                  child: FormNumberField(
                     controller: _outOf,
                     hint: 'e.g. 40',
                     semanticLabel: 'Marks the assignment is out of',
@@ -174,19 +187,8 @@ class _EditSheetState extends State<_EditSheet> {
               ),
               Expanded(
                 child: LabelledField(
-                  label: 'Your score',
-                  child: NumberField(
-                    controller: _earned,
-                    hint: 'e.g. 34',
-                    semanticLabel: 'Your score',
-                    onChanged: (v) => setState(() => _earnedValue = v),
-                  ),
-                ),
-              ),
-              Expanded(
-                child: LabelledField(
                   label: 'Goal',
-                  child: NumberField(
+                  child: FormNumberField(
                     controller: _goal,
                     hint: 'e.g. 30',
                     semanticLabel: 'Goal score',
@@ -196,12 +198,42 @@ class _EditSheetState extends State<_EditSheet> {
               ),
             ],
           ),
-          const SizedBox(height: 6),
-          // Prose, so sans: the mono data face made two sentences of advice
-          // read as a dense log line.
-          Text(_marksNote(), style: T.emptyBody),
+          const SizedBox(height: kFormGap),
+          LayoutBuilder(
+            builder: (context, box) {
+              // One number's width, so the score lines up under the marks
+              // column's grid rather than stretching.
+              final unit = (box.maxWidth - 3 * 8) / 4;
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                spacing: 12,
+                children: [
+                  SizedBox(
+                    width: unit,
+                    child: LabelledField(
+                      label: 'Your score',
+                      child: FormNumberField(
+                        controller: _earned,
+                        hint: 'e.g. 34',
+                        semanticLabel: 'Your score',
+                        onChanged: (v) => setState(() => _earnedValue = v),
+                      ),
+                    ),
+                  ),
+                  // Prose, so sans: the mono data face made two sentences of
+                  // advice read as a dense log line.
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 2),
+                      child: Text(_marksNote(), style: T.emptyBody),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
           Row(
             spacing: 8,
             children: [
@@ -281,6 +313,99 @@ class SheetDialog extends StatelessWidget {
             child: child,
           ),
         ),
+      ),
+    ),
+  );
+}
+
+/// Vertical gap between rows of fields, shared by the add panel and the edit
+/// sheet so the two forms keep one rhythm.
+const double kFormGap = 12;
+
+/// The due date, used by both the add panel and the edit sheet: the picker
+/// field under a DUE label, with the day it falls on beside the label in the
+/// app's own `FRI 7 AUG` form. One place for the readable date, on the
+/// label's line, rather than a second line under the field.
+class DueDateField extends StatelessWidget {
+  const DueDateField({super.key, required this.value, required this.onChanged});
+
+  /// `YYYY-MM-DD`, or empty.
+  final String value;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    // longDate's weekday, day and month, without the year.
+    final day = parseIsoDate(value) == null
+        ? null
+        : longDate(value).split(' ').take(3).join(' ').toUpperCase();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 5),
+          child: Row(
+            spacing: 8,
+            children: [
+              Text('DUE', style: T.flabel),
+              if (day != null)
+                Flexible(
+                  child: Text(
+                    day,
+                    style: T.flabel.copyWith(color: C.ink),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+            ],
+          ),
+        ),
+        DateField(value: value, onChanged: onChanged),
+      ],
+    );
+  }
+}
+
+/// A number field for the add and edit forms: [NumberField]'s behaviour and
+/// look, padded to the [DateField]'s height so the date and the numbers in
+/// one row are one height of box.
+class FormNumberField extends StatelessWidget {
+  const FormNumberField({
+    super.key,
+    required this.controller,
+    required this.onChanged,
+    required this.semanticLabel,
+    this.hint,
+  });
+
+  final TextEditingController controller;
+  final ValueChanged<double?> onChanged;
+  final String semanticLabel;
+  final String? hint;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    textField: true,
+    label: semanticLabel,
+    child: ExcludeSemantics(
+      child: TextField(
+        controller: controller,
+        style: T.monoInput,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        decoration: fieldDecoration(hint: hint, mono: true).copyWith(
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 10,
+            vertical: 12.5,
+          ),
+        ),
+        // As NumberField: empty or unreadable is null, which the store reads
+        // as untracked; a negative number is not a mark.
+        onChanged: (raw) {
+          final text = raw.trim();
+          if (text.isEmpty) return onChanged(null);
+          final v = double.tryParse(text);
+          onChanged(v == null || v < 0 ? null : v);
+        },
       ),
     ),
   );
