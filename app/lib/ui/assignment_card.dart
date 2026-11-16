@@ -563,11 +563,13 @@ class _AssignmentCardState extends State<AssignmentCard> {
         const SizedBox(height: 12),
         Row(
           children: [
-            GhostButton(
-              label: a.done ? 'Reopen' : 'Mark submitted',
-              filled: !a.done,
-              onPressed: () => store.toggleSubmitted(a),
-            ),
+            if (a.done)
+              GhostButton(
+                label: 'Reopen',
+                onPressed: () => store.toggleSubmitted(a),
+              )
+            else
+              _SubmitButton(onPressed: () => store.toggleSubmitted(a)),
             const Spacer(),
             Tap(
               onTap: () => showEditSheet(context, store, a),
@@ -588,6 +590,36 @@ class _AssignmentCardState extends State<AssignmentCard> {
           ],
         ),
       ],
+    ),
+  );
+}
+
+/// The open card's one primary, Mark submitted: the highlighter, but toned
+/// down to sit inside a card full of quiet controls, with a 1px ink outline
+/// and a little less padding than a page-level button. The lime still says
+/// "this is the one to press"; it no longer shouts over the tasks above it.
+class _SubmitButton extends StatelessWidget {
+  const _SubmitButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => Tap(
+    onTap: onPressed,
+    semanticLabel: 'Mark submitted',
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        // Mixed into the card: paler on the day card, and nearer full
+        // strength on the night one, where a mix turns to olive.
+        color: Color.lerp(
+          C.card,
+          C.mark,
+          Theme.of(context).brightness == Brightness.dark ? .85 : .6,
+        ),
+        border: Border.all(color: C.ink),
+      ),
+      child: Text('MARK SUBMITTED', style: T.ghost(C.onMark)),
     ),
   );
 }
