@@ -82,10 +82,11 @@ class _ManageSubjectsState extends State<ManageSubjects> {
             children: [
               const Expanded(child: Eyebrow('Subjects')),
               if (store.subjects.isNotEmpty) ...[
-                _CountCell(width: _kOpenCol, child: Text('OPEN', style: T.flabel)),
+                _CountCell(width: _kOpenCol, text: 'OPEN', style: T.flabel),
                 _CountCell(
                   width: _kDoneCol,
-                  child: Text('SUBMITTED', style: T.flabel),
+                  text: 'SUBMITTED',
+                  style: T.flabel,
                 ),
                 const SizedBox(width: _kDeleteCol),
               ],
@@ -294,13 +295,11 @@ class _SubjectRowState extends State<_SubjectRow> {
               ),
             ),
           ),
-          _CountCell(
-            width: _kOpenCol,
-            child: Text('$open', style: T.count(C.ink)),
-          ),
+          _CountCell(width: _kOpenCol, text: '$open', style: T.count(C.ink)),
           _CountCell(
             width: _kDoneCol,
-            child: Text('$submitted', style: T.count(C.ink)),
+            text: '$submitted',
+            style: T.count(C.ink),
           ),
           Tap(
             onTap: () {
@@ -338,17 +337,36 @@ const double _kOpenCol = 36;
 const double _kDoneCol = 62;
 const double _kDeleteCol = 24;
 
-/// A right-aligned cell in the subject list's count columns.
+/// A right-aligned cell in the subject list's count columns, used for the
+/// heading and for every row, so a column's label and its numbers end on
+/// the same line.
+///
+/// Mono letter-spacing is added after every glyph, the last one included, so
+/// a right-aligned spaced label stops short of its box by that much while a
+/// bolder number in a different spacing stops short by another amount. The
+/// trailing space is taken back here, so it is the ink that lines up, not
+/// the advance.
 class _CountCell extends StatelessWidget {
-  const _CountCell({required this.width, required this.child});
+  const _CountCell({
+    required this.width,
+    required this.text,
+    required this.style,
+  });
 
   final double width;
-  final Widget child;
+  final String text;
+  final TextStyle style;
 
   @override
   Widget build(BuildContext context) => SizedBox(
     width: width,
-    child: Align(alignment: Alignment.centerRight, child: child),
+    child: Align(
+      alignment: Alignment.centerRight,
+      child: Transform.translate(
+        offset: Offset(style.letterSpacing ?? 0, 0),
+        child: Text(text, style: style),
+      ),
+    ),
   );
 }
 
