@@ -15,6 +15,14 @@ import 'theme.dart';
 /// "clear it". See [AppStore.setMarks].
 const Object _unchanged = Object();
 
+/// One decoded coursework document.
+typedef _Doc = ({
+  List<Subject> subjects,
+  List<Assignment> items,
+  List<GradeBand> bands,
+  List<Semester> semesters,
+});
+
 /// Outcome of an import, so the UI can report something specific.
 class ImportResult {
   const ImportResult.ok({required this.subjects, required this.items})
@@ -44,6 +52,8 @@ class AppStore extends ChangeNotifier {
   static const _remindersKey = 'coursework:reminders';
   static const _darkKey = 'coursework:dark';
   static const _onboardedKey = 'coursework:onboarded';
+  static const _semesterFilterKey = 'coursework:semesterFilter';
+  static const _sectionKey = 'coursework:section';
 
   SharedPreferences? _prefs;
 
@@ -63,6 +73,51 @@ class AppStore extends ChangeNotifier {
   List<GradeBand> bands = [];
 
   bool get usesLetterGrades => bands.isNotEmpty;
+
+  /// Teaching periods subjects can be filed under. Coursework, so a backup
+  /// carries them.
+  List<Semester> semesters = [];
+
+  /// Which section the Assignments page is showing, and where new work goes.
+  /// Device state, remembered between launches.
+  WorkSection section = WorkSection.school;
+
+  void setSection(WorkSection value) {
+    section = value;
+    try {
+      _prefs?.setString(_sectionKey, value.name);
+    } catch (e) {
+      debugPrint('Store: could not persist the section — $e');
+    }
+    notifyListeners();
+  }
+
+  String? _semesterFilter;
+
+  /// The semester the list is narrowed to, or null for every semester.
+  ///
+  /// Remembered on the device rather than in the document: it is how this
+  /// phone is looking at the work, not part of the work. A semester that has
+  /// since been deleted reads as null.
+  String? get semesterFilter =>
+      semesters.any((s) => s.id == _semesterFilter) ? _semesterFilter : null;
+
+  void setSemesterFilter(String? id) {
+    _semesterFilter = id;
+    try {
+      if (id == null) {
+        _prefs?.remove(_semesterFilterKey);
+      } else {
+        _prefs?.setString(_semesterFilterKey, id);
+      }
+    } catch (e) {
+      debugPrint('Store: could not persist the semester filter — $e');
+    }
+    notifyListeners();
+  }
+
+  /// The semester [a]'s subject belongs to, or null.
+  String? semesterIdOf(Assignment a) => subjectOf(a)?.semesterId;
 
   /// Whether the first-run question has been answered, either way. Device
   /// state, not coursework — a restored backup should not re-ask.
@@ -87,6 +142,8 @@ class AppStore extends ChangeNotifier {
       remindersEnabled = _prefs!.getBool(_remindersKey) ?? true;
       darkMode = _prefs!.getBool(_darkKey) ?? false;
       onboarded = _prefs!.getBool(_onboardedKey) ?? false;
+      _semesterFilter = _prefs!.getString(_semesterFilterKey);
+      section = WorkSection.parse(_prefs!.getString(_sectionKey));
       // Applied before the first frame, so the app never opens light and then
       // flips.
       C.palette = darkMode ? Palette.night : Palette.light;
@@ -111,8 +168,7 @@ class AppStore extends ChangeNotifier {
 
   // ---------------------------------------------------------------- decoding
 
-  ({List<Subject> subjects, List<Assignment> items, List<GradeBand> bands})
-  _decode(String raw) {
+  _Doc _decode(String raw) {
     final j = jsonDecode(raw);
     if (j is! Map) throw const FormatException('Expected a JSON object');
     return (
@@ -131,14 +187,18 @@ class AppStore extends ChangeNotifier {
           (b) => GradeBand.fromJson(b.cast<String, dynamic>()),
         ),
       ),
+      // Absent from everything written before semesters existed.
+      semesters: (j['semesters'] as List? ?? const [])
+          .whereType<Map>()
+          .map((s) => Semester.fromJson(s.cast<String, dynamic>()))
+          .toList(),
     );
   }
 
   /// v1 stored a bare array with a free-text `module` field. Group by
   /// case-insensitive module name, mint a subject per distinct name, rewrite
   /// the references.
-  ({List<Subject> subjects, List<Assignment> items, List<GradeBand> bands})
-  _migrateV1(String raw) {
+  _Doc _migrateV1(String raw) {
     final arr = jsonDecode(raw);
     if (arr is! List) throw const FormatException('Expected a JSON array');
     final subjects = <Subject>[];
@@ -163,16 +223,19 @@ class AppStore extends ChangeNotifier {
       }
       items.add(Assignment.fromJson(j)..subjectId = sid);
     }
-    return (subjects: subjects, items: items, bands: const <GradeBand>[]);
+    return (
+      subjects: subjects,
+      items: items,
+      bands: const <GradeBand>[],
+      semesters: <Semester>[],
+    );
   }
 
-  void _adopt(
-    ({List<Subject> subjects, List<Assignment> items, List<GradeBand> bands})
-    data,
-  ) {
+  void _adopt(_Doc data) {
     subjects = data.subjects;
     items = data.items;
     bands = data.bands;
+    semesters = data.semesters;
   }
 
   // ------------------------------------------------------------------ saving
@@ -200,20 +263,33 @@ class AppStore extends ChangeNotifier {
     // Omitted when unused, so a percentages-only document serialises exactly
     // as it did before bands existed.
     if (bands.isNotEmpty) 'bands': bands.map((b) => b.toJson()).toList(),
+    // Likewise omitted until one is added.
+    if (semesters.isNotEmpty)
+      'semesters': semesters.map((s) => s.toJson()).toList(),
   };
 
   String exportJson() => const JsonEncoder.withIndent('  ').convert(toJson());
 
   // --------------------------------------------------------------- selectors
 
-  /// Unsubmitted items, by due date, undated last.
+  /// Everything in the section being shown.
+  List<Assignment> get sectionItems =>
+      items.where((a) => a.section == section).toList();
+
+  /// School work only, whichever section is showing: what grades count.
+  List<Assignment> get schoolItems =>
+      items.where((a) => a.section == WorkSection.school).toList();
+
+  /// Unsubmitted items in the current section, by due date, undated last.
   List<Assignment> get active {
-    final list = items.where((a) => !a.done).toList()
+    final list = sectionItems.where((a) => !a.done).toList()
       ..sort((x, y) => sortKey(x).compareTo(sortKey(y)));
     return list;
   }
 
-  List<Assignment> get submitted => items.where((a) => a.done).toList();
+  /// Submitted items in the current section.
+  List<Assignment> get submitted =>
+      sectionItems.where((a) => a.done).toList();
 
   Subject? subjectOf(Assignment a) =>
       subjects.where((s) => s.id == a.subjectId).firstOrNull;
@@ -226,8 +302,13 @@ class AppStore extends ChangeNotifier {
 
   // --------------------------------------------------------------- mutations
 
-  Subject addSubject(String name, String color) {
-    final s = Subject(id: uid(), name: name, color: color);
+  Subject addSubject(String name, String color, {String? semesterId}) {
+    final s = Subject(
+      id: uid(),
+      name: name,
+      color: color,
+      semesterId: semesterId,
+    );
     subjects.add(s);
     _commit();
     return s;
@@ -255,13 +336,47 @@ class AppStore extends ChangeNotifier {
     _commit();
   }
 
+  Semester? semesterOf(Subject s) =>
+      semesters.where((x) => x.id == s.semesterId).firstOrNull;
+
+  Semester? addSemester(String name) {
+    if (name.trim().isEmpty) return null;
+    final s = Semester(id: uid(), name: name.trim());
+    semesters.add(s);
+    _commit();
+    return s;
+  }
+
+  void renameSemester(Semester s, String name) {
+    if (name.trim().isEmpty) return;
+    s.name = name.trim();
+    _commit();
+  }
+
+  /// Like deleting a subject, this never loses anything: its subjects simply
+  /// stop belonging to a semester.
+  void deleteSemester(Semester s) {
+    for (final x in subjects) {
+      if (x.semesterId == s.id) x.semesterId = null;
+    }
+    semesters.removeWhere((x) => x.id == s.id);
+    _commit();
+  }
+
+  void setSubjectSemester(Subject s, String? semesterId) {
+    s.semesterId = semesterId;
+    _commit();
+  }
+
   Assignment addAssignment({
     required String title,
     String? subjectId,
     String due = '',
     double? outOf,
   }) {
+    // New work goes into whichever section is showing.
     final a = Assignment(
+      section: section,
       id: uid(),
       title: title,
       subjectId: subjectId,
@@ -364,9 +479,32 @@ class AppStore extends ChangeNotifier {
     _commit();
   }
 
+  /// Moves the task at [from] so it ends up at [to] in [a]'s list. Order is
+  /// just list order, so the saved and backed-up JSON keeps its shape.
+  void moveTask(Assignment a, int from, int to) {
+    if (_move(a.tasks, from, to)) _commit();
+  }
+
+  /// Moves the step at [from] so it ends up at [to] under [t].
+  void moveSubtask(Task t, int from, int to) {
+    if (_move(t.subtasks, from, to)) _commit();
+  }
+
+  /// False, and nothing saved, when either index is out of range or nothing
+  /// would move.
+  static bool _move<E>(List<E> list, int from, int to) {
+    if (from == to) return false;
+    if (from < 0 || from >= list.length || to < 0 || to >= list.length) {
+      return false;
+    }
+    list.insert(to, list.removeAt(from));
+    return true;
+  }
+
   void clearAll() {
     subjects = [];
     items = [];
+    semesters = [];
     _commit();
   }
 
@@ -433,8 +571,7 @@ class AppStore extends ChangeNotifier {
     final text = raw.trim();
     if (text.isEmpty) return const ImportResult.failed('Nothing to import.');
 
-    ({List<Subject> subjects, List<Assignment> items, List<GradeBand> bands})
-    incoming;
+    _Doc incoming;
     try {
       incoming = text.startsWith('[') ? _migrateV1(text) : _decode(text);
     } on FormatException catch (e) {
@@ -453,6 +590,7 @@ class AppStore extends ChangeNotifier {
       subjects = incoming.subjects;
       items = incoming.items;
       bands = incoming.bands;
+      semesters = incoming.semesters;
       _commit();
       return ImportResult.ok(subjects: subjects.length, items: items.length);
     }
@@ -460,6 +598,21 @@ class AppStore extends ChangeNotifier {
     var addedSubjects = 0;
     var addedItems = 0;
     final remap = <String, String>{};
+
+    // Semesters merge by name, like subjects.
+    final semesterRemap = <String, String>{};
+    for (final s in incoming.semesters) {
+      final existing = semesters
+          .where((x) => x.name.toUpperCase() == s.name.toUpperCase())
+          .firstOrNull;
+      if (existing != null) {
+        semesterRemap[s.id] = existing.id;
+      } else {
+        final fresh = Semester(id: uid(), name: s.name);
+        semesters.add(fresh);
+        semesterRemap[s.id] = fresh.id;
+      }
+    }
 
     for (final s in incoming.subjects) {
       final existing = subjects
@@ -473,6 +626,7 @@ class AppStore extends ChangeNotifier {
           name: s.name,
           color: s.color,
           goalPercent: s.goalPercent,
+          semesterId: s.semesterId == null ? null : semesterRemap[s.semesterId],
         );
         subjects.add(fresh);
         remap[s.id] = fresh.id;

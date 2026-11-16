@@ -263,6 +263,21 @@ class T {
       _mono(10, em: .04, color: C.muted, height: 1.65);
 
   static TextStyle get body => _sans(14, 400, height: 1.45);
+
+  /// The chosen date at the head of the date picker. Mono and upper case
+  /// ("THU 6 AUG"), the same treatment every other date in the app gets, at
+  /// the size of a card title rather than a stock dialog's display type.
+  static TextStyle get pickerHeadline =>
+      _mono(17, weight: 600, em: .04, height: 1.25);
+
+  /// A quiet text action: a secondary button with no box, underlined so it
+  /// still reads as tappable. Semibold, because the regular mono's hairlines
+  /// anti-alias to grey at this size.
+  static TextStyle get link => _mono(
+    11,
+    weight: 600,
+    em: .08,
+  ).copyWith(decoration: TextDecoration.underline, decorationColor: C.ink);
 }
 
 /// Page furniture shared by every screen: paper background, a 620px column.
@@ -295,6 +310,35 @@ ThemeData buildTheme() {
       textStyle: T.eyebrow(C.onInk),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
     ),
+    datePickerTheme: buildDatePickerTheme(),
+    switchTheme: buildSwitchTheme(),
+  );
+}
+
+/// Every switch in the app, unmistakable either way in both palettes: on is
+/// a filled ink track with a full-size reversed-out thumb at the right; off
+/// is an empty card-coloured track drawn as an ink outline, with a smaller
+/// grey thumb at the left.
+///
+/// Round 5 drew the off thumb full-size in ink, and next to an on switch the
+/// two read as the same heavy control pointing different ways. Now the fill,
+/// the thumb's colour, its size and its side all change together. Ink rather
+/// than the highlighter for "on", because the highlighter is kept for the one
+/// primary action on a screen.
+SwitchThemeData buildSwitchTheme() {
+  bool on(Set<WidgetState> s) => s.contains(WidgetState.selected);
+  return SwitchThemeData(
+    thumbColor: WidgetStateProperty.resolveWith(
+      (s) => on(s) ? C.onInk : C.muted,
+    ),
+    trackColor: WidgetStateProperty.resolveWith(
+      (s) => on(s) ? C.ink : C.card,
+    ),
+    trackOutlineColor: WidgetStatePropertyAll(C.ink),
+    trackOutlineWidth: const WidgetStatePropertyAll(1.5),
+    // No thumb icon, so Material keeps its own size change: 24px on, 16px
+    // off. The smaller thumb is half of what makes off read as empty.
+    overlayColor: const WidgetStatePropertyAll(Colors.transparent),
   );
 }
 
@@ -329,8 +373,10 @@ DatePickerThemeData buildDatePickerTheme() {
       RoundedRectangleBorder(borderRadius: BorderRadius.zero),
     ),
 
-    headerBackgroundColor: C.ink,
-    headerForegroundColor: C.onInk,
+    // The frame, headline and buttons are the app's own (DateField's sheet);
+    // this dresses the Material grid and typed-entry field inside it.
+    dayStyle: T.monoInput,
+    yearStyle: T.monoInput,
 
     dayForegroundColor: byState(selected: C.onInk, normal: C.ink),
     dayBackgroundColor: byState(selected: C.ink, normal: Colors.transparent),
@@ -348,9 +394,29 @@ DatePickerThemeData buildDatePickerTheme() {
     yearForegroundColor: byState(selected: C.onInk, normal: C.ink),
     yearBackgroundColor: byState(selected: C.ink, normal: Colors.transparent),
 
-    weekdayStyle: T.flabel,
+    weekdayStyle: T.count(C.muted),
     dividerColor: C.rule,
-    cancelButtonStyle: TextButton.styleFrom(foregroundColor: C.ink),
-    confirmButtonStyle: TextButton.styleFrom(foregroundColor: C.ink),
+    // The month above the grid ("AUGUST 2026") and its arrows. Material draws
+    // it at 60% of the text colour, which read as disabled.
+    toggleButtonTextStyle: T.count(C.ink),
+    subHeaderForegroundColor: C.ink,
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: C.field,
+      labelStyle: T.count(C.ink),
+      hintStyle: T.monoInput.copyWith(color: C.muted),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.zero,
+        borderSide: BorderSide(color: C.rule),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.zero,
+        borderSide: BorderSide(color: C.rule),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.zero,
+        borderSide: BorderSide(color: C.ink, width: 2),
+      ),
+    ),
   );
 }

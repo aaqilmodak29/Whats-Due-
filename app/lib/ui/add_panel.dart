@@ -4,6 +4,8 @@ import '../models.dart';
 import '../store.dart';
 import '../theme.dart';
 import 'atoms.dart';
+import 'edit_sheet.dart' show DueDateField, kFormGap, kGoalHint, kMarksHint;
+import 'manage_subjects.dart' show SemesterDropdown, Swatch;
 
 /// The "new assignment" panel, revealed by the + button in the header.
 ///
@@ -34,6 +36,10 @@ class _AddPanelState extends State<AddPanel> {
   final _subjectFocus = FocusNode();
 
   String _subjectId = '';
+
+  /// The semester a subject created here is filed under; empty for none.
+  /// Starts on the semester the list is showing, if any.
+  late String _semester = widget.store.semesterFilter ?? '';
   String _due = '';
 
   /// What the assignment is marked out of, when it is known at the time it is
@@ -77,7 +83,13 @@ class _AddPanelState extends State<AddPanel> {
         _subjectFocus.requestFocus();
         return;
       }
-      subjectId = widget.store.addSubject(name, _picked).id;
+      subjectId = widget.store
+          .addSubject(
+            name,
+            _picked,
+            semesterId: _semester.isEmpty ? null : _semester,
+          )
+          .id;
     }
 
     final created = widget.store.addAssignment(
@@ -112,7 +124,7 @@ class _AddPanelState extends State<AddPanel> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Eyebrow('New assignment'),
-          const SizedBox(height: 12),
+          const SizedBox(height: kFormGap),
           LabelledField(
             label: 'Assignment',
             child: TextField(
@@ -124,7 +136,7 @@ class _AddPanelState extends State<AddPanel> {
               onSubmitted: (_) => _create(),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: kFormGap),
           LayoutBuilder(
             builder: (context, constraints) {
               final subject = LabelledField(
@@ -147,8 +159,7 @@ class _AddPanelState extends State<AddPanel> {
                   ],
                 ),
               );
-              final date = DateField(
-                label: 'Due date',
+              final date = DueDateField(
                 value: _due,
                 onChanged: (v) => setState(() => _due = v),
               );
@@ -156,7 +167,7 @@ class _AddPanelState extends State<AddPanel> {
                 label: 'Marks',
                 child: NumberField(
                   controller: _outOf,
-                  hint: '40',
+                  hint: kMarksHint,
                   semanticLabel: 'Marks the assignment is out of',
                   onChanged: (v) => setState(() => _outOfValue = v),
                 ),
@@ -165,7 +176,7 @@ class _AddPanelState extends State<AddPanel> {
                 label: 'Goal',
                 child: NumberField(
                   controller: _goal,
-                  hint: '30',
+                  hint: kGoalHint,
                   semanticLabel: 'Goal score',
                   onChanged: (v) => setState(() => _goalValue = v),
                 ),
@@ -175,20 +186,23 @@ class _AddPanelState extends State<AddPanel> {
               if (constraints.maxWidth < 360) {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
-                  spacing: 10,
+                  spacing: kFormGap,
                   children: [subject, date, marks, goal],
                 );
               }
+              // The edit sheet's row: the date a box and a half, every number
+              // box one width and the shared field height, each with a hint
+              // so an empty box still says what goes in it.
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
-                spacing: 10,
+                spacing: kFormGap,
                 children: [
                   subject,
                   Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     spacing: 8,
                     children: [
-                      Expanded(flex: 4, child: date),
+                      Expanded(flex: 3, child: date),
                       Expanded(flex: 2, child: marks),
                       Expanded(flex: 2, child: goal),
                     ],
@@ -198,7 +212,7 @@ class _AddPanelState extends State<AddPanel> {
             },
           ),
           if (creatingSubject) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: kFormGap),
             LabelledField(
               label: 'Name the subject',
               child: TextField(
@@ -210,31 +224,36 @@ class _AddPanelState extends State<AddPanel> {
                 onSubmitted: (_) => _create(),
               ),
             ),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                for (final c in kPalette)
-                  Tap(
-                    onTap: () => setState(() => _picked = c),
-                    semanticLabel: 'Use this colour',
-                    child: Container(
-                      width: 26,
-                      height: 26,
-                      decoration: BoxDecoration(
-                        color: hexToColor(c),
-                        border: Border.all(
-                          color: c == _picked ? C.ink : Colors.transparent,
-                          width: 2,
-                        ),
-                      ),
+            if (widget.store.semesters.isNotEmpty) ...[
+              const SizedBox(height: kFormGap),
+              LabelledField(
+                label: 'Semester',
+                child: SemesterDropdown(
+                  store: widget.store,
+                  value: _semester,
+                  semanticLabel: 'Semester for the new subject',
+                  onChanged: (v) => setState(() => _semester = v),
+                ),
+              ),
+            ],
+            const SizedBox(height: kFormGap),
+            LabelledField(
+              label: 'Colour',
+              child: Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final c in kPalette)
+                    Tap(
+                      onTap: () => setState(() => _picked = c),
+                      semanticLabel: 'Use this colour',
+                      child: Swatch(colour: hexToColor(c), on: c == _picked),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
           ],
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           PrimaryButton(label: 'Track it', onPressed: _create),
         ],
       ),

@@ -79,20 +79,17 @@ class _EditSheetState extends State<_EditSheet> {
     final score = _earnedValue;
 
     if (score != null && marks != null && score > marks) {
-      return 'A score of ${trimNumber(score)} is more than the '
-          '${trimNumber(marks)} marks available. Grades will still count it, '
-          'but check the numbers.';
+      return '${trimNumber(score)} is more than the ${trimNumber(marks)} marks '
+          'available. It still counts; check the numbers.';
     }
     if (marks == null && score == null) {
-      return 'Set what this is marked out of, and your score once it comes '
-          'back. Both are needed before it counts towards Grades.';
+      return 'Counts in Grades once marked.';
     }
     if (score == null) {
-      return 'Out of ${trimNumber(marks!)}. Add your score when it comes back.';
+      return 'Out of ${trimNumber(marks!)}. Add your score when it is back.';
     }
     if (marks == null) {
-      return 'Add what it is marked out of, or the score cannot be read as a '
-          'percentage.';
+      return 'Add the marks it is out of for a percentage.';
     }
     final fraction = score / marks;
     final band = bandFor(fraction * 100, widget.store.bands);
@@ -110,6 +107,7 @@ class _EditSheetState extends State<_EditSheet> {
   @override
   Widget build(BuildContext context) {
     final a = widget.assignment;
+    final subject = widget.store.subjectOf(a);
     final unchanged =
         _title.text.trim() == a.title &&
         _due == a.due &&
@@ -117,127 +115,208 @@ class _EditSheetState extends State<_EditSheet> {
         _outOfValue == a.outOf &&
         _goalValue == a.goal;
 
-    return Dialog(
-      backgroundColor: C.card,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-      insetPadding: const EdgeInsets.all(20),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 460),
-        child: Container(
-          decoration: BoxDecoration(
-            border: Border(top: BorderSide(color: C.mark, width: 3)),
-          ),
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+    final blocked = _title.text.trim().isEmpty || unchanged;
+
+    return SheetDialog(
+      edge: C.mark,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // The subject rides in the heading: it is changed on the card
+          // itself, so here it is context rather than a field.
+          Row(
+            spacing: 6,
             children: [
               const Eyebrow('Edit assignment'),
-              const SizedBox(height: 12),
-              LabelledField(
-                label: 'Assignment',
-                child: TextField(
-                  controller: _title,
-                  style: T.input,
-                  autofocus: true,
-                  textInputAction: TextInputAction.done,
-                  decoration: fieldDecoration(hint: 'e.g. Comparative essay'),
-                  onChanged: (_) => setState(() {}),
-                  onSubmitted: (_) => _save(),
+              const Spacer(),
+              if (subject != null) Dot(subject.swatch),
+              Flexible(
+                child: Eyebrow(
+                  subject?.name ?? 'Unfiled',
+                  color: C.ink,
+                  maxLines: 1,
                 ),
-              ),
-              const SizedBox(height: 12),
-              DateField(
-                label: 'Due date',
-                value: _due,
-                onChanged: (v) => setState(() => _due = v),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                _due.isEmpty
-                    ? 'Leaving the date empty keeps this off the 14-day strip.'
-                    : longDate(_due),
-                style: T.note,
-              ),
-
-              const SizedBox(height: 14),
-              // Marks then score: "out of 40, I got 34". Weighting used to sit
-              // in front of these and has been removed for now, so what an
-              // assignment is worth towards the subject is not tracked.
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                spacing: 10,
-                children: [
-                  Expanded(
-                    child: LabelledField(
-                      label: 'Marks',
-                      child: NumberField(
-                        controller: _outOf,
-                        hint: '40',
-                        semanticLabel: 'Marks the assignment is out of',
-                        onChanged: (v) => setState(() => _outOfValue = v),
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: LabelledField(
-                      label: 'Your score',
-                      child: NumberField(
-                        controller: _earned,
-                        hint: '34',
-                        semanticLabel: 'Your score',
-                        onChanged: (v) => setState(() => _earnedValue = v),
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: LabelledField(
-                      label: 'Goal',
-                      child: NumberField(
-                        controller: _goal,
-                        hint: '30',
-                        semanticLabel: 'Goal score',
-                        onChanged: (v) => setState(() => _goalValue = v),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Text(_marksNote(), style: T.note),
-
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                spacing: 8,
-                children: [
-                  GhostButton(
-                    label: 'Cancel',
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                  Opacity(
-                    opacity: _title.text.trim().isEmpty || unchanged ? .4 : 1,
-                    child: Tap(
-                      onTap: _title.text.trim().isEmpty || unchanged
-                          ? null
-                          : _save,
-                      semanticLabel: 'Save changes',
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 11,
-                          vertical: 9,
-                        ),
-                        color: C.ink,
-                        child: Text('SAVE', style: T.ghost(C.onInk)),
-                      ),
-                    ),
-                  ),
-                ],
               ),
             ],
           ),
-        ),
+          const SizedBox(height: 12),
+          LabelledField(
+            label: 'Assignment',
+            child: TextField(
+              controller: _title,
+              style: T.input,
+              autofocus: true,
+              textInputAction: TextInputAction.done,
+              decoration: fieldDecoration(hint: 'e.g. Comparative essay'),
+              onChanged: (_) => setState(() {}),
+              onSubmitted: (_) => _save(),
+            ),
+          ),
+          const SizedBox(height: kFormGap),
+          // The date on a row of its own, full width like the title above
+          // it, then the three numbers in three even boxes: four fields in
+          // one row left each too narrow to read. Marks before score: "out
+          // of 40, I got 34". Weighting used to sit here too and has been
+          // removed for now. What the numbers add up to is a line of its own
+          // under the row, full width, rather than a paragraph squeezed
+          // beside a box.
+          DueDateField(
+            value: _due,
+            onChanged: (v) => setState(() => _due = v),
+          ),
+          const SizedBox(height: kFormGap),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            spacing: 8,
+            children: [
+              Expanded(
+                child: LabelledField(
+                  label: 'Marks',
+                  child: NumberField(
+                    controller: _outOf,
+                    hint: kMarksHint,
+                    semanticLabel: 'Marks the assignment is out of',
+                    onChanged: (v) => setState(() => _outOfValue = v),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: LabelledField(
+                  label: 'Goal',
+                  child: NumberField(
+                    controller: _goal,
+                    hint: kGoalHint,
+                    semanticLabel: 'Goal score',
+                    onChanged: (v) => setState(() => _goalValue = v),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: LabelledField(
+                  label: 'Your score',
+                  child: NumberField(
+                    controller: _earned,
+                    hint: kScoreHint,
+                    semanticLabel: 'Your score',
+                    onChanged: (v) => setState(() => _earnedValue = v),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          // Prose, so sans: the mono data face made two sentences of advice
+          // read as a dense log line.
+          Text(_marksNote(), style: T.emptyBody.copyWith(color: C.ink)),
+          const SizedBox(height: 18),
+          Row(
+            spacing: 8,
+            children: [
+              // Says why Save is greyed out, rather than leaving a
+              // disabled-looking button to explain itself.
+              Expanded(
+                child: blocked
+                    ? Text(
+                        _title.text.trim().isEmpty
+                            ? 'NEEDS A TITLE'
+                            : 'NOTHING CHANGED YET',
+                        style: T.eyebrow(C.ink),
+                      )
+                    : const SizedBox.shrink(),
+              ),
+              GhostButton(
+                label: 'Cancel',
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+              // Greyed by its ground, not by fading it: a rule-grey slab with
+              // the word still in ink, so it reads as unavailable and still
+              // reads.
+              Tap(
+                onTap: blocked ? null : _save,
+                semanticLabel: 'Save changes',
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 11,
+                    vertical: 9,
+                  ),
+                  color: blocked ? C.rule : C.ink,
+                  child: Text('SAVE', style: T.ghost(blocked ? C.ink : C.onInk)),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
+}
+
+/// A modal anchored to the bottom edge, full width, with a 3px coloured top
+/// rule — a bottom sheet in look, but still a [Dialog], so focus, the barrier
+/// and the back gesture behave as every other modal in the app does.
+///
+/// A box floating mid-screen over a dimmed card had no edge to belong to;
+/// pinned to the bottom it reads as the panel it is.
+class SheetDialog extends StatelessWidget {
+  const SheetDialog({super.key, required this.child, this.edge});
+
+  final Widget child;
+
+  /// The top rule: highlighter for a form, red for a destructive confirm.
+  final Color? edge;
+
+  @override
+  Widget build(BuildContext context) => Dialog(
+    alignment: Alignment.bottomCenter,
+    insetPadding: EdgeInsets.zero,
+    backgroundColor: C.card,
+    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+    child: Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: edge ?? C.ink, width: 3)),
+      ),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
+      child: SafeArea(
+        top: false,
+        child: Center(
+          heightFactor: 1,
+          child: ConstrainedBox(
+            // The page column's width, so on a tablet the form does not
+            // stretch edge to edge.
+            constraints: const BoxConstraints(maxWidth: 588),
+            child: child,
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+/// Vertical gap between rows of fields, shared by the add panel and the edit
+/// sheet so the two forms keep one rhythm.
+const double kFormGap = 12;
+
+/// Hints for the number boxes the add panel and the edit sheet share, so an
+/// empty box says what goes in it. Short enough for the narrowest box.
+const String kMarksHint = 'e.g. 40';
+const String kGoalHint = 'e.g. 30';
+const String kScoreHint = 'e.g. 34';
+
+/// The due date, used by both the add panel and the edit sheet: the shared
+/// picker field under a plain DUE label. The field itself shows the date in
+/// the app's `FRI 7 AUG` form, so the date appears once.
+class DueDateField extends StatelessWidget {
+  const DueDateField({super.key, required this.value, required this.onChanged});
+
+  /// `YYYY-MM-DD`, or empty.
+  final String value;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) => LabelledField(
+    label: 'Due',
+    child: DateField(value: value, onChanged: onChanged),
+  );
 }

@@ -64,12 +64,29 @@ bool matchesQuery(Assignment a, String query) {
   return q.isEmpty || a.title.toLowerCase().contains(q);
 }
 
-/// Everything in [items] that survives both filters.
+/// Whether work whose subject sits in [itemSemester] shows while the list is
+/// narrowed to [semester] (null for every semester).
+///
+/// Only work filed under a *different* semester is hidden. Unfiled work, and
+/// work in a subject with no semester, has nothing saying it is finished, so
+/// it stays in view rather than being lost behind a filter.
+bool matchesSemester(String? itemSemester, String? semester) =>
+    semester == null || itemSemester == null || itemSemester == semester;
+
+/// Everything in [items] that survives every filter. [semesterOf] looks up
+/// the semester an item's subject belongs to; it is only needed with
+/// [semester].
 List<Assignment> applyFilters(
   List<Assignment> items, {
   String query = '',
   DueWindow? window,
+  String? semester,
+  String? Function(Assignment)? semesterOf,
 }) => items
     .where((a) => matchesQuery(a, query))
     .where((a) => window == null || matchesWindow(a, window))
+    .where(
+      (a) =>
+          semester == null || matchesSemester(semesterOf?.call(a), semester),
+    )
     .toList();

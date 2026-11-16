@@ -4,6 +4,7 @@ import '../bands.dart';
 import '../store.dart';
 import '../theme.dart';
 import 'atoms.dart';
+import 'band_colours.dart';
 
 /// Letter grading: on or off, and what the bands are.
 ///
@@ -31,56 +32,51 @@ class _GradingSectionState extends State<GradingSection> {
   String get _state =>
       store.usesLetterGrades ? 'LETTER GRADES ON' : 'PERCENTAGES ONLY';
 
+  /// Unframed: Settings sets it in one card with Appearance, divided by a
+  /// rule, so two one-line sections do not each take a whole card.
   @override
-  Widget build(BuildContext context) => Surface(
-    topBorder: C.ink,
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Tap(
-          onTap: () => setState(() => _open = !_open),
-          semanticLabel:
-              'Grading, $_state, tap to ${_open ? 'collapse' : 'expand'}',
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Tap(
+        onTap: () => setState(() => _open = !_open),
+        semanticLabel:
+            'Grading, $_state, tap to ${_open ? 'collapse' : 'expand'}',
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
           child: Row(
             spacing: 6,
             children: [
               Expanded(child: Eyebrow('Grading', color: C.ink)),
               // Only while shut: open, the row below says the same thing.
-              if (!_open) Text(_state, style: T.eyebrow(C.muted)),
+              if (!_open) Text(_state, style: T.count(C.ink)),
               Icon(
                 _open ? Icons.expand_less : Icons.expand_more,
-                size: 16,
-                color: C.rule,
+                size: 18,
+                color: C.ink,
               ),
             ],
           ),
         ),
+      ),
 
-        if (_open) ...[
+      if (_open) ...[
+        Row(
+          children: [
+            Expanded(child: Text(_state, style: T.count(C.ink))),
+            LabelledSwitch(
+              label: 'Letter grades',
+              value: store.usesLetterGrades,
+              onChanged: (on) => store.setBands(on ? kDefaultBands : const []),
+            ),
+          ],
+        ),
+        if (store.usesLetterGrades) ...[
           const SizedBox(height: 6),
-          Row(
-            children: [
-              Expanded(child: Text(_state, style: T.count(C.ink))),
-              Semantics(
-                // container: true, or the label merges into the Switch's own
-                // node and never reaches the semantics tree as its own entry.
-                container: true,
-                label: 'Letter grades',
-                toggled: store.usesLetterGrades,
-                child: Switch(
-                  value: store.usesLetterGrades,
-                  activeThumbColor: C.onMark,
-                  activeTrackColor: C.mark,
-                  onChanged: (on) =>
-                      store.setBands(on ? kDefaultBands : const []),
-                ),
-              ),
-            ],
-          ),
-          if (store.usesLetterGrades) BandEditor(store: store),
+          BandEditor(store: store),
         ],
       ],
-    ),
+    ],
   );
 }
 
@@ -91,9 +87,13 @@ class _GradingSectionState extends State<GradingSection> {
 /// Distinction starts — so they have to be visible together while being
 /// changed.
 class BandEditor extends StatefulWidget {
-  const BandEditor({super.key, required this.store});
+  const BandEditor({super.key, required this.store, this.rowGap = 6});
 
   final AppStore store;
+
+  /// The space under each band's row. Settings stacks the editor among other
+  /// cards and keeps it tight; Welcome gives it the whole screen.
+  final double rowGap;
 
   @override
   State<BandEditor> createState() => _BandEditorState();
@@ -160,15 +160,27 @@ class _BandEditorState extends State<BandEditor> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (var i = 0; i < bands.length; i++) _row(i, bands[i]),
-        const SizedBox(height: 10),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 5),
+          child: Row(
+            spacing: 8,
+            children: [
+              const SizedBox(width: _rule - 8),
+              Expanded(child: Eyebrow('Band', color: C.ink)),
+              SizedBox(width: _from, child: Eyebrow('From', color: C.ink)),
+            ],
+          ),
+        ),
+        // Highest first, the order the bands are read in everywhere else.
+        for (var i = bands.length - 1; i >= 0; i--) _row(i, bands[i]),
         Row(
-          spacing: 8,
+          spacing: 12,
           children: [
             if (bands.length < kMaxBands)
-              GhostButton(label: 'Add a band', onPressed: _add),
+              GhostButton(label: 'Add a band', quiet: true, onPressed: _add),
             GhostButton(
               label: 'Reset',
+              quiet: true,
               onPressed: () {
                 store.setBands(kDefaultBands);
                 _forget();
@@ -177,68 +189,111 @@ class _BandEditorState extends State<BandEditor> {
           ],
         ),
         if (problem != null) ...[
-          const SizedBox(height: 8),
-          Text(problem, style: T.note.copyWith(color: C.red)),
-        ] else ...[
-          const SizedBox(height: 8),
-          Text(_ranges(), style: T.note),
+          const SizedBox(height: 6),
+          Text(problem, style: T.emptyBody.copyWith(color: C.red)),
         ],
       ],
     );
   }
 
-  /// Spells the bounds back out as the ranges they imply, because that is how
-  /// a handbook states them and how the bounds are easiest to check.
-  String _ranges() {
-    final parts = <String>[];
-    for (var i = 0; i < bands.length; i++) {
-      final upper = i + 1 < bands.length ? bands[i + 1].min : null;
-      parts.add(
-        upper == null
-            ? '${bands[i].name} ${trimBound(bands[i].min)}+'
-            : '${bands[i].name} ${trimBound(bands[i].min)}–'
-                  '${trimBound(upper - 1)}',
-      );
-    }
-    return parts.join(' · ');
-  }
+  /// The band's colour down the left of its row, plus the gap after it.
+  static const _rule = 12.0;
 
-  Widget _row(int i, GradeBand b) => Padding(
-    padding: const EdgeInsets.only(bottom: 8),
-    child: Row(
-      spacing: 8,
-      children: [
-        Expanded(
-          child: TextField(
-            controller: _name(i, b.name),
-            style: T.body,
-            textInputAction: TextInputAction.done,
-            decoration: fieldDecoration(hint: 'Name'),
-            onChanged: (v) => _replace(i, b.copyWith(name: v)),
-          ),
-        ),
-        SizedBox(
-          width: 86,
-          child: NumberField(
-            controller: _min(i, b.min),
-            suffix: '%',
-            hint: '50',
-            semanticLabel: 'Lowest percentage for ${b.name}',
-            onChanged: (v) => _replace(i, b.copyWith(min: v ?? 0)),
-          ),
-        ),
-        Opacity(
-          opacity: bands.length > kMinBands ? 1 : .3,
-          child: Tap(
-            onTap: bands.length > kMinBands ? () => _remove(i) : null,
-            semanticLabel: 'Remove the ${b.name} band',
-            child: const Padding(
-              padding: EdgeInsets.all(4),
-              child: CloseGlyph(size: 16),
+  /// The bound's field, its unit inside it.
+  static const _from = 76.0;
+
+  /// The name is set in Inter, whose line runs about 2px taller than the
+  /// mono the bound is typed in; this much less padding top and bottom puts
+  /// the two fields on one height.
+  static const _nameTrim = 1.1;
+
+  Widget _row(int i, GradeBand b) {
+    final removable = bands.length > kMinBands;
+    return Padding(
+      padding: EdgeInsets.only(bottom: widget.rowGap),
+      child: Row(
+        spacing: 8,
+        children: [
+          // The same colour the band has on Grades and in the goal sheet.
+          BandSwatch(colourOfBand(b, bands), width: _rule - 8, height: 35),
+          Expanded(
+            child: TextField(
+              controller: _name(i, b.name),
+              style: T.body,
+              textInputAction: TextInputAction.done,
+              decoration: fieldDecoration(hint: 'Name', dense: true).copyWith(
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8 - _nameTrim,
+                ),
+                // Remove sits inside the name, so every row keeps the same
+                // two columns. The bottom band is the floor everything else
+                // stands on: it catches every mark beneath the next one up, so
+                // it has no remove button, and a muted lock in that slot says
+                // so rather than leaving a gap.
+                suffixIcon: i == 0
+                    ? Semantics(
+                        label: 'The ${b.name} band is always kept',
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: Icon(
+                            Icons.lock_outline,
+                            size: 16,
+                            color: C.muted,
+                          ),
+                        ),
+                      )
+                    : Opacity(
+                        opacity: removable ? 1 : .3,
+                        child: Tap(
+                          onTap: removable ? () => _remove(i) : null,
+                          semanticLabel: 'Remove the ${b.name} band',
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            // Ink, not the usual muted grey: inside the field
+                            // it would otherwise read as the field's text
+                            // colour, and fail contrast.
+                            child: CloseGlyph(size: 16, color: C.ink),
+                          ),
+                        ),
+                      ),
+                suffixIconConstraints: const BoxConstraints(
+                  minWidth: 32,
+                  minHeight: 32,
+                ),
+              ),
+              onChanged: (v) => _replace(i, b.copyWith(name: v)),
             ),
           ),
-        ),
-      ],
-    ),
-  );
+          SizedBox(
+            width: _from,
+            // The unit inside the box, in ink, at its right edge: outside it
+            // floated loose of the field it belongs to; muted, it read as a
+            // placeholder. The bound is at most three figures and a decimal,
+            // which stops well short of it.
+            child: Stack(
+              alignment: Alignment.centerRight,
+              children: [
+                NumberField(
+                  controller: _min(i, b.min),
+                  hint: '50',
+                  dense: true,
+                  semanticLabel: 'Lowest percentage for ${b.name}',
+                  onChanged: (v) => _replace(i, b.copyWith(min: v ?? 0)),
+                ),
+                IgnorePointer(
+                  child: ExcludeSemantics(
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 10),
+                      child: Text('%', style: T.monoInput),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

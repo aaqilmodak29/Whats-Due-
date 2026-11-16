@@ -79,7 +79,7 @@ class _BackupSectionsState extends State<BackupSections> {
   }
 
   Widget _warn(String message) => Padding(
-    padding: const EdgeInsets.only(top: 10),
+    padding: const EdgeInsets.only(top: SettingsSection.blockGap),
     child: Container(
       width: double.infinity,
       padding: const EdgeInsets.all(10),
@@ -124,55 +124,40 @@ class _BackupSectionsState extends State<BackupSections> {
 
     return Column(
       children: [
-        _Section(
-          accent: C.mark,
+        SettingsSection(
           title: 'Reminders',
+          // The state sits under the title and the switch beside both, the
+          // way a settings row reads, rather than on a line of its own.
+          status: Text(
+            store.remindersEnabled
+                ? (_notificationsAllowed == false
+                      ? 'ON — BUT BLOCKED BY ANDROID'
+                      : 'ON — $_pending queued')
+                : 'OFF',
+            style: T.count(
+              store.remindersEnabled && _notificationsAllowed == false
+                  ? C.red
+                  : C.ink,
+            ),
+          ),
+          trailing: LabelledSwitch(
+            label: 'Reminders',
+            value: store.remindersEnabled,
+            onChanged: (v) async {
+              if (v) await Reminders.requestPermission();
+              store.setRemindersEnabled(v);
+              await _refreshPending();
+            },
+          ),
           children: [
             Text(
-              '9am at two weeks, one week, three days, the day before and '
-              'the morning it is due, plus 9pm the night before.',
-              style: T.note,
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    store.remindersEnabled
-                        ? (_notificationsAllowed == false
-                              ? 'ON — BUT BLOCKED BY ANDROID'
-                              : 'ON — $_pending queued')
-                        : 'OFF',
-                    style: T.count(
-                      !store.remindersEnabled
-                          ? C.muted
-                          : _notificationsAllowed == false
-                          ? C.red
-                          : C.ink,
-                    ),
-                  ),
-                ),
-                Semantics(
-                  // container: true, or the label merges into the Switch's own
-                  // node and never reaches the semantics tree as its own entry.
-                  container: true,
-                  label: 'Reminders',
-                  toggled: store.remindersEnabled,
-                  child: Switch(
-                    value: store.remindersEnabled,
-                    activeThumbColor: C.onMark,
-                    activeTrackColor: C.mark,
-                    onChanged: (v) async {
-                      if (v) await Reminders.requestPermission();
-                      store.setRemindersEnabled(v);
-                      await _refreshPending();
-                    },
-                  ),
-                ),
-              ],
+              '9am two weeks, a week and three days ahead, the day before '
+              'and on the day, plus 9pm the night before.',
+              style: T.body,
             ),
             ?_remindersWarning(),
-            const SizedBox(height: 4),
+            const SizedBox(height: SettingsSection.blockGap),
+            // Outlined, like every other section's actions on this page.
             Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -192,15 +177,17 @@ class _BackupSectionsState extends State<BackupSections> {
                     );
                   },
                 ),
-                GhostButton(label: 'Recount', onPressed: _refreshPending),
+                GhostButton(
+                  label: 'Recount',
+                  onPressed: _refreshPending,
+                ),
               ],
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: SettingsSection.cardGap),
 
-        _Section(
-          accent: C.ink,
+        SettingsSection(
           title: 'Export',
           children: [
             Text(
@@ -210,12 +197,14 @@ class _BackupSectionsState extends State<BackupSections> {
               '${store.subjects.length == 1 ? '' : 's'}. '
               // Worth the one line: the data lives nowhere else.
               'The only copy that survives a lost phone.',
-              style: T.note,
+              style: T.body,
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: SettingsSection.blockGap),
+            // Two ways to take the same copy out, so one style for both.
             Wrap(
               spacing: 8,
               runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 GhostButton(
                   label: 'Save .json file',
@@ -248,21 +237,27 @@ class _BackupSectionsState extends State<BackupSections> {
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: SettingsSection.cardGap),
 
-        _Section(
-          accent: C.ink,
+        SettingsSection(
           title: 'Import',
           children: [
+            // Merge and Replace only appear once there is something to import,
+            // so the copy follows the screen rather than naming buttons that
+            // are not there yet.
             Text(
-              'MERGE adds what is new. REPLACE overwrites everything.',
-              style: T.note,
+              _paste.text.trim().isEmpty
+                  // One line: with two, the foot of the page (20) showed a
+                  // strip of the Grading card along the top edge.
+                  ? 'Paste a backup to merge in or replace everything.'
+                  : 'MERGE adds what is new. REPLACE overwrites everything.',
+              style: T.body,
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: SettingsSection.blockGap),
             TextField(
               controller: _paste,
               style: T.monoInput,
-              minLines: 5,
+              minLines: 2,
               maxLines: 10,
               decoration: fieldDecoration(
                 hint: '{ "subjects": [...], "items": [...] }',
@@ -270,10 +265,11 @@ class _BackupSectionsState extends State<BackupSections> {
               ),
               onChanged: (_) => setState(() {}),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: SettingsSection.blockGap),
             Wrap(
               spacing: 8,
               runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 GhostButton(
                   label: 'Paste from clipboard',
@@ -287,9 +283,10 @@ class _BackupSectionsState extends State<BackupSections> {
                   },
                 ),
                 if (_paste.text.trim().isNotEmpty) ...[
+                  // Outlined, not the highlighter: Update now keeps the page's
+                  // one lime button.
                   GhostButton(
                     label: 'Merge',
-                    filled: true,
                     onPressed: () => _runImport(merge: true),
                   ),
                   GhostButton(
@@ -311,14 +308,21 @@ class _BackupSectionsState extends State<BackupSections> {
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: SettingsSection.cardGap),
 
-        _Section(
+        SettingsSection(
           accent: C.red,
           title: 'Danger',
           children: [
+            Text(
+              'Deletes every assignment, task and subject on this phone.',
+              style: T.body,
+            ),
+            const SizedBox(height: SettingsSection.blockGap),
             GhostButton(
               label: 'Clear all data',
+              color: C.red,
+              icon: Icons.delete_outline,
               onPressed: () => confirm(
                 context,
                 title: 'Erase everything?',
@@ -339,26 +343,86 @@ class _BackupSectionsState extends State<BackupSections> {
   }
 }
 
-class _Section extends StatelessWidget {
-  const _Section({
+/// A Settings section. Plain by default; only Danger carries a coloured
+/// rule, so a coloured rule on this page always means the same thing.
+///
+/// Actions follow one rule across the page: the highlighter for the page's
+/// one primary (Update now) and an outlined ink box for every other action a
+/// card offers, checks included, so a row of actions never mixes a box with
+/// a bare link. Red outline only for the one destructive action.
+///
+/// A section with a switch puts it beside the title, with the state it is in
+/// ([status]) underneath, so a toggle reads as one settings row.
+///
+/// Every card on the page shares the spacing below, so the page has one
+/// rhythm: the same inset on every side, the same step from a title to what
+/// it heads and from one block to the next, a narrow gap between related
+/// cards and a wider one between groups of them.
+class SettingsSection extends StatelessWidget {
+  const SettingsSection({
+    super.key,
     required this.title,
     required this.children,
-    required this.accent,
+    this.accent,
+    this.status,
+    this.trailing,
   });
+
+  /// The inset of every Settings card.
+  static const padding = EdgeInsets.all(16);
+
+  /// From a card's title (and status) to its content.
+  static const titleGap = 10.0;
+
+  /// Between blocks inside a card: prose, a field, a row of actions.
+  static const blockGap = 12.0;
+
+  /// Between one settings card and the next: one even step all the way
+  /// down, since 12 inside a group and 28 between groups read as uneven
+  /// gaps rather than as groups. At 22 the Export card on the opening screen
+  /// (and with Grading open) ends clear of the nav bar and Import starts
+  /// wholly under it, so no card is cut by the bar.
+  static const cardGap = 22.0;
+
+  /// Under the Version card only, which is a status rather than a setting.
+  /// Wide enough that Grading, scrolled to the top of the screen, has only
+  /// paper above it rather than a strip of the Version card.
+  static const groupGap = 28.0;
 
   final String title;
   final List<Widget> children;
-  final Color accent;
+  final Color? accent;
+  final Widget? status;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) => Surface(
     topBorder: accent,
+    padding: padding,
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Eyebrow(title, color: C.ink),
-        const SizedBox(height: 10),
-        ...children,
+        Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Eyebrow(title, color: C.ink),
+                  if (status != null) ...[
+                    const SizedBox(height: 4),
+                    status!,
+                  ],
+                ],
+              ),
+            ),
+            ?trailing,
+          ],
+        ),
+        if (children.isNotEmpty) ...[
+          const SizedBox(height: titleGap),
+          ...children,
+        ],
       ],
     ),
   );

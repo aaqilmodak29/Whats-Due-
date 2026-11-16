@@ -9,6 +9,7 @@ import 'package:whats_due/models.dart';
 import 'package:whats_due/store.dart';
 import 'package:whats_due/theme.dart';
 import 'package:whats_due/ui/assignment_card.dart';
+import 'package:whats_due/ui/band_colours.dart';
 import 'package:whats_due/ui/horizon.dart';
 
 String _iso(int offsetDays) =>
@@ -171,8 +172,11 @@ void main() {
       expect(find.text('COURSEWORK'), findsOne);
 
       // One overdue; three of the five open items fall inside seven days; the
-      // undated one is open but lands in neither bucket.
-      expect(find.text('1 OVERDUE · 3 DUE WITHIN 7 DAYS · 5 OPEN'), findsOne);
+      // undated one is open but lands in neither bucket. The triage counts sit
+      // in the title row, one to a line; how many are open is on the tab.
+      expect(find.text('1 OVERDUE'), findsOne);
+      expect(find.text('3 DUE WITHIN 7 DAYS'), findsOne);
+      expect(find.text('OPEN (5)'), findsOne);
     }, seed: _seed());
 
     appTest(
@@ -244,7 +248,8 @@ void main() {
         expect(find.text('Lab report titration'), findsOne);
         expect(find.text('Comparative essay'), findsNothing);
 
-        await tester.tap(find.text('ALL 5'));
+        // All carries no count of its own; the tab says how many show.
+        await tester.tap(find.text('ALL'));
         await tester.pumpAndSettle();
         expect(find.text('Comparative essay'), findsOne);
       },
@@ -890,7 +895,10 @@ void main() {
               .text,
           isEmpty,
         );
-        // And it shows up as a filter chip immediately.
+        // And it is a filter chip as soon as the panel is closed (the chips
+        // step aside while the panel lists the subjects itself).
+        await tester.tap(find.text('HIDE SUBJECTS'));
+        await tester.pumpAndSettle();
         expect(find.text('REINFORCEMENT LEARNING 0'), findsOne);
       },
       seed: _seed(),
@@ -1116,18 +1124,23 @@ void main() {
       'every card shows its mark, filled in or not',
       (tester, store) async {
         // Blank where a mark belongs is indistinguishable from an assignment
-        // with no marks at all, so the placeholder always renders.
-        expect(find.text('-/-'), findsWidgets);
+        // with no marks at all, so the placeholder always renders: a dash
+        // under the MARK label on every card.
+        expect(find.text('—'), findsWidgets);
+        expect(
+          find.text('MARK').evaluate().length,
+          find.text('—').evaluate().length,
+        );
 
         final a = store.items.firstWhere((x) => x.id == 'a3');
         store.setMarks(a, outOf: 40.0);
         await tester.pumpAndSettle();
-        expect(find.text('-/40'), findsOne);
+        expect(find.text('—/40'), findsOne);
 
         store.setMarks(a, earned: 30.0);
         await tester.pumpAndSettle();
         expect(find.text('30/40'), findsOne);
-        expect(find.text('-/40'), findsNothing);
+        expect(find.text('—/40'), findsNothing);
       },
       seed: _seed(),
       tab: 'Assignments',
@@ -1281,6 +1294,9 @@ void main() {
         await tester.pumpAndSettle();
 
         await tester.enterText(find.bySemanticsLabel('Marks for Q6-Q10'), '15');
+        // The presets open from the TIME box.
+        await tester.tap(find.bySemanticsLabel(RegExp(r'^Time for Q6-Q10')));
+        await tester.pumpAndSettle();
         await tester.tap(find.bySemanticsLabel('Estimate 1h'));
         await tester.pumpAndSettle();
 
@@ -1292,6 +1308,8 @@ void main() {
         expect(t.minutes, 60);
 
         // Tapping the active estimate clears it rather than being a dead end.
+        await tester.tap(find.bySemanticsLabel(RegExp(r'^Time for Q6-Q10')));
+        await tester.pumpAndSettle();
         await tester.tap(find.bySemanticsLabel('Clear the 1h estimate'));
         await tester.pumpAndSettle();
         expect(t.minutes, isNull);
@@ -1353,13 +1371,17 @@ void main() {
         await tester.tap(find.bySemanticsLabel('Q6-Q10, tap to add steps'));
         await tester.pumpAndSettle();
 
+        await tester.tap(find.bySemanticsLabel(RegExp(r'^Time for Q6-Q10')));
+        await tester.pumpAndSettle();
         await tester.tap(find.bySemanticsLabel('Estimate 2h'));
         await tester.pumpAndSettle();
         final task = store.items.firstWhere((x) => x.id == 'a1').tasks.last;
         expect(task.minutes, 120);
-        // Shown beside the task itself, not just on the chip that set it.
+        // Shown beside the task itself, not just in the box that set it.
         expect(find.text('2h'), findsNWidgets(2));
 
+        await tester.tap(find.bySemanticsLabel(RegExp(r'^Time for Q6-Q10')));
+        await tester.pumpAndSettle();
         await tester.tap(find.bySemanticsLabel('Clear the 2h estimate'));
         await tester.pumpAndSettle();
         expect(task.minutes, isNull);
@@ -1378,13 +1400,13 @@ void main() {
       await tester.pumpAndSettle();
 
       // The calendar is up, and today is the selection it opened on.
-      expect(find.byType(DatePickerDialog), findsOne);
+      expect(find.byType(CalendarDatePicker), findsOne);
 
       // Proves the themed properties are actually reaching the dialog, not
       // merely correct in isolation: a perfect theme nothing calls would look
       // identical to every unit test.
       final theme = Theme.of(
-        tester.element(find.byType(DatePickerDialog)),
+        tester.element(find.byType(CalendarDatePicker)),
       ).datePickerTheme;
       const selected = {WidgetState.selected};
       expect(
@@ -1481,7 +1503,10 @@ void main() {
     appTest(
       'a due window narrows the list, cumulatively',
       (tester, store) async {
-        // a1 is overdue, a2 is tomorrow, a3 and a4 are four days out.
+        // a1 is overdue, a2 is tomorrow, a3 and a4 are four days out. The
+        // windows are a menu behind one control.
+        await tester.tap(find.bySemanticsLabel(RegExp('change the due window')));
+        await tester.pumpAndSettle();
         await tester.tap(find.bySemanticsLabel('Show work due within 7 days'));
         await tester.pumpAndSettle();
 
@@ -1498,18 +1523,21 @@ void main() {
       'overdue work survives every window',
       (tester, store) async {
         // A filter that hides something already late is how it gets forgotten.
+        // The windows are a menu behind one control.
+        final control = find.bySemanticsLabel(RegExp('change the due window'));
+        await tester.tap(control);
+        await tester.pumpAndSettle();
         await tester.tap(find.bySemanticsLabel('Show work due within 7 days'));
         await tester.pumpAndSettle();
         expect(find.text('Reaction mechanisms problem set'), findsOne);
 
-        // The window chips scroll sideways, so the last one starts off the
-        // right edge of a phone — tapping where it is not is how a test like
-        // this ends up asserting nothing.
+        // Tapping where the choice is not is how a test like this ends up
+        // asserting nothing, so the menu is opened again first.
+        await tester.tap(control);
+        await tester.pumpAndSettle();
         final later = find.bySemanticsLabel(
           'Show work due more than 2 months out',
         );
-        await tester.ensureVisible(later);
-        await tester.pumpAndSettle();
         await tester.tap(later);
         await tester.pumpAndSettle();
         expect(find.text('Reaction mechanisms problem set'), findsOne);
@@ -1524,10 +1552,16 @@ void main() {
     appTest(
       'tapping the active window again clears it',
       (tester, store) async {
+        // The windows are a menu behind one control, opened for each pick.
+        final control = find.bySemanticsLabel(RegExp('change the due window'));
+        await tester.tap(control);
+        await tester.pumpAndSettle();
         await tester.tap(find.bySemanticsLabel('Show work due within 7 days'));
         await tester.pumpAndSettle();
         expect(find.text('Read chapters 4-6'), findsNothing);
 
+        await tester.tap(control);
+        await tester.pumpAndSettle();
         await tester.tap(find.bySemanticsLabel('Show work due within 7 days'));
         await tester.pumpAndSettle();
         expect(find.text('Read chapters 4-6'), findsOne);
@@ -1813,10 +1847,12 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        expect(colourOf(tester, '30%'), C.red);
+        // The band word carries the colour; the percentage beside it is
+        // plain ink, so the grade is not coloured twice.
         expect(colourOf(tester, 'FAIL'), C.red);
-        expect(colourOf(tester, '92%'), C.green);
+        expect(colourOf(tester, '30%'), C.ink);
         expect(colourOf(tester, 'HIGH DISTINCTION'), C.green);
+        expect(colourOf(tester, '92%'), C.ink);
       },
       seed: _seed(),
       bands: kDefaultBands,
@@ -1834,7 +1870,12 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(colourOf(tester, '70%'), C.ink);
-        expect(colourOf(tester, 'CREDIT'), C.ink);
+        // Credit takes its own step on the band scale: neither the red below
+        // the pass mark nor the green at the top.
+        final credit = colourOf(tester, 'CREDIT');
+        expect(credit, bandColour(70, kDefaultBands));
+        expect(credit, isNot(C.red));
+        expect(credit, isNot(C.green));
       },
       seed: _seed(),
       bands: kDefaultBands,
@@ -2042,7 +2083,11 @@ void main() {
 
         expect(store.darkMode, isTrue);
         expect(C.isDark, isTrue);
-        expect(find.text('DARK'), findsOne);
+        // The switch itself shows the theme in force.
+        expect(
+          tester.getSemantics(find.bySemanticsLabel('Dark mode')),
+          containsSemantics(isToggled: true),
+        );
 
         // Survives a reload, which is the whole point of persisting it.
         final reloaded = AppStore();
@@ -2145,6 +2190,165 @@ void main() {
       },
       seed: _seed(),
       size: const Size(320, 900),
+    );
+  });
+
+  group('semesters', () {
+    appTest(
+      'a semester can be added, renamed and deleted from the manage panel',
+      (tester, store) async {
+        await tester.tap(find.text('MANAGE SUBJECTS'));
+        await tester.pumpAndSettle();
+        expect(find.text('SEMESTERS'), findsOne);
+
+        await tester.enterText(
+          find.widgetWithText(TextField, 'Add a semester'),
+          'Semester 2, 2026',
+        );
+        await tester.tap(find.bySemanticsLabel('Add semester'));
+        await tester.pumpAndSettle();
+        expect(store.semesters.single.name, 'Semester 2, 2026');
+
+        await tester.enterText(
+          find.widgetWithText(TextField, 'Semester 2, 2026'),
+          'Sem 2',
+        );
+        await tester.testTextInput.receiveAction(TextInputAction.done);
+        await tester.pumpAndSettle();
+        expect(store.semesters.single.name, 'Sem 2');
+
+        // Empty, so it goes without asking.
+        await tester.tap(find.bySemanticsLabel('Delete semester Sem 2'));
+        await tester.pumpAndSettle();
+        expect(store.semesters, isEmpty);
+      },
+      seed: _seed(),
+      size: const Size(430, 2400),
+      tab: 'Assignments',
+    );
+  
+    appTest(
+      'a subject is assigned a semester from its row in the manage panel',
+      (tester, store) async {
+        store.addSemester('Semester 2, 2026');
+        await tester.tap(find.text('MANAGE SUBJECTS'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.bySemanticsLabel(RegExp('^Semester for Statistics')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Semester 2, 2026').last);
+        await tester.pumpAndSettle();
+
+        final stats = store.subjects.firstWhere((s) => s.name == 'Statistics');
+        expect(stats.semesterId, store.semesters.single.id);
+      },
+      seed: _seed(),
+      size: const Size(430, 2400),
+      tab: 'Assignments',
+    );
+
+    appTest(
+      'a new subject can be filed under a semester as it is added',
+      (tester, store) async {
+        store.addSemester('Sem 1');
+        await tester.tap(find.text('MANAGE SUBJECTS'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.bySemanticsLabel(RegExp('^Semester for the new subject')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Sem 1').last);
+        await tester.pumpAndSettle();
+        await tester.enterText(
+          find.widgetWithText(TextField, 'e.g. Organic Chemistry'),
+          'Networks',
+        );
+        await tester.tap(find.bySemanticsLabel('Add subject'));
+        await tester.pumpAndSettle();
+
+        expect(
+          store.subjects.firstWhere((s) => s.name == 'Networks').semesterId,
+          store.semesters.single.id,
+        );
+      },
+      seed: _seed(),
+      size: const Size(430, 2400),
+      tab: 'Assignments',
+    );
+
+    appTest(
+      'the semester filter hides work from another semester',
+      (tester, store) async {
+        final now = store.addSemester('Now')!;
+        final past = store.addSemester('Past')!;
+        store.setSubjectSemester(store.subjects[0], past.id); // Chemistry
+        store.setSubjectSemester(store.subjects[1], now.id); // Statistics
+        await tester.pumpAndSettle();
+
+        expect(find.text('Reaction mechanisms problem set'), findsOne);
+        await tester.tap(
+          find.bySemanticsLabel('Showing all semesters, change the semester'),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.bySemanticsLabel('Show only Now'));
+        await tester.pumpAndSettle();
+
+        expect(store.semesterFilter, now.id);
+        // Chemistry is in the past semester, so its work and chip go.
+        expect(find.text('Reaction mechanisms problem set'), findsNothing);
+        expect(find.textContaining('ORGANIC CHEMISTRY'), findsNothing);
+        // Statistics is current; History and Unfiled have no semester.
+        expect(find.text('Regression assignment'), findsOne);
+        expect(find.text('Comparative essay'), findsOne);
+        expect(find.text('Read chapters 4-6'), findsOne);
+
+        await tester.tap(
+          find.bySemanticsLabel('Showing Now, change the semester'),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.bySemanticsLabel('Show every semester'));
+        await tester.pumpAndSettle();
+        expect(find.text('Reaction mechanisms problem set'), findsOne);
+      },
+      seed: _seed(),
+      size: const Size(430, 2400),
+      tab: 'Assignments',
+    );
+  });
+
+  group('sections', () {
+    appTest(
+      'General work is a separate list, and new work lands in it',
+      (tester, store) async {
+        expect(find.bySemanticsLabel('School work, showing'), findsOne);
+        expect(find.text('Comparative essay'), findsOne);
+
+        await tester.tap(find.bySemanticsLabel('Show General work'));
+        await tester.pumpAndSettle();
+        expect(store.section, WorkSection.general);
+        expect(find.text('Comparative essay'), findsNothing);
+        expect(find.text('Nothing tracked yet'), findsOne);
+
+        await tester.tap(find.bySemanticsLabel('Add assignment'));
+        await tester.pumpAndSettle();
+        await tester.enterText(
+          find.widgetWithText(TextField, 'e.g. Comparative essay'),
+          'Renew licence',
+        );
+        await tester.tap(find.text('TRACK IT'));
+        await tester.pumpAndSettle();
+
+        final added = store.items.firstWhere((a) => a.title == 'Renew licence');
+        expect(added.section, WorkSection.general);
+        expect(find.text('Renew licence'), findsOne);
+
+        await tester.tap(find.bySemanticsLabel('Show School work'));
+        await tester.pumpAndSettle();
+        expect(find.text('Renew licence'), findsNothing);
+        expect(find.text('Comparative essay'), findsOne);
+      },
+      seed: _seed(),
+      size: const Size(430, 2000),
+      tab: 'Assignments',
     );
   });
 }

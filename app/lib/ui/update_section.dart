@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../theme.dart';
 import '../updater.dart';
 import 'atoms.dart';
+import 'backup_page.dart' show SettingsSection;
 
 /// The update panel on the backup screen.
 ///
@@ -26,17 +27,17 @@ class UpdateSection extends StatelessWidget {
       final downloading = updater.status == UpdateStatus.downloading;
       final failed = updater.status == UpdateStatus.failed;
 
+      // Plain like every other Settings card; a coloured rule on this page
+      // means trouble (a failed check here, Danger further down). A lime rule
+      // over the lime Update now made two highlighter marks on one screen.
       return Surface(
-        topBorder: failed
-            ? C.red
-            : release != null
-            ? C.mark
-            : C.ink,
+        topBorder: failed ? C.red : null,
+        padding: SettingsSection.padding,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Eyebrow('Version', color: C.ink),
-            const SizedBox(height: 10),
+            const SizedBox(height: SettingsSection.titleGap),
 
             if (downloading)
               _downloading(release)
@@ -46,15 +47,15 @@ class UpdateSection extends StatelessWidget {
               _current(failed),
 
             if (release != null && !downloading) ...[
-              const SizedBox(height: 16),
+              const SizedBox(height: SettingsSection.blockGap),
               _notes(release),
             ],
 
-            const SizedBox(height: 14),
+            const SizedBox(height: SettingsSection.blockGap),
             _actions(release, downloading),
 
             if (updater.status == UpdateStatus.ready) ...[
-              const SizedBox(height: 12),
+              const SizedBox(height: SettingsSection.blockGap),
               Text(
                 'Nothing happened? Allow this app to install apps, then tap '
                 'Install again.',
@@ -119,7 +120,8 @@ class UpdateSection extends StatelessWidget {
             ? 'Update available · ${_size(release.apkBytes)}'
             : 'Update available · ${_size(release.apkBytes)}. This platform '
                   'cannot install it for you — download it from:',
-        style: T.emptyBody,
+        // Ink, not the muted grey: it is the line the card exists to say.
+        style: T.emptyBody.copyWith(color: C.ink),
       ),
       // The link goes on its own line in the data face. Inline, it wrapped
       // mid-URL through the middle of a sentence and was unreadable.
@@ -158,19 +160,23 @@ class UpdateSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Eyebrow("What's new"),
-        const SizedBox(height: 8),
+        Eyebrow("What's new", color: C.ink),
+        const SizedBox(height: SettingsSection.titleGap),
+        // Ink bullets and ink text: the highlighter vanished on white, and
+        // grey notes read as disabled.
         for (final line in lines)
           Padding(
-            padding: const EdgeInsets.only(bottom: 5),
+            padding: const EdgeInsets.only(bottom: 3),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Padding(
-                  padding: const EdgeInsets.only(top: 1, right: 8),
-                  child: Text('·', style: T.count(C.mark)),
+                  padding: const EdgeInsets.only(top: 7, right: 9),
+                  child: Dot(C.ink, size: 4),
                 ),
-                Expanded(child: Text(line, style: T.emptyBody)),
+                Expanded(
+                  child: Text(line, style: T.emptyBody.copyWith(color: C.ink)),
+                ),
               ],
             ),
           ),
@@ -201,7 +207,13 @@ class UpdateSection extends StatelessWidget {
   );
 }
 
-/// A one-line nudge on the main screen when an update is waiting.
+/// The nudge on the main screen when an update is waiting.
+///
+/// It sits in the title row beside the +, as an outlined button the size of
+/// that square: a full-width band of its own pushed the whole list down for a
+/// notice that is never more urgent than work that is overdue. Outlined ink,
+/// not lime, so the + stays the page's one filled call to action, and with
+/// the version under the verb so it still says which update it is.
 class UpdateBanner extends StatelessWidget {
   const UpdateBanner({super.key, required this.updater, required this.onTap});
 
@@ -215,30 +227,33 @@ class UpdateBanner extends StatelessWidget {
       final release = updater.release;
       if (release == null) return const SizedBox.shrink();
       return Padding(
-        padding: const EdgeInsets.only(top: 12),
+        padding: const EdgeInsets.only(right: 8),
         child: Tap(
           onTap: onTap,
           semanticLabel:
               'Version ${release.version} is available, tap to install',
           child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            height: 40,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
             decoration: BoxDecoration(
-              color: C.mark,
-              // Everything here sits on the highlighter, which does not move
-              // between palettes — so it follows onMark, not ink. Using ink
-              // painted this near-white on yellow after dark.
-              border: Border(left: BorderSide(color: C.onMark, width: 6)),
+              border: Border.all(color: C.ink, width: 1.5),
             ),
             child: Row(
+              mainAxisSize: MainAxisSize.min,
+              spacing: 7,
               children: [
-                Expanded(
-                  child: Text(
-                    'Version ${release.version} available'.toUpperCase(),
-                    style: T.count(C.onMark),
-                  ),
+                Icon(Icons.system_update_alt, size: 17, color: C.ink),
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('UPDATE', style: T.ghost(C.ink)),
+                    Text(
+                      release.version,
+                      style: T.flabel.copyWith(color: C.ink),
+                    ),
+                  ],
                 ),
-                Text('UPDATE', style: T.ghost(C.onMark)),
               ],
             ),
           ),
