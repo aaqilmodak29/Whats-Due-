@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:whats_due/filters.dart';
 import 'package:whats_due/models.dart';
 import 'package:whats_due/store.dart';
 
@@ -125,6 +126,55 @@ void main() {
       merged.importJson(json, merge: true);
       expect(merged.semesters.length, 1);
       expect(merged.subjects.single.semesterId, existing.id);
+    });
+  });
+
+  group('assigning and filtering', () {
+    test('a subject can be added straight into a semester', () async {
+      final store = await storeWith({});
+      final sem = store.addSemester('Sem 1')!;
+      final sub = store.addSubject('Physics', '#000000', semesterId: sem.id);
+      expect(sub.semesterId, sem.id);
+      store.setSubjectSemester(sub, null);
+      expect(sub.semesterId, isNull);
+    });
+
+    test('only work filed under another semester is hidden', () {
+      expect(matchesSemester('a', null), isTrue);
+      expect(matchesSemester('a', 'a'), isTrue);
+      expect(matchesSemester('b', 'a'), isFalse);
+      // No semester, or no subject at all: nothing says it is finished.
+      expect(matchesSemester(null, 'a'), isTrue);
+    });
+
+    test('applyFilters narrows by semester', () async {
+      final store = await storeWith({});
+      final now = store.addSemester('Now')!;
+      final past = store.addSemester('Past')!;
+      final a = store.addSubject('A', '#000000', semesterId: now.id);
+      final b = store.addSubject('B', '#000000', semesterId: past.id);
+      store.addAssignment(title: 'current', subjectId: a.id);
+      store.addAssignment(title: 'old', subjectId: b.id);
+      store.addAssignment(title: 'loose');
+      final shown = applyFilters(
+        store.items,
+        semester: now.id,
+        semesterOf: store.semesterIdOf,
+      ).map((x) => x.title);
+      expect(shown, unorderedEquals(['current', 'loose']));
+    });
+
+    test('the chosen semester is remembered, and forgotten once deleted',
+        () async {
+      final store = await storeWith({});
+      final sem = store.addSemester('Sem 1')!;
+      store.setSemesterFilter(sem.id);
+
+      final reloaded = AppStore();
+      await reloaded.init();
+      expect(reloaded.semesterFilter, sem.id);
+      reloaded.deleteSemester(reloaded.semesters.single);
+      expect(reloaded.semesterFilter, isNull);
     });
   });
 }

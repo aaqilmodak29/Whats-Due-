@@ -27,6 +27,10 @@ class _ManageSubjectsState extends State<ManageSubjects> {
   /// subjects are added rather than sticking on whatever was offered first.
   String? _picked;
 
+  /// The semester a new subject is filed under; empty for none.
+  /// Starts on the semester the list is showing, if any.
+  late String _semester = widget.store.semesterFilter ?? '';
+
   AppStore get store => widget.store;
 
   String get _colour => _picked ?? store.nextColor;
@@ -44,7 +48,11 @@ class _ManageSubjectsState extends State<ManageSubjects> {
       _focus.requestFocus();
       return;
     }
-    store.addSubject(name, _colour);
+    store.addSubject(
+      name,
+      _colour,
+      semesterId: _semester.isEmpty ? null : _semester,
+    );
     setState(() {
       _name.clear();
       // Back to following the palette, so the next one differs again.
@@ -171,6 +179,16 @@ class _ManageSubjectsState extends State<ManageSubjects> {
                   ],
                 ),
               ),
+              if (store.semesters.isNotEmpty)
+                LabelledField(
+                  label: 'Semester',
+                  child: SemesterDropdown(
+                    store: store,
+                    value: _semester,
+                    semanticLabel: 'Semester for the new subject',
+                    onChanged: (v) => setState(() => _semester = v),
+                  ),
+                ),
               // The palette spread across the panel's width rather than
               // bunched at the left with a gap at the end.
               LabelledField(
@@ -265,13 +283,31 @@ class _SubjectRowState extends State<_SubjectRow> {
             ),
           ),
           Expanded(
-            child: TextField(
-              controller: _name,
-              focusNode: _focus,
-              style: T.body,
-              textInputAction: TextInputAction.done,
-              onSubmitted: (_) => _commit(),
-              decoration: inlineNameDecoration(focused: _focus.hasFocus),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextField(
+                  controller: _name,
+                  focusNode: _focus,
+                  style: T.body,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => _commit(),
+                  decoration: inlineNameDecoration(focused: _focus.hasFocus),
+                ),
+                // Only once there is a semester to choose, so the list keeps
+                // its one-line rows for anyone not using them.
+                if (widget.store.semesters.isNotEmpty)
+                  SemesterDropdown(
+                    store: widget.store,
+                    value: s.semesterId ?? '',
+                    semanticLabel: 'Semester for ${s.name}',
+                    fontSize: 13,
+                    onChanged: (v) => widget.store.setSubjectSemester(
+                      s,
+                      v.isEmpty ? null : v,
+                    ),
+                  ),
+              ],
             ),
           ),
           _CountCell(width: _kOpenCol, text: '$open', style: T.count(C.ink)),
@@ -305,6 +341,47 @@ class _SubjectRowState extends State<_SubjectRow> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Picks a semester for a subject, with "No semester" as the empty choice.
+/// Used when adding a subject, in either panel, and on each subject's row.
+class SemesterDropdown extends StatelessWidget {
+  const SemesterDropdown({
+    super.key,
+    required this.store,
+    required this.value,
+    required this.onChanged,
+    required this.semanticLabel,
+    this.fontSize = 15,
+  });
+
+  final AppStore store;
+
+  /// A semester id, or empty for none.
+  final String value;
+  final ValueChanged<String> onChanged;
+  final String semanticLabel;
+  final double fontSize;
+
+  @override
+  Widget build(BuildContext context) {
+    final known = store.semesters.any((s) => s.id == value);
+    final v = known ? value : '';
+    return SubjectDropdown<String>(
+      // The form field only reads its value once; keyed so an outside change
+      // (a deleted semester) shows.
+      key: ValueKey(v),
+      value: v,
+      semanticLabel: semanticLabel,
+      fontSize: fontSize,
+      onChanged: (x) => onChanged(x ?? ''),
+      items: [
+        const DropdownMenuItem(value: '', child: Text('No semester')),
+        for (final s in store.semesters)
+          DropdownMenuItem(value: s.id, child: Text(s.name)),
+      ],
     );
   }
 }

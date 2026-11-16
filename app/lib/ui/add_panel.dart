@@ -5,7 +5,7 @@ import '../store.dart';
 import '../theme.dart';
 import 'atoms.dart';
 import 'edit_sheet.dart' show DueDateField, kFormGap, kGoalHint, kMarksHint;
-import 'manage_subjects.dart' show Swatch;
+import 'manage_subjects.dart' show SemesterDropdown, Swatch;
 
 /// The "new assignment" panel, revealed by the + button in the header.
 ///
@@ -36,6 +36,10 @@ class _AddPanelState extends State<AddPanel> {
   final _subjectFocus = FocusNode();
 
   String _subjectId = '';
+
+  /// The semester a subject created here is filed under; empty for none.
+  /// Starts on the semester the list is showing, if any.
+  late String _semester = widget.store.semesterFilter ?? '';
   String _due = '';
 
   /// What the assignment is marked out of, when it is known at the time it is
@@ -79,7 +83,13 @@ class _AddPanelState extends State<AddPanel> {
         _subjectFocus.requestFocus();
         return;
       }
-      subjectId = widget.store.addSubject(name, _picked).id;
+      subjectId = widget.store
+          .addSubject(
+            name,
+            _picked,
+            semesterId: _semester.isEmpty ? null : _semester,
+          )
+          .id;
     }
 
     final created = widget.store.addAssignment(
@@ -214,6 +224,18 @@ class _AddPanelState extends State<AddPanel> {
                 onSubmitted: (_) => _create(),
               ),
             ),
+            if (widget.store.semesters.isNotEmpty) ...[
+              const SizedBox(height: kFormGap),
+              LabelledField(
+                label: 'Semester',
+                child: SemesterDropdown(
+                  store: widget.store,
+                  value: _semester,
+                  semanticLabel: 'Semester for the new subject',
+                  onChanged: (v) => setState(() => _semester = v),
+                ),
+              ),
+            ],
             const SizedBox(height: kFormGap),
             LabelledField(
               label: 'Colour',

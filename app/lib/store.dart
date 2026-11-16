@@ -52,6 +52,7 @@ class AppStore extends ChangeNotifier {
   static const _remindersKey = 'coursework:reminders';
   static const _darkKey = 'coursework:dark';
   static const _onboardedKey = 'coursework:onboarded';
+  static const _semesterFilterKey = 'coursework:semesterFilter';
 
   SharedPreferences? _prefs;
 
@@ -76,6 +77,33 @@ class AppStore extends ChangeNotifier {
   /// carries them.
   List<Semester> semesters = [];
 
+  String? _semesterFilter;
+
+  /// The semester the list is narrowed to, or null for every semester.
+  ///
+  /// Remembered on the device rather than in the document: it is how this
+  /// phone is looking at the work, not part of the work. A semester that has
+  /// since been deleted reads as null.
+  String? get semesterFilter =>
+      semesters.any((s) => s.id == _semesterFilter) ? _semesterFilter : null;
+
+  void setSemesterFilter(String? id) {
+    _semesterFilter = id;
+    try {
+      if (id == null) {
+        _prefs?.remove(_semesterFilterKey);
+      } else {
+        _prefs?.setString(_semesterFilterKey, id);
+      }
+    } catch (e) {
+      debugPrint('Store: could not persist the semester filter — $e');
+    }
+    notifyListeners();
+  }
+
+  /// The semester [a]'s subject belongs to, or null.
+  String? semesterIdOf(Assignment a) => subjectOf(a)?.semesterId;
+
   /// Whether the first-run question has been answered, either way. Device
   /// state, not coursework — a restored backup should not re-ask.
   bool onboarded = false;
@@ -99,6 +127,7 @@ class AppStore extends ChangeNotifier {
       remindersEnabled = _prefs!.getBool(_remindersKey) ?? true;
       darkMode = _prefs!.getBool(_darkKey) ?? false;
       onboarded = _prefs!.getBool(_onboardedKey) ?? false;
+      _semesterFilter = _prefs!.getString(_semesterFilterKey);
       // Applied before the first frame, so the app never opens light and then
       // flips.
       C.palette = darkMode ? Palette.night : Palette.light;
@@ -247,8 +276,13 @@ class AppStore extends ChangeNotifier {
 
   // --------------------------------------------------------------- mutations
 
-  Subject addSubject(String name, String color) {
-    final s = Subject(id: uid(), name: name, color: color);
+  Subject addSubject(String name, String color, {String? semesterId}) {
+    final s = Subject(
+      id: uid(),
+      name: name,
+      color: color,
+      semesterId: semesterId,
+    );
     subjects.add(s);
     _commit();
     return s;

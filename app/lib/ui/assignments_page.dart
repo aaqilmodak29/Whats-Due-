@@ -108,6 +108,7 @@ class AssignmentsPage extends StatelessWidget {
     bool byDay = true,
     DueWindow? window,
     bool anyWindow = false,
+    String? semester,
   }) => applyFilters(
     list
         .where(
@@ -117,6 +118,8 @@ class AssignmentsPage extends StatelessWidget {
         .toList(),
     query: view.query,
     window: anyWindow ? null : (window ?? view.window),
+    semester: semester ?? store.semesterFilter,
+    semesterOf: store.semesterIdOf,
   );
 
   bool _inSubject(Assignment a, String filter) => switch (filter) {
@@ -182,6 +185,7 @@ class AssignmentsPage extends StatelessWidget {
         narrowed ||
         query.isNotEmpty ||
         view.window != null ||
+        store.semesterFilter != null ||
         view.selectedDue != null;
 
     // What the list is showing, before the day filter: the strip fades every
@@ -202,6 +206,15 @@ class AssignmentsPage extends StatelessWidget {
         : const <Widget>[];
     final showChips = chips.isNotEmpty;
     final showWindow = hasWork && !panel;
+    final showSemester = store.semesters.isNotEmpty && !panel;
+
+    // What each semester would show on the current tab, every other filter
+    // as it is. [_allSemesters] stands in for "every semester".
+    int inSemester(String id) => _narrow(
+      _showSubmitted ? store.submitted : active,
+      byDay: !_showSubmitted,
+      semester: id == _allSemesters ? null : id,
+    ).where((a) => _inSubject(a, view.filter)).length;
 
     return PageBody(
       controller: controller,
@@ -286,7 +299,7 @@ class AssignmentsPage extends StatelessWidget {
         // edge, so every chip is whole and the selected one is always in
         // view. A subject with nothing in the current tab steps out (the
         // selected one never does).
-        if (showWindow || showChips) ...[
+        if (showWindow || showChips || showSemester) ...[
           Wrap(
             spacing: 4,
             runSpacing: 6,
@@ -304,6 +317,37 @@ class AssignmentsPage extends StatelessWidget {
                           ? view.copyWith(clearWindow: true, clearOpenId: true)
                           : view.copyWith(window: w, clearOpenId: true),
                     ),
+                  ),
+                ),
+              if (showSemester)
+                Padding(
+                  padding: EdgeInsets.only(right: showChips ? 4 : 0),
+                  child: _SemesterControl(
+                    semesters: store.semesters,
+                    current: store.semesterFilter,
+                    count: inSemester,
+                    onPick: (id) {
+                      store.setSemesterFilter(id);
+                      // A subject from another semester would otherwise stay
+                      // selected with its chip gone.
+                      final keep =
+                          id == null ||
+                          view.filter == filterAll ||
+                          view.filter == filterUnfiled ||
+                          matchesSemester(
+                            store.subjects
+                                .where((x) => x.id == view.filter)
+                                .firstOrNull
+                                ?.semesterId,
+                            id,
+                          );
+                      onView(
+                        view.copyWith(
+                          clearOpenId: true,
+                          filter: keep ? null : filterAll,
+                        ),
+                      );
+                    },
                   ),
                 ),
               ...chips,
@@ -399,9 +443,11 @@ class AssignmentsPage extends StatelessWidget {
         inSubject(filter) > 0 ||
         (filter != filterUnfiled &&
             !store.items.any((a) => a.subjectId == filter));
+    final semester = store.semesterFilter;
     final subjects = [
       for (final s in store.subjects)
-        if (offered(s.id))
+        if (offered(s.id) &&
+            (view.filter == s.id || matchesSemester(s.semesterId, semester)))
           _Chip(
             label: s.name,
             count: inSubject(s.id),
@@ -520,6 +566,18 @@ class AssignmentsPage extends StatelessWidget {
         body: 'Nothing due within ${view.window!.label.toLowerCase()}.',
         action: 'Any due date',
         onAction: () => onView(view.copyWith(clearWindow: true)),
+      );
+    }
+    final semester = store.semesters
+        .where((s) => s.id == store.semesterFilter)
+        .firstOrNull;
+    if (semester != null && view.filter == filterAll) {
+      return EmptyState(
+        icon: Icons.inbox_outlined,
+        head: 'Nothing here',
+        body: 'Nothing in ${semester.name}.',
+        action: 'All semesters',
+        onAction: () => store.setSemesterFilter(null),
       );
     }
     final (head, body) = switch ((
@@ -645,23 +703,29 @@ class _FillRestState extends State<_FillRest> {
   }
 }
 
-/// The due-window control: the window in force as one chip, which opens the
-/// same choices as a menu anchored under it, each with how many it would show.
-/// Filled ink when a window is narrowing the list, like an active chip.
-class _WindowControl extends StatelessWidget {
-  const _WindowControl({
-    required this.window,
-    required this.count,
+/// One choice in a [_MenuChip]: what it reads, what a screen reader says,
+/// whether it is the one in force, and how many it would show.
+typedef _MenuEntry = ({String label, String said, bool on, int count});
+
+/// A filter chip that opens its choices as a menu anchored under it, each
+/// with how many it would show. Filled ink when it is narrowing the list,
+/// like an active chip. The due window and the semester both use it.
+class _MenuChip extends StatelessWidget {
+  const _MenuChip({
+    required this.label,
+    required this.on,
+    required this.semanticLabel,
+    required this.entries,
     required this.onPick,
   });
 
-  final DueWindow? window;
-  final int Function(DueWindow?) count;
+  final String label;
+  final bool on;
+  final String semanticLabel;
+  final List<_MenuEntry> entries;
 
-  /// Null for any time.
-  final ValueChanged<DueWindow?> onPick;
-
-  static const _any = -1;
+  /// The index of the entry picked.
+  final ValueChanged<int> onPick;
 
   Future<void> _open(BuildContext context) async {
     final box = context.findRenderObject()! as RenderBox;
@@ -682,78 +746,146 @@ class _WindowControl extends StatelessWidget {
       shape: RoundedRectangleBorder(side: BorderSide(color: C.ink, width: 1.5)),
       menuPadding: const EdgeInsets.symmetric(vertical: 4),
       constraints: const BoxConstraints(minWidth: 200),
-      items: [
-        _item(_any, 'Any time', 'Show work due any time', window == null),
-        for (final w in DueWindow.values)
-          _item(w.index, w.label, w.semanticLabel, window == w),
-      ],
+      items: [for (final (i, e) in entries.indexed) _item(i, e)],
     );
-    if (picked == null) return;
-    // Picking the window already in force clears it, as tapping an active
-    // chip did.
-    final w = picked == _any ? null : DueWindow.values[picked];
-    onPick(w == window ? null : w);
+    if (picked != null) onPick(picked);
   }
 
-  PopupMenuItem<int> _item(int value, String label, String said, bool on) {
-    final n = count(value == _any ? null : DueWindow.values[value]);
-    return PopupMenuItem<int>(
-      value: value,
-      height: 36,
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: Semantics(
-        label: said,
-        selected: on,
-        child: ExcludeSemantics(
-          child: Container(
-            color: on ? C.ink : null,
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    label.toUpperCase(),
-                    style: T.chip(on ? C.onInk : C.ink),
-                  ),
-                ),
-                Text('$n', style: T.chip(on ? C.onInk : C.ink)),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final on = window != null;
-    final label = window?.label ?? 'Any time';
-    return Builder(
-      builder: (context) => Tap(
-        onTap: () => _open(context),
-        semanticLabel: on
-            ? 'Due within ${window!.label}, change the due window'
-            : 'Due any time, change the due window',
+  PopupMenuItem<int> _item(int value, _MenuEntry e) => PopupMenuItem<int>(
+    value: value,
+    height: 36,
+    padding: const EdgeInsets.symmetric(horizontal: 4),
+    child: Semantics(
+      label: e.said,
+      selected: e.on,
+      child: ExcludeSemantics(
         child: Container(
-          // A chip like the subject ones beside it, with the chevron that
-          // says it opens rather than toggles.
-          color: on ? C.ink : C.card,
-          padding: const EdgeInsets.fromLTRB(8, 4, 4, 4),
+          color: e.on ? C.ink : null,
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
           child: Row(
-            mainAxisSize: MainAxisSize.min,
-            spacing: 2,
             children: [
-              Text(label.toUpperCase(), style: T.chip(on ? C.onInk : C.ink)),
-              Icon(
-                Icons.expand_more,
-                size: 13,
-                color: on ? C.onInk : C.ink,
+              Expanded(
+                child: Text(
+                  e.label.toUpperCase(),
+                  style: T.chip(e.on ? C.onInk : C.ink),
+                ),
               ),
+              Text('${e.count}', style: T.chip(e.on ? C.onInk : C.ink)),
             ],
           ),
         ),
       ),
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) => Builder(
+    builder: (context) => Tap(
+      onTap: () => _open(context),
+      semanticLabel: semanticLabel,
+      child: Container(
+        // A chip like the subject ones beside it, with the chevron that
+        // says it opens rather than toggles.
+        color: on ? C.ink : C.card,
+        padding: const EdgeInsets.fromLTRB(8, 4, 4, 4),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          spacing: 2,
+          children: [
+            Text(label.toUpperCase(), style: T.chip(on ? C.onInk : C.ink)),
+            Icon(Icons.expand_more, size: 13, color: on ? C.onInk : C.ink),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+/// The due-window control: the window in force as one chip, which opens the
+/// same choices as a menu.
+class _WindowControl extends StatelessWidget {
+  const _WindowControl({
+    required this.window,
+    required this.count,
+    required this.onPick,
+  });
+
+  final DueWindow? window;
+  final int Function(DueWindow?) count;
+
+  /// Null for any time.
+  final ValueChanged<DueWindow?> onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    final choices = <DueWindow?>[null, ...DueWindow.values];
+    return _MenuChip(
+      label: window?.label ?? 'Any time',
+      on: window != null,
+      semanticLabel: window != null
+          ? 'Due within ${window!.label}, change the due window'
+          : 'Due any time, change the due window',
+      entries: [
+        for (final w in choices)
+          (
+            label: w?.label ?? 'Any time',
+            said: w?.semanticLabel ?? 'Show work due any time',
+            on: window == w,
+            count: count(w),
+          ),
+      ],
+      // Picking the window already in force clears it, as tapping an active
+      // chip did.
+      onPick: (i) => onPick(choices[i] == window ? null : choices[i]),
+    );
+  }
+}
+
+/// Stands in for "every semester" when counting.
+const _allSemesters = '';
+
+/// The semester control: every semester, or one, so a finished semester's
+/// subjects can be put out of the way.
+class _SemesterControl extends StatelessWidget {
+  const _SemesterControl({
+    required this.semesters,
+    required this.current,
+    required this.count,
+    required this.onPick,
+  });
+
+  final List<Semester> semesters;
+
+  /// Null for every semester.
+  final String? current;
+  final int Function(String) count;
+  final ValueChanged<String?> onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    final name = semesters.where((s) => s.id == current).firstOrNull?.name;
+    return _MenuChip(
+      label: name ?? 'All semesters',
+      on: name != null,
+      semanticLabel: name != null
+          ? 'Showing $name, change the semester'
+          : 'Showing all semesters, change the semester',
+      entries: [
+        (
+          label: 'All semesters',
+          said: 'Show every semester',
+          on: current == null,
+          count: count(_allSemesters),
+        ),
+        for (final s in semesters)
+          (
+            label: s.name,
+            said: 'Show only ${s.name}',
+            on: current == s.id,
+            count: count(s.id),
+          ),
+      ],
+      onPick: (i) => onPick(i == 0 ? null : semesters[i - 1].id),
     );
   }
 }

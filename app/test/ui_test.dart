@@ -2226,5 +2226,92 @@ void main() {
       size: const Size(430, 2400),
       tab: 'Assignments',
     );
+  
+    appTest(
+      'a subject is assigned a semester from its row in the manage panel',
+      (tester, store) async {
+        store.addSemester('Semester 2, 2026');
+        await tester.tap(find.text('MANAGE SUBJECTS'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.bySemanticsLabel(RegExp('^Semester for Statistics')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Semester 2, 2026').last);
+        await tester.pumpAndSettle();
+
+        final stats = store.subjects.firstWhere((s) => s.name == 'Statistics');
+        expect(stats.semesterId, store.semesters.single.id);
+      },
+      seed: _seed(),
+      size: const Size(430, 2400),
+      tab: 'Assignments',
+    );
+
+    appTest(
+      'a new subject can be filed under a semester as it is added',
+      (tester, store) async {
+        store.addSemester('Sem 1');
+        await tester.tap(find.text('MANAGE SUBJECTS'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.bySemanticsLabel(RegExp('^Semester for the new subject')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Sem 1').last);
+        await tester.pumpAndSettle();
+        await tester.enterText(
+          find.widgetWithText(TextField, 'e.g. Organic Chemistry'),
+          'Networks',
+        );
+        await tester.tap(find.bySemanticsLabel('Add subject'));
+        await tester.pumpAndSettle();
+
+        expect(
+          store.subjects.firstWhere((s) => s.name == 'Networks').semesterId,
+          store.semesters.single.id,
+        );
+      },
+      seed: _seed(),
+      size: const Size(430, 2400),
+      tab: 'Assignments',
+    );
+
+    appTest(
+      'the semester filter hides work from another semester',
+      (tester, store) async {
+        final now = store.addSemester('Now')!;
+        final past = store.addSemester('Past')!;
+        store.setSubjectSemester(store.subjects[0], past.id); // Chemistry
+        store.setSubjectSemester(store.subjects[1], now.id); // Statistics
+        await tester.pumpAndSettle();
+
+        expect(find.text('Reaction mechanisms problem set'), findsOne);
+        await tester.tap(
+          find.bySemanticsLabel('Showing all semesters, change the semester'),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.bySemanticsLabel('Show only Now'));
+        await tester.pumpAndSettle();
+
+        expect(store.semesterFilter, now.id);
+        // Chemistry is in the past semester, so its work and chip go.
+        expect(find.text('Reaction mechanisms problem set'), findsNothing);
+        expect(find.textContaining('ORGANIC CHEMISTRY'), findsNothing);
+        // Statistics is current; History and Unfiled have no semester.
+        expect(find.text('Regression assignment'), findsOne);
+        expect(find.text('Comparative essay'), findsOne);
+        expect(find.text('Read chapters 4-6'), findsOne);
+
+        await tester.tap(
+          find.bySemanticsLabel('Showing Now, change the semester'),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.bySemanticsLabel('Show every semester'));
+        await tester.pumpAndSettle();
+        expect(find.text('Reaction mechanisms problem set'), findsOne);
+      },
+      seed: _seed(),
+      size: const Size(430, 2400),
+      tab: 'Assignments',
+    );
   });
 }
