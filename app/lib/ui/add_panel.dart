@@ -4,7 +4,7 @@ import '../models.dart';
 import '../store.dart';
 import '../theme.dart';
 import 'atoms.dart';
-import 'edit_sheet.dart' show DueDateField, kFormGap;
+import 'edit_sheet.dart' show DueDateField, kFormGap, kGoalHint, kMarksHint;
 import 'manage_subjects.dart' show Swatch;
 
 /// The "new assignment" panel, revealed by the + button in the header.
@@ -157,6 +157,7 @@ class _AddPanelState extends State<AddPanel> {
                 label: 'Marks',
                 child: NumberField(
                   controller: _outOf,
+                  hint: kMarksHint,
                   semanticLabel: 'Marks the assignment is out of',
                   onChanged: (v) => setState(() => _outOfValue = v),
                 ),
@@ -165,6 +166,7 @@ class _AddPanelState extends State<AddPanel> {
                 label: 'Goal',
                 child: NumberField(
                   controller: _goal,
+                  hint: kGoalHint,
                   semanticLabel: 'Goal score',
                   onChanged: (v) => setState(() => _goalValue = v),
                 ),
@@ -178,9 +180,9 @@ class _AddPanelState extends State<AddPanel> {
                   children: [subject, date, marks, goal],
                 );
               }
-              // The edit sheet's row: the date at twice the width of each
-              // number, every box the shared field height. The labels name
-              // the numbers, so the boxes carry no hint text.
+              // The edit sheet's row: the date a box and a half, every number
+              // box one width and the shared field height, each with a hint
+              // so an empty box still says what goes in it.
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 spacing: kFormGap,
@@ -190,9 +192,9 @@ class _AddPanelState extends State<AddPanel> {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     spacing: 8,
                     children: [
-                      Expanded(flex: 2, child: date),
-                      Expanded(child: marks),
-                      Expanded(child: goal),
+                      Expanded(flex: 3, child: date),
+                      Expanded(flex: 2, child: marks),
+                      Expanded(flex: 2, child: goal),
                     ],
                   ),
                 ],
