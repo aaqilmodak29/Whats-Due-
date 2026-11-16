@@ -247,8 +247,9 @@ class _BackupSectionsState extends State<BackupSections> {
             // are not there yet.
             Text(
               _paste.text.trim().isEmpty
-                  ? 'Paste a backup below to merge it in or replace '
-                        'everything with it.'
+                  // One line: with two, the foot of the page (20) showed a
+                  // strip of the Grading card along the top edge.
+                  ? 'Paste a backup to merge in or replace everything.'
                   : 'MERGE adds what is new. REPLACE overwrites everything.',
               style: T.body,
             ),
