@@ -125,15 +125,14 @@ class _BackupSectionsState extends State<BackupSections> {
     return Column(
       children: [
         _Section(
-          accent: C.mark,
           title: 'Reminders',
           children: [
             Text(
               '9am at two weeks, one week, three days, the day before and '
               'the morning it is due, plus 9pm the night before.',
-              style: T.note,
+              style: T.emptyBody,
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 6),
             Row(
               children: [
                 Expanded(
@@ -152,27 +151,19 @@ class _BackupSectionsState extends State<BackupSections> {
                     ),
                   ),
                 ),
-                Semantics(
-                  // container: true, or the label merges into the Switch's own
-                  // node and never reaches the semantics tree as its own entry.
-                  container: true,
+                LabelledSwitch(
                   label: 'Reminders',
-                  toggled: store.remindersEnabled,
-                  child: Switch(
-                    value: store.remindersEnabled,
-                    activeThumbColor: C.onMark,
-                    activeTrackColor: C.mark,
-                    onChanged: (v) async {
-                      if (v) await Reminders.requestPermission();
-                      store.setRemindersEnabled(v);
-                      await _refreshPending();
-                    },
-                  ),
+                  value: store.remindersEnabled,
+                  onChanged: (v) async {
+                    if (v) await Reminders.requestPermission();
+                    store.setRemindersEnabled(v);
+                    await _refreshPending();
+                  },
                 ),
               ],
             ),
             ?_remindersWarning(),
-            const SizedBox(height: 4),
+            const SizedBox(height: 8),
             Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -200,7 +191,6 @@ class _BackupSectionsState extends State<BackupSections> {
         const SizedBox(height: 16),
 
         _Section(
-          accent: C.ink,
           title: 'Export',
           children: [
             Text(
@@ -210,7 +200,7 @@ class _BackupSectionsState extends State<BackupSections> {
               '${store.subjects.length == 1 ? '' : 's'}. '
               // Worth the one line: the data lives nowhere else.
               'The only copy that survives a lost phone.',
-              style: T.note,
+              style: T.emptyBody,
             ),
             const SizedBox(height: 10),
             Wrap(
@@ -251,18 +241,23 @@ class _BackupSectionsState extends State<BackupSections> {
         const SizedBox(height: 16),
 
         _Section(
-          accent: C.ink,
           title: 'Import',
           children: [
+            // Merge and Replace only appear once there is something to import,
+            // so the copy follows the screen rather than naming buttons that
+            // are not there yet.
             Text(
-              'MERGE adds what is new. REPLACE overwrites everything.',
-              style: T.note,
+              _paste.text.trim().isEmpty
+                  ? 'Paste a backup below to merge it in or replace '
+                        'everything with it.'
+                  : 'MERGE adds what is new. REPLACE overwrites everything.',
+              style: T.emptyBody,
             ),
             const SizedBox(height: 10),
             TextField(
               controller: _paste,
               style: T.monoInput,
-              minLines: 5,
+              minLines: 3,
               maxLines: 10,
               decoration: fieldDecoration(
                 hint: '{ "subjects": [...], "items": [...] }',
@@ -317,8 +312,15 @@ class _BackupSectionsState extends State<BackupSections> {
           accent: C.red,
           title: 'Danger',
           children: [
+            Text(
+              'Deletes every assignment, task and subject on this phone.',
+              style: T.emptyBody,
+            ),
+            const SizedBox(height: 10),
             GhostButton(
               label: 'Clear all data',
+              color: C.red,
+              icon: Icons.delete_outline,
               onPressed: () => confirm(
                 context,
                 title: 'Erase everything?',
@@ -339,16 +341,18 @@ class _BackupSectionsState extends State<BackupSections> {
   }
 }
 
+/// A Settings section. Plain by default; only Danger carries a coloured
+/// rule, so a coloured rule on this page always means the same thing.
 class _Section extends StatelessWidget {
   const _Section({
     required this.title,
     required this.children,
-    required this.accent,
+    this.accent,
   });
 
   final String title;
   final List<Widget> children;
-  final Color accent;
+  final Color? accent;
 
   @override
   Widget build(BuildContext context) => Surface(
@@ -357,7 +361,7 @@ class _Section extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Eyebrow(title, color: C.ink),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         ...children,
       ],
     ),

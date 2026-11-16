@@ -33,7 +33,6 @@ class _GradingSectionState extends State<GradingSection> {
 
   @override
   Widget build(BuildContext context) => Surface(
-    topBorder: C.ink,
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -57,27 +56,22 @@ class _GradingSectionState extends State<GradingSection> {
         ),
 
         if (_open) ...[
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           Row(
             children: [
               Expanded(child: Text(_state, style: T.count(C.ink))),
-              Semantics(
-                // container: true, or the label merges into the Switch's own
-                // node and never reaches the semantics tree as its own entry.
-                container: true,
+              LabelledSwitch(
                 label: 'Letter grades',
-                toggled: store.usesLetterGrades,
-                child: Switch(
-                  value: store.usesLetterGrades,
-                  activeThumbColor: C.onMark,
-                  activeTrackColor: C.mark,
-                  onChanged: (on) =>
-                      store.setBands(on ? kDefaultBands : const []),
-                ),
+                value: store.usesLetterGrades,
+                onChanged: (on) =>
+                    store.setBands(on ? kDefaultBands : const []),
               ),
             ],
           ),
-          if (store.usesLetterGrades) BandEditor(store: store),
+          if (store.usesLetterGrades) ...[
+            const SizedBox(height: 4),
+            BandEditor(store: store),
+          ],
         ],
       ],
     ),
@@ -160,8 +154,21 @@ class _BandEditorState extends State<BandEditor> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 5),
+          child: Row(
+            spacing: 8,
+            children: [
+              Expanded(child: Text('BAND', style: T.count(C.muted))),
+              SizedBox(
+                width: 78 + 8 + 24,
+                child: Text('FROM', style: T.count(C.muted)),
+              ),
+            ],
+          ),
+        ),
         for (var i = 0; i < bands.length; i++) _row(i, bands[i]),
-        const SizedBox(height: 10),
+        const SizedBox(height: 4),
         Row(
           spacing: 8,
           children: [
@@ -177,11 +184,20 @@ class _BandEditorState extends State<BandEditor> {
           ],
         ),
         if (problem != null) ...[
-          const SizedBox(height: 8),
-          Text(problem, style: T.note.copyWith(color: C.red)),
+          const SizedBox(height: 10),
+          Text(problem, style: T.emptyBody.copyWith(color: C.red)),
         ] else ...[
-          const SizedBox(height: 8),
-          Text(_ranges(), style: T.note),
+          const SizedBox(height: 10),
+          // One unbreakable piece per band, so a wrap can only ever fall
+          // between two of them — never leave a separator at a line start.
+          Wrap(
+            spacing: 14,
+            runSpacing: 4,
+            children: [
+              for (final r in _ranges())
+                Text(r, style: T.count(C.muted), softWrap: false),
+            ],
+          ),
         ],
       ],
     );
@@ -189,22 +205,16 @@ class _BandEditorState extends State<BandEditor> {
 
   /// Spells the bounds back out as the ranges they imply, because that is how
   /// a handbook states them and how the bounds are easiest to check.
-  String _ranges() {
-    final parts = <String>[];
-    for (var i = 0; i < bands.length; i++) {
-      final upper = i + 1 < bands.length ? bands[i + 1].min : null;
-      parts.add(
-        upper == null
-            ? '${bands[i].name} ${trimBound(bands[i].min)}+'
-            : '${bands[i].name} ${trimBound(bands[i].min)}–'
-                  '${trimBound(upper - 1)}',
-      );
-    }
-    return parts.join(' · ');
-  }
+  List<String> _ranges() => [
+    for (var i = 0; i < bands.length; i++)
+      i + 1 < bands.length
+          ? '${bands[i].name} ${trimBound(bands[i].min)}–'
+                '${trimBound(bands[i + 1].min - 1)}'
+          : '${bands[i].name} ${trimBound(bands[i].min)}+',
+  ];
 
   Widget _row(int i, GradeBand b) => Padding(
-    padding: const EdgeInsets.only(bottom: 8),
+    padding: const EdgeInsets.only(bottom: 6),
     child: Row(
       spacing: 8,
       children: [
@@ -213,30 +223,38 @@ class _BandEditorState extends State<BandEditor> {
             controller: _name(i, b.name),
             style: T.body,
             textInputAction: TextInputAction.done,
-            decoration: fieldDecoration(hint: 'Name'),
+            decoration: fieldDecoration(hint: 'Name', dense: true),
             onChanged: (v) => _replace(i, b.copyWith(name: v)),
           ),
         ),
         SizedBox(
-          width: 86,
+          width: 78,
           child: NumberField(
             controller: _min(i, b.min),
             suffix: '%',
             hint: '50',
+            dense: true,
             semanticLabel: 'Lowest percentage for ${b.name}',
             onChanged: (v) => _replace(i, b.copyWith(min: v ?? 0)),
           ),
         ),
-        Opacity(
-          opacity: bands.length > kMinBands ? 1 : .3,
-          child: Tap(
-            onTap: bands.length > kMinBands ? () => _remove(i) : null,
-            semanticLabel: 'Remove the ${b.name} band',
-            child: const Padding(
-              padding: EdgeInsets.all(4),
-              child: CloseGlyph(size: 16),
-            ),
-          ),
+        // The bottom band is the floor everything else stands on: it catches
+        // every mark beneath the next one up, so it has no remove button.
+        SizedBox(
+          width: 24,
+          child: i == 0
+              ? null
+              : Opacity(
+                  opacity: bands.length > kMinBands ? 1 : .3,
+                  child: Tap(
+                    onTap: bands.length > kMinBands ? () => _remove(i) : null,
+                    semanticLabel: 'Remove the ${b.name} band',
+                    child: const Padding(
+                      padding: EdgeInsets.all(4),
+                      child: CloseGlyph(size: 16),
+                    ),
+                  ),
+                ),
         ),
       ],
     ),

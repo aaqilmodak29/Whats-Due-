@@ -38,35 +38,26 @@ class SettingsPage extends StatelessWidget {
     ],
   );
 
-  /// The theme switch. First, because it is the only setting here that changes
-  /// something you can see immediately.
+  /// The theme switch. The header names the theme in force, the same way
+  /// Grading's header names its state; the row says what the switch does.
   Widget _appearance() => Surface(
-    topBorder: C.ink,
+    padding: const EdgeInsets.fromLTRB(14, 14, 14, 8),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Eyebrow('Appearance', color: C.ink),
-        const SizedBox(height: 6),
         Row(
           children: [
-            Expanded(
-              child: Text(
-                store.darkMode ? 'DARK' : 'LIGHT',
-                style: T.count(C.ink),
-              ),
-            ),
-            Semantics(
-              // container: true, or the label merges into the Switch's own
-              // node and never reaches the semantics tree as its own entry.
-              container: true,
+            Expanded(child: Eyebrow('Appearance', color: C.ink)),
+            Text(store.darkMode ? 'DARK' : 'LIGHT', style: T.eyebrow(C.muted)),
+          ],
+        ),
+        Row(
+          children: [
+            Expanded(child: Text('Dark mode', style: T.body)),
+            LabelledSwitch(
               label: 'Dark mode',
-              toggled: store.darkMode,
-              child: Switch(
-                value: store.darkMode,
-                activeThumbColor: C.onMark,
-                activeTrackColor: C.mark,
-                onChanged: store.setDarkMode,
-              ),
+              value: store.darkMode,
+              onChanged: store.setDarkMode,
             ),
           ],
         ),

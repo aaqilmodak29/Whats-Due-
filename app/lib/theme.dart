@@ -263,6 +263,11 @@ class T {
       _mono(10, em: .04, color: C.muted, height: 1.65);
 
   static TextStyle get body => _sans(14, 400, height: 1.45);
+
+  /// The chosen date at the head of the date picker — the page title's face,
+  /// a size down so a long weekday and month fit the dialog.
+  static TextStyle get pickerHeadline =>
+      _sans(26, 800, em: -.03, height: 1.1);
 }
 
 /// Page furniture shared by every screen: paper background, a 620px column.
@@ -295,6 +300,29 @@ ThemeData buildTheme() {
       textStyle: T.eyebrow(C.onInk),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
     ),
+    datePickerTheme: buildDatePickerTheme(),
+    switchTheme: buildSwitchTheme(),
+  );
+}
+
+/// Every switch in the app: ink when on, an ink outline round a card-coloured
+/// track when off.
+///
+/// Material's stock off state is a grey thumb on a grey track, which reads as
+/// disabled rather than as "off". Ink rather than the highlighter for "on",
+/// because the highlighter is kept for the one primary action on a screen.
+SwitchThemeData buildSwitchTheme() {
+  bool on(Set<WidgetState> s) => s.contains(WidgetState.selected);
+  return SwitchThemeData(
+    thumbColor: WidgetStateProperty.resolveWith(
+      (s) => on(s) ? C.onInk : C.ink,
+    ),
+    trackColor: WidgetStateProperty.resolveWith(
+      (s) => on(s) ? C.ink : C.card,
+    ),
+    trackOutlineColor: WidgetStatePropertyAll(C.ink),
+    trackOutlineWidth: const WidgetStatePropertyAll(1.5),
+    overlayColor: const WidgetStatePropertyAll(Colors.transparent),
   );
 }
 
@@ -329,8 +357,14 @@ DatePickerThemeData buildDatePickerTheme() {
       RoundedRectangleBorder(borderRadius: BorderRadius.zero),
     ),
 
-    headerBackgroundColor: C.ink,
-    headerForegroundColor: C.onInk,
+    // The header is a card like every other panel, not a block of ink: the
+    // date itself is the headline, in the page title's face.
+    headerBackgroundColor: C.card,
+    headerForegroundColor: C.ink,
+    headerHelpStyle: T.eyebrow(C.ink),
+    headerHeadlineStyle: T.pickerHeadline,
+    dayStyle: T.monoInput,
+    yearStyle: T.monoInput,
 
     dayForegroundColor: byState(selected: C.onInk, normal: C.ink),
     dayBackgroundColor: byState(selected: C.ink, normal: Colors.transparent),
@@ -350,7 +384,21 @@ DatePickerThemeData buildDatePickerTheme() {
 
     weekdayStyle: T.flabel,
     dividerColor: C.rule,
-    cancelButtonStyle: TextButton.styleFrom(foregroundColor: C.ink),
-    confirmButtonStyle: TextButton.styleFrom(foregroundColor: C.ink),
+    // Square, mono and upper case like every other button: plain ink to back
+    // out, filled ink to commit. Callers pass upper-case labels, because a
+    // ButtonStyle cannot change case.
+    cancelButtonStyle: _pickerButton(filled: false),
+    confirmButtonStyle: _pickerButton(filled: true),
   );
 }
+
+ButtonStyle _pickerButton({required bool filled}) => TextButton.styleFrom(
+  foregroundColor: filled ? C.onInk : C.ink,
+  backgroundColor: filled ? C.ink : Colors.transparent,
+  // The semibold mono: the regular weight's hairline strokes anti-alias to
+  // grey at this size and fail the contrast check.
+  textStyle: T.count(C.ink),
+  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+  minimumSize: const Size(0, 38),
+  shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+);
