@@ -120,7 +120,8 @@ class UpdateSection extends StatelessWidget {
             ? 'Update available · ${_size(release.apkBytes)}'
             : 'Update available · ${_size(release.apkBytes)}. This platform '
                   'cannot install it for you — download it from:',
-        style: T.emptyBody,
+        // Ink, not the muted grey: it is the line the card exists to say.
+        style: T.emptyBody.copyWith(color: C.ink),
       ),
       // The link goes on its own line in the data face. Inline, it wrapped
       // mid-URL through the middle of a sentence and was unreadable.
@@ -165,7 +166,7 @@ class UpdateSection extends StatelessWidget {
         // grey notes read as disabled.
         for (final line in lines)
           Padding(
-            padding: const EdgeInsets.only(bottom: 5),
+            padding: const EdgeInsets.only(bottom: 3),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

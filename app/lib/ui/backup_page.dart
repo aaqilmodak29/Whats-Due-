@@ -156,18 +156,14 @@ class _BackupSectionsState extends State<BackupSections> {
               style: T.body,
             ),
             ?_remindersWarning(),
-            // Less than a block's gap: a link carries 9.5px of tap padding
-            // above its text, where a boxed button's border sits right at its
-            // edge, so this puts the link text about as far from the prose as
-            // a button's box would be.
-            const SizedBox(height: 6),
-            // Checks rather than the section's main action, so links.
+            const SizedBox(height: SettingsSection.blockGap),
+            // Outlined, like every other section's actions on this page.
             Wrap(
-              spacing: 12,
+              spacing: 8,
+              runSpacing: 8,
               children: [
                 GhostButton(
                   label: 'Send a test',
-                  quiet: true,
                   onPressed: () async {
                     final ok = await Reminders.sendTest();
                     if (!mounted) return;
@@ -183,15 +179,13 @@ class _BackupSectionsState extends State<BackupSections> {
                 ),
                 GhostButton(
                   label: 'Recount',
-                  quiet: true,
                   onPressed: _refreshPending,
                 ),
               ],
             ),
           ],
         ),
-        // Reminders is a group of its own; the backup cards are the next.
-        const SizedBox(height: SettingsSection.groupGap),
+        const SizedBox(height: SettingsSection.cardGap),
 
         SettingsSection(
           title: 'Export',
@@ -206,8 +200,9 @@ class _BackupSectionsState extends State<BackupSections> {
               style: T.body,
             ),
             const SizedBox(height: SettingsSection.blockGap),
+            // Two ways to take the same copy out, so one style for both.
             Wrap(
-              spacing: 16,
+              spacing: 8,
               runSpacing: 8,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
@@ -228,10 +223,8 @@ class _BackupSectionsState extends State<BackupSections> {
                     }
                   },
                 ),
-                // The aside beside the section's main action: a link.
                 GhostButton(
                   label: 'Copy to clipboard',
-                  quiet: true,
                   onPressed: () async {
                     await Clipboard.setData(
                       ClipboardData(text: store.exportJson()),
@@ -254,8 +247,9 @@ class _BackupSectionsState extends State<BackupSections> {
             // are not there yet.
             Text(
               _paste.text.trim().isEmpty
-                  ? 'Paste a backup below to merge it in or replace '
-                        'everything with it.'
+                  // One line: with two, the foot of the page (20) showed a
+                  // strip of the Grading card along the top edge.
+                  ? 'Paste a backup to merge in or replace everything.'
                   : 'MERGE adds what is new. REPLACE overwrites everything.',
               style: T.body,
             ),
@@ -279,9 +273,6 @@ class _BackupSectionsState extends State<BackupSections> {
               children: [
                 GhostButton(
                   label: 'Paste from clipboard',
-                  // Once there is something to import, the import is the
-                  // action and pasting again is the aside.
-                  quiet: _paste.text.trim().isNotEmpty,
                   onPressed: () async {
                     final data = await Clipboard.getData('text/plain');
                     if (data?.text == null) {
@@ -356,8 +347,9 @@ class _BackupSectionsState extends State<BackupSections> {
 /// rule, so a coloured rule on this page always means the same thing.
 ///
 /// Actions follow one rule across the page: the highlighter for the page's
-/// one primary (Update now), an outlined ink box for a section's own action,
-/// and an underlined link for a check or an aside beside it.
+/// one primary (Update now) and an outlined ink box for every other action a
+/// card offers, checks included, so a row of actions never mixes a box with
+/// a bare link. Red outline only for the one destructive action.
 ///
 /// A section with a switch puts it beside the title, with the state it is in
 /// ([status]) underneath, so a toggle reads as one settings row.
@@ -385,12 +377,16 @@ class SettingsSection extends StatelessWidget {
   /// Between blocks inside a card: prose, a field, a row of actions.
   static const blockGap = 12.0;
 
-  /// Between cards in one group.
-  static const cardGap = 12.0;
+  /// Between one settings card and the next: one even step all the way
+  /// down, since 12 inside a group and 28 between groups read as uneven
+  /// gaps rather than as groups. At 22 the Export card on the opening screen
+  /// (and with Grading open) ends clear of the nav bar and Import starts
+  /// wholly under it, so no card is cut by the bar.
+  static const cardGap = 22.0;
 
-  /// Between groups of cards. Wide enough that a card at the head of a group,
-  /// scrolled to the top of the screen, has only paper above it rather than a
-  /// strip of the card before.
+  /// Under the Version card only, which is a status rather than a setting.
+  /// Wide enough that Grading, scrolled to the top of the screen, has only
+  /// paper above it rather than a strip of the Version card.
   static const groupGap = 28.0;
 
   final String title;
