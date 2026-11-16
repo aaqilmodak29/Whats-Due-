@@ -378,10 +378,10 @@ class SettingsSection extends StatelessWidget {
 
   /// Between one settings card and the next: one even step all the way
   /// down, since 12 inside a group and 28 between groups read as uneven
-  /// gaps rather than as groups. At 20 the Export card on the opening screen
+  /// gaps rather than as groups. At 22 the Export card on the opening screen
   /// (and with Grading open) ends clear of the nav bar and Import starts
   /// wholly under it, so no card is cut by the bar.
-  static const cardGap = 20.0;
+  static const cardGap = 22.0;
 
   /// Under the Version card only, which is a status rather than a setting.
   /// Wide enough that Grading, scrolled to the top of the screen, has only

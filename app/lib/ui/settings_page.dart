@@ -35,8 +35,12 @@ class SettingsPage extends StatelessWidget {
       // Grading has a card to itself: opened, its switch and band list are
       // one group, and Appearance sharing the card made three unrelated
       // groups at one weight.
+      // 4px less inset top and bottom than the other cards: Grading's header
+      // row carries 4px of tap padding of its own, so this puts its title
+      // the same 16px in from the card's edge as every other title. Its card
+      // also starts 4px lower when scrolled to the top of the screen.
       Surface(
-        padding: SettingsSection.padding,
+        padding: SettingsSection.padding.copyWith(top: 12, bottom: 12),
         child: GradingSection(store: store),
       ),
       const SizedBox(height: SettingsSection.cardGap),
