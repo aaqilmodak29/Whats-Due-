@@ -70,10 +70,21 @@ class _ManageSubjectsState extends State<ManageSubjects> {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(14, 12, 14, 4),
+          // The counts are a table: one right-aligned column for open work
+          // and one for submitted, headed once here, so every row's numbers
+          // line up however long the subject's name is.
           child: Row(
+            spacing: _kRowGap,
             children: [
               const Expanded(child: Eyebrow('Subjects')),
-              Text('${store.subjects.length}', style: T.count(C.ink)),
+              if (store.subjects.isNotEmpty) ...[
+                _CountCell(width: _kOpenCol, child: Text('OPEN', style: T.flabel)),
+                _CountCell(
+                  width: _kDoneCol,
+                  child: Text('SUBMITTED', style: T.flabel),
+                ),
+                const SizedBox(width: _kDeleteCol),
+              ],
             ],
           ),
         ),
@@ -226,7 +237,7 @@ class _SubjectRowState extends State<_SubjectRow> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 3),
       child: Row(
-        spacing: 9,
+        spacing: _kRowGap,
         children: [
           Tap(
             onTap: () => widget.store.cycleSubjectColor(s),
@@ -272,12 +283,13 @@ class _SubjectRowState extends State<_SubjectRow> {
               ),
             ),
           ),
-          Text(
-            [
-              '$open open',
-              if (submitted > 0) '$submitted submitted',
-            ].join(' · ').toUpperCase(),
-            style: T.eyebrow(C.muted),
+          _CountCell(
+            width: _kOpenCol,
+            child: Text('$open', style: T.count(C.ink)),
+          ),
+          _CountCell(
+            width: _kDoneCol,
+            child: Text('$submitted', style: T.count(C.ink)),
           ),
           Tap(
             onTap: () {
@@ -296,15 +308,37 @@ class _SubjectRowState extends State<_SubjectRow> {
               );
             },
             semanticLabel: 'Delete subject ${s.name}',
-            child: const Padding(
-              padding: EdgeInsets.all(4),
-              child: CloseGlyph(size: 16),
+            child: const SizedBox(
+              width: _kDeleteCol,
+              height: _kDeleteCol,
+              child: Center(child: CloseGlyph(size: 16)),
             ),
           ),
         ],
       ),
     );
   }
+}
+
+/// The subject list's columns: the gap between cells, the two count columns
+/// and the delete glyph's box, shared by the heading and every row.
+const double _kRowGap = 9;
+const double _kOpenCol = 36;
+const double _kDoneCol = 62;
+const double _kDeleteCol = 24;
+
+/// A right-aligned cell in the subject list's count columns.
+class _CountCell extends StatelessWidget {
+  const _CountCell({required this.width, required this.child});
+
+  final double width;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: width,
+    child: Align(alignment: Alignment.centerRight, child: child),
+  );
 }
 
 /// A colour choice. The chosen one gets an ink ring standing clear of the

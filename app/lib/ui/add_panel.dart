@@ -4,7 +4,7 @@ import '../models.dart';
 import '../store.dart';
 import '../theme.dart';
 import 'atoms.dart';
-import 'edit_sheet.dart' show DueDateField, FormNumberField, kFormGap;
+import 'edit_sheet.dart' show DueDateField, kFormGap;
 import 'manage_subjects.dart' show Swatch;
 
 /// The "new assignment" panel, revealed by the + button in the header.
@@ -155,18 +155,16 @@ class _AddPanelState extends State<AddPanel> {
               );
               final marks = LabelledField(
                 label: 'Marks',
-                child: FormNumberField(
+                child: NumberField(
                   controller: _outOf,
-                  hint: 'e.g. 40',
                   semanticLabel: 'Marks the assignment is out of',
                   onChanged: (v) => setState(() => _outOfValue = v),
                 ),
               );
               final goal = LabelledField(
                 label: 'Goal',
-                child: FormNumberField(
+                child: NumberField(
                   controller: _goal,
-                  hint: 'e.g. 30',
                   semanticLabel: 'Goal score',
                   onChanged: (v) => setState(() => _goalValue = v),
                 ),
@@ -181,7 +179,8 @@ class _AddPanelState extends State<AddPanel> {
                 );
               }
               // The edit sheet's row: the date at twice the width of each
-              // number, every box the same height.
+              // number, every box the shared field height. The labels name
+              // the numbers, so the boxes carry no hint text.
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 spacing: kFormGap,

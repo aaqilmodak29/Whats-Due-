@@ -1116,18 +1116,23 @@ void main() {
       'every card shows its mark, filled in or not',
       (tester, store) async {
         // Blank where a mark belongs is indistinguishable from an assignment
-        // with no marks at all, so the placeholder always renders.
-        expect(find.text('-/-'), findsWidgets);
+        // with no marks at all, so the placeholder always renders: a dash
+        // under the MARK label on every card.
+        expect(find.text('—'), findsWidgets);
+        expect(
+          find.text('MARK').evaluate().length,
+          find.text('—').evaluate().length,
+        );
 
         final a = store.items.firstWhere((x) => x.id == 'a3');
         store.setMarks(a, outOf: 40.0);
         await tester.pumpAndSettle();
-        expect(find.text('-/40'), findsOne);
+        expect(find.text('—/40'), findsOne);
 
         store.setMarks(a, earned: 30.0);
         await tester.pumpAndSettle();
         expect(find.text('30/40'), findsOne);
-        expect(find.text('-/40'), findsNothing);
+        expect(find.text('—/40'), findsNothing);
       },
       seed: _seed(),
       tab: 'Assignments',
