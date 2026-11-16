@@ -554,11 +554,13 @@ class AssignmentsPage extends StatelessWidget {
 /// The "nothing here" message, with the one control that undoes whatever
 /// emptied the list when there is a single obvious one.
 ///
-/// The app's one empty-state pattern, the same as Grades: an icon, what
-/// happened, one sentence and at most one action, centred, unboxed on the
-/// page, and set in the middle of the space under the filters by [_FillRest].
-/// Undoing a filter is an inline action, so it is an underlined link; only
-/// the first assignment on a fresh install is the page's lime call to action.
+/// A stand-in for the shared `EmptyState` (atoms.dart, shared thread, round 5)
+/// drawn to the same measurements: icon, heading, one sentence and at most one
+/// action, centred and unboxed, with the same fields, so it can be swapped for
+/// `EmptyState(icon:, head:, body:, action:, onAction:, primary:)` once that
+/// lands without anything moving. [_FillRest] sets it in the middle of the
+/// space under the filters. Lime only for the first assignment on a fresh
+/// install, the page's one call to action; undoing a filter is outlined.
 class _Empty extends StatelessWidget {
   const _Empty({
     required this.icon,
@@ -580,27 +582,22 @@ class _Empty extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+    padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
     child: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 40, color: C.ink),
-        const SizedBox(height: 14),
+        Icon(icon, size: 32, color: C.ink),
+        const SizedBox(height: 12),
         Text(head, style: T.emptyHead, textAlign: TextAlign.center),
-        const SizedBox(height: 5),
+        const SizedBox(height: 4),
         Text(
           body,
           style: T.emptyBody.copyWith(color: C.ink),
           textAlign: TextAlign.center,
         ),
-        if (action != null) ...[
-          SizedBox(height: primary ? 16 : 8),
-          GhostButton(
-            label: action!,
-            filled: primary,
-            quiet: !primary,
-            onPressed: onAction!,
-          ),
+        if (action != null && onAction != null) ...[
+          const SizedBox(height: 14),
+          GhostButton(label: action!, filled: primary, onPressed: onAction!),
         ],
       ],
     ),
