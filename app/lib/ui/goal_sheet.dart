@@ -4,6 +4,7 @@ import '../bands.dart';
 import '../models.dart';
 import '../theme.dart';
 import 'atoms.dart';
+import 'band_colours.dart';
 
 /// What [showGoalSheet] came back with. Null [percent] clears the goal.
 class GoalChoice {
@@ -64,8 +65,10 @@ class _GoalSheetState extends State<_GoalSheet> {
   /// Nothing to save: no target yet, or the one already set.
   bool get _unchanged => _value == null || _value == widget.current;
 
-  /// The list filters' chip: filled ink when on, a plain tint when off. Fixed
-  /// height, so a row of them lines up with the target field beside them.
+  /// One band as a choice: its colour as a rule down the left edge, the same
+  /// colour it has on Grades, then its name and floor. Filled ink with a tick
+  /// when it is the target in the field. Fixed height, so a row of them lines
+  /// up with the target field beside them.
   Widget _chip(GradeBand b) {
     // Display only: a chip is lit when the field holds exactly its bound,
     // whether it got there by a tap or by typing.
@@ -76,10 +79,18 @@ class _GoalSheetState extends State<_GoalSheet> {
       semanticLabel: 'Aim for ${b.name}, ${trimBound(b.min)} percent',
       child: Container(
         height: _cell,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        color: on ? C.ink : C.paper,
+        padding: const EdgeInsets.only(left: 9, right: 10),
+        decoration: BoxDecoration(
+          color: on ? C.ink : C.field,
+          border: Border(
+            left: BorderSide(color: colourOfBand(b, widget.bands), width: 4),
+            top: BorderSide(color: on ? C.ink : C.rule),
+            right: BorderSide(color: on ? C.ink : C.rule),
+            bottom: BorderSide(color: on ? C.ink : C.rule),
+          ),
+        ),
         child: Row(
-          spacing: 8,
+          spacing: 6,
           children: [
             Expanded(
               child: Text(
@@ -89,11 +100,24 @@ class _GoalSheetState extends State<_GoalSheet> {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            Text('${trimBound(b.min)}%', style: T.chip(ink)),
+            if (on) Icon(Icons.check, size: 14, color: ink),
+            Text(bandFloor(b), style: T.chip(ink)),
           ],
         ),
       ),
     );
+  }
+
+  /// What the goal is right now, before anything is picked: a sentence, so
+  /// it cannot be mistaken for a button.
+  String get _currentLine {
+    final now = widget.current;
+    if (now == null) return 'No goal set yet.';
+    final band = widget.bands.isEmpty ? null : bandFor(now, widget.bands);
+    final exact = band != null && (band.min - now).abs() < 1e-9;
+    return exact
+        ? 'Current goal: ${band.name}, ${bandFloor(band)}.'
+        : 'Current goal: ${trimNumber(now)}%.';
   }
 
   static const _cell = 40.0;
@@ -160,12 +184,13 @@ class _GoalSheetState extends State<_GoalSheet> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Eyebrow('Goal for ${widget.subjectName}', color: C.ink),
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
+            Text(_currentLine, style: T.body),
             Text(
               widget.bands.isEmpty
-                  ? 'The percentage you are aiming for across the subject.'
+                  ? 'Type the percentage you are aiming for across the subject.'
                   : 'Pick a band, or type any percentage.',
-              style: T.emptyBody,
+              style: T.body,
             ),
 
             const SizedBox(height: 14),
@@ -179,8 +204,10 @@ class _GoalSheetState extends State<_GoalSheet> {
                 Expanded(
                   child: _unchanged
                       ? Text(
-                          _value == null ? 'NO TARGET YET' : 'NOTHING CHANGED',
-                          style: T.count(C.muted),
+                          _value == null
+                              ? 'Pick a goal to save.'
+                              : 'Same as now.',
+                          style: T.emptyBody.copyWith(color: C.ink),
                         )
                       : const SizedBox.shrink(),
                 ),

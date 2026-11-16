@@ -4,6 +4,7 @@ import '../bands.dart';
 import '../store.dart';
 import '../theme.dart';
 import 'atoms.dart';
+import 'band_colours.dart';
 
 /// Letter grading: on or off, and what the bands are.
 ///
@@ -160,8 +161,9 @@ class _BandEditorState extends State<BandEditor> {
           child: Row(
             spacing: 8,
             children: [
+              const SizedBox(width: _rule - 8),
               Expanded(child: Eyebrow('Band', color: C.ink)),
-              SizedBox(width: 72, child: Eyebrow('From', color: C.ink)),
+              SizedBox(width: _from, child: Eyebrow('From', color: C.ink)),
             ],
           ),
         ),
@@ -190,6 +192,17 @@ class _BandEditorState extends State<BandEditor> {
     );
   }
 
+  /// The band's colour down the left of its row, plus the gap after it.
+  static const _rule = 12.0;
+
+  /// The bound's field and its unit.
+  static const _from = 84.0;
+
+  /// The name is set in Inter, whose line runs about 2px taller than the
+  /// mono the bound is typed in; this much less padding top and bottom puts
+  /// the two fields on one height.
+  static const _nameTrim = 1.1;
+
   Widget _row(int i, GradeBand b) {
     final removable = bands.length > kMinBands;
     return Padding(
@@ -197,12 +210,18 @@ class _BandEditorState extends State<BandEditor> {
       child: Row(
         spacing: 8,
         children: [
+          // The same colour the band has on Grades and in the goal sheet.
+          BandSwatch(colourOfBand(b, bands), width: _rule - 8, height: 35),
           Expanded(
             child: TextField(
               controller: _name(i, b.name),
               style: T.body,
               textInputAction: TextInputAction.done,
               decoration: fieldDecoration(hint: 'Name', dense: true).copyWith(
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8 - _nameTrim,
+                ),
                 // Remove sits inside the name, so every row keeps the same
                 // two columns. The bottom band is the floor everything else
                 // stands on: it catches every mark beneath the next one up, so
@@ -232,14 +251,23 @@ class _BandEditorState extends State<BandEditor> {
             ),
           ),
           SizedBox(
-            width: 72,
-            child: NumberField(
-              controller: _min(i, b.min),
-              suffix: '%',
-              hint: '50',
-              dense: true,
-              semanticLabel: 'Lowest percentage for ${b.name}',
-              onChanged: (v) => _replace(i, b.copyWith(min: v ?? 0)),
+            width: _from,
+            child: Row(
+              spacing: 6,
+              children: [
+                Expanded(
+                  child: NumberField(
+                    controller: _min(i, b.min),
+                    hint: '50',
+                    dense: true,
+                    semanticLabel: 'Lowest percentage for ${b.name}',
+                    onChanged: (v) => _replace(i, b.copyWith(min: v ?? 0)),
+                  ),
+                ),
+                // The unit outside the box, in ink: inside it, it was a
+                // faint grey that read as a placeholder.
+                ExcludeSemantics(child: Text('%', style: T.monoInput)),
+              ],
             ),
           ),
         ],

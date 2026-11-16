@@ -6,6 +6,7 @@ import '../models.dart';
 import '../store.dart';
 import '../theme.dart';
 import 'atoms.dart';
+import 'band_colours.dart';
 import 'goal_sheet.dart';
 
 /// Where each subject stands, what is still to come, and what it would take to
@@ -37,6 +38,12 @@ class _GradesPageState extends State<GradesPage> {
       ..sort((a, b) => _name(a.subjectId).compareTo(_name(b.subjectId)));
     final results = grades.fold<int>(0, (n, g) => n + g.gradedCount);
 
+    return LayoutBuilder(
+      builder: (context, box) => _page(grades, results, box.maxHeight),
+    );
+  }
+
+  Widget _page(List<SubjectGrade> grades, int results, double height) {
     return PageBody(
       controller: widget.controller,
       title: 'Grades',
@@ -46,7 +53,7 @@ class _GradesPageState extends State<GradesPage> {
                 ' · $results ${results == 1 ? 'result' : 'results'}',
       children: [
         if (grades.isEmpty)
-          _empty()
+          _empty(height)
         else ...[
           for (final g in grades) ...[
             _subjectCard(g),
@@ -75,35 +82,19 @@ class _GradesPageState extends State<GradesPage> {
   String _band(double fraction) =>
       bandFor(fraction * 100, bands)?.name.toUpperCase() ?? '';
 
-  /// How a fraction should be coloured. See [_tone].
-  Color _colour(double fraction) => _tone(fraction * 100);
+  /// How a fraction should be coloured: the app's one band scale, see
+  /// [bandColour]. The band's word and its bar take it; the percentage beside
+  /// the word stays ink, so the colour is read once, on the word.
+  Color _colour(double fraction) => bandColour(fraction * 100, bands);
 
-  /// The one colour rule on this page: a band's word, its percentage and its
-  /// bar all take the same colour, so a grade never reads two ways at once.
-  ///
-  /// Below the pass mark is red. The passing bands climb one scale from a
-  /// quiet slate through ink to the full green at the top, so each band is
-  /// its own step and the top one is the only "done" green. The middle band of
-  /// the default four sits exactly on ink, the same as [gradeColour] puts it.
-  /// Without bands there are no steps to show, so it keeps [gradeColour]'s
-  /// three.
-  Color _tone(double percent) {
-    if (bands.length < 2) return gradeColour(percent, bands);
-    if (percent + 1e-9 < bands[1].min) return C.red;
-    final passing = bands.length - 1;
-    if (passing <= 1) return C.green;
-    final band = bandFor(percent, bands);
-    final rank = band == null ? 0 : bands.indexOf(band) - 1;
-    final t = rank / (passing - 1);
-    const pivot = 1 / 3;
-    if (t >= 1 - 1e-9) return C.green;
-    if ((t - pivot).abs() < 1e-9) return C.ink;
-    if (t > pivot) return Color.lerp(C.ink, C.green, (t - pivot) / (1 - pivot))!;
-    return Color.lerp(C.muted, C.ink, .4 + .6 * t / pivot)!;
-  }
+  /// The percentage carries the colour only when there is no band word to
+  /// carry it.
+  Color _percentColour(double fraction) =>
+      _band(fraction).isEmpty ? _colour(fraction) : C.ink;
 
-  /// Secondary lines under a title or a bar: sentences, so sans, one size.
-  TextStyle get _meta => T.emptyBody;
+  /// Secondary lines under a title or a bar: sentences, so sans, one size,
+  /// in ink so they read on both grounds.
+  TextStyle get _meta => T.emptyBody.copyWith(color: C.ink);
 
   // ------------------------------------------------------------------- card
 
@@ -113,7 +104,7 @@ class _GradesPageState extends State<GradesPage> {
     final open = _openId == key;
     final subject = _subjectOf(g.subjectId);
     final goal = subject?.goalPercent;
-    final tone = average == null ? C.muted : _colour(average);
+    final tone = average == null ? C.ink : _colour(average);
 
     return Container(
       width: double.infinity,
@@ -136,14 +127,26 @@ class _GradesPageState extends State<GradesPage> {
                   spacing: 6,
                   children: [
                     Dot(_swatch(g.subjectId)),
-                    Expanded(child: Eyebrow(_name(g.subjectId), maxLines: 1)),
+                    Expanded(
+                      child: Eyebrow(
+                        _name(g.subjectId),
+                        color: C.ink,
+                        maxLines: 1,
+                      ),
+                    ),
                     if (average != null && _band(average).isNotEmpty) ...[
                       Text(_band(average), style: T.count(tone)),
                       const SizedBox(width: 2),
                     ],
+                    // Plain figures, not spaced caps: the band word is the
+                    // label, the percentage is the number behind it.
                     Text(
                       average == null ? '—' : formatPercent(average),
-                      style: T.count(tone),
+                      style: T.monoInput.copyWith(
+                        color: average == null
+                            ? C.ink
+                            : _percentColour(average),
+                      ),
                     ),
                     Icon(
                       open ? Icons.expand_less : Icons.expand_more,
@@ -188,8 +191,7 @@ class _GradesPageState extends State<GradesPage> {
             ],
             if (bands.isNotEmpty && g.remainingOutOf > 0) ...[
               _heading('Marks needed'),
-              for (final b in bands.reversed)
-                _bandNeedRow(g, b, _focusBand(g, goal)),
+              for (final b in bands.reversed) _bandNeedRow(g, b),
             ],
           ],
         ],
@@ -227,7 +229,7 @@ class _GradesPageState extends State<GradesPage> {
                 height: 6,
                 child: DecoratedBox(
                   decoration: BoxDecoration(
-                    border: Border.all(color: C.rule),
+                    border: Border.all(color: C.muted),
                   ),
                 ),
               ),
@@ -282,21 +284,17 @@ class _GradesPageState extends State<GradesPage> {
   }
 
   /// The colours and marks every card uses, explained once under the last
-  /// card: the grading bands in their colours, then what the bar's parts mean.
+  /// card: the band scale as one stepped strip, high to low, then what the
+  /// bar's parts mean on a single line.
   Widget _key({required bool toCome, required bool goals}) {
-    Widget row(Widget mark, String label) => Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        spacing: 10,
-        children: [
-          SizedBox(width: 18, height: 14, child: Center(child: mark)),
-          Text(label, style: T.chip(C.ink)),
-        ],
-      ),
+    Widget item(Widget mark, String label) => Row(
+      mainAxisSize: MainAxisSize.min,
+      spacing: 6,
+      children: [
+        SizedBox(width: 14, height: 14, child: Center(child: mark)),
+        Text(label, style: T.chip(C.ink)),
+      ],
     );
-    Widget block(Color colour) =>
-        Container(width: 18, height: 6, color: colour);
 
     final ordered = bands.reversed.toList();
     return Padding(
@@ -306,54 +304,66 @@ class _GradesPageState extends State<GradesPage> {
         children: [
           if (ordered.length >= 2) ...[
             Text('BANDS', style: T.eyebrow(C.ink)),
-            const SizedBox(height: 6),
-            for (final (i, b) in ordered.indexed)
-              row(
-                block(_tone(b.min)),
-                i == ordered.length - 1
-                    ? '${b.name} · below ${trimBound(ordered[i - 1].min)}%'
-                          .toUpperCase()
-                    : '${b.name} · from ${trimBound(b.min)}%'.toUpperCase(),
-              ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 8),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              spacing: 4,
+              children: [
+                for (final b in ordered)
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(height: 6, color: colourOfBand(b, bands)),
+                        const SizedBox(height: 6),
+                        // The floor first, so the figures line up even when
+                        // a long name wraps.
+                        Text(bandFloor(b), style: T.count(C.ink)),
+                        Text(b.name, style: _meta),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 16),
           ],
-          Text('THE BAR', style: T.eyebrow(C.ink)),
-          const SizedBox(height: 6),
           Wrap(
-            spacing: 18,
-            runSpacing: 2,
+            spacing: 14,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
+              Text('THE BAR', style: T.eyebrow(C.ink)),
               // Banked takes whichever band colour the subject is in.
-              row(
+              item(
                 ordered.length < 2
-                    ? block(C.ink)
+                    ? BandSwatch(C.ink, height: 6)
                     : Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           for (final b in ordered.reversed)
-                            Container(
-                              width: 18 / ordered.length,
+                            BandSwatch(
+                              colourOfBand(b, bands),
+                              width: 14 / ordered.length,
                               height: 6,
-                              color: _tone(b.min),
                             ),
                         ],
                       ),
                 'BANKED',
               ),
-              row(block(C.rule), 'DROPPED'),
+              item(BandSwatch(C.rule, height: 6), 'DROPPED'),
               if (toCome)
-                row(
+                item(
                   Container(
-                    width: 18,
+                    width: 14,
                     height: 6,
                     decoration: BoxDecoration(
-                      border: Border.all(color: C.rule),
+                      border: Border.all(color: C.muted),
                     ),
                   ),
                   'TO COME',
                 ),
               if (goals)
-                row(Container(width: 2, height: 14, color: C.ink), 'GOAL'),
+                item(BandSwatch(C.ink, width: 2, height: 14), 'GOAL'),
             ],
           ),
         ],
@@ -397,22 +407,15 @@ class _GradesPageState extends State<GradesPage> {
     if (picked != null) store.setSubjectGoal(subject, picked.percent);
   }
 
-  /// A quiet text action beside the summary, not a box per card: most
-  /// subjects never get a goal, and an empty box reads as a field to fill.
-  /// Muted, so the grade stays the loudest thing on the card.
+  /// A text link beside the summary, not a box per card: most subjects
+  /// never get a goal, and an empty box reads as a field to fill. The app's
+  /// one style for an inline action: underlined mono.
   Widget _setGoal(Subject subject) => Tap(
     onTap: () => _editGoal(subject, null),
     semanticLabel: 'Set a goal for ${subject.name}',
     child: Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        spacing: 3,
-        children: [
-          Icon(Icons.add, size: 12, color: C.muted),
-          Text('SET A GOAL', style: T.count(C.muted)),
-        ],
-      ),
+      child: Text('SET A GOAL', style: T.link),
     ),
   );
 
@@ -479,9 +482,22 @@ class _GradesPageState extends State<GradesPage> {
       ].join(' · '),
       metaColour: met == false ? C.red : null,
       value: Text(a.markLabel, style: T.count(C.ink)),
-      note: Text(
-        [if (band.isNotEmpty) band, formatPercent(a.scored!)].join(' · '),
-        style: T.count(_colour(a.scored!)),
+      // The same rule as the card's header: the band word in its colour,
+      // the percentage plain.
+      note: Text.rich(
+        TextSpan(
+          children: [
+            if (band.isNotEmpty)
+              TextSpan(
+                text: '$band · ',
+                style: T.count(_colour(a.scored!)),
+              ),
+            TextSpan(
+              text: formatPercent(a.scored!),
+              style: T.count(_percentColour(a.scored!)),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -527,13 +543,9 @@ class _GradesPageState extends State<GradesPage> {
                 overflow: TextOverflow.ellipsis,
               ),
               if (meta.isNotEmpty) ...[
-                const SizedBox(height: 2),
-                Text(
-                  meta,
-                  style: metaColour == null
-                      ? _meta
-                      : _meta.copyWith(color: metaColour),
-                ),
+                const SizedBox(height: 3),
+                // Dates read the app's one way: upper-case mono.
+                Text(meta.toUpperCase(), style: T.count(metaColour ?? C.ink)),
               ],
             ],
           ),
@@ -551,20 +563,14 @@ class _GradesPageState extends State<GradesPage> {
 
   /// What one band would take, in marks rather than percentages — because the
   /// marks are the thing you can actually go and earn.
-  /// The one row of the table worth reading first: the goal's band when there
-  /// is a goal, otherwise the band the subject sits in now.
-  GradeBand? _focusBand(SubjectGrade g, double? goal) {
-    if (goal != null) return bandFor(goal, bands);
-    final average = g.average;
-    return average == null ? null : bandFor(average * 100, bands);
-  }
-
-  Widget _bandNeedRow(SubjectGrade g, GradeBand b, GradeBand? focus) {
+  ///
+  /// Every row the same: the band's colour as a rule on the left, the figure
+  /// flush with the right edge the rows above use. A goal is already named
+  /// once on the card, so the table does not highlight it a second time.
+  Widget _bandNeedRow(SubjectGrade g, GradeBand b) {
     final need = g.neededFor(b.min);
     final secured = g.secured(b.min);
     final reachable = g.reachable(b.min);
-    final focused = identical(b, focus) ||
-        (focus != null && b.name == focus.name && b.min == focus.min);
 
     // Plain information, not a verdict: a band already banked is "safe" in
     // ink, never green, so the bottom band does not read as a success.
@@ -573,25 +579,22 @@ class _GradesPageState extends State<GradesPage> {
         : !reachable
         ? 'Out of reach'
         : '${trimNumber(need)} of ${trimNumber(g.remainingOutOf)}';
-    final colour = focused || (!secured && reachable) ? C.ink : C.muted;
+    final colour = !secured && reachable ? C.ink : C.muted;
 
     return Container(
       margin: const EdgeInsets.only(top: 2),
-      padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
-      decoration: focused
-          ? BoxDecoration(
-              color: C.paper.withValues(alpha: .55),
-              border: Border(left: BorderSide(color: C.ink, width: 2)),
-            )
-          : BoxDecoration(
-              border: Border(left: BorderSide(color: _tone(b.min), width: 2)),
-            ),
+      padding: const EdgeInsets.fromLTRB(8, 6, 0, 6),
+      decoration: BoxDecoration(
+        border: Border(
+          left: BorderSide(color: colourOfBand(b, bands), width: 3),
+        ),
+      ),
       child: Row(
         spacing: 8,
         children: [
           Expanded(
             child: Text(
-              '${b.name} · ${trimBound(b.min)}%'.toUpperCase(),
+              '${b.name} · ${bandFloor(b)}'.toUpperCase(),
               style: T.count(colour),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -603,36 +606,49 @@ class _GradesPageState extends State<GradesPage> {
     );
   }
 
-  /// No marks anywhere yet. The same shape as an empty Assignments list:
-  /// an icon, what happened, and the one place to go about it. Marks belong
-  /// to an assignment, so that place is the Assignments tab.
-  Widget _empty() => Padding(
-    padding: const EdgeInsets.fromLTRB(24, 56, 24, 24),
-    child: Column(
-      children: [
-        Icon(Icons.insights_outlined, size: 40, color: C.ink),
-        const SizedBox(height: 14),
-        Text(
-          'Nothing to total yet',
-          style: T.emptyHead,
-          textAlign: TextAlign.center,
+  /// No marks anywhere yet. The app's one empty-state shape: an icon, what
+  /// happened, one sentence and the one place to go about it, centred both
+  /// ways in the space left under the page title. Marks belong to an
+  /// assignment, so that place is the Assignments tab.
+  Widget _empty(double height) {
+    // PageBody's own chrome above and below the list: its padding, the
+    // "Coursework" eyebrow, the title and the gap under it.
+    const chrome = 20 + 14 + 3 + 33.6 + 18 + 32;
+    final free = height - MediaQuery.paddingOf(context).vertical - chrome;
+    return ConstrainedBox(
+      constraints: BoxConstraints(minHeight: free < 0 ? 0 : free),
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.insights_outlined, size: 40, color: C.ink),
+              const SizedBox(height: 14),
+              Text(
+                'Nothing to total yet',
+                style: T.emptyHead,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 5),
+              Text(
+                'Open an assignment, tap Edit and fill in what it is out of. '
+                'Once your score is back, its subject gets a card here.',
+                style: _meta,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              GhostButton(
+                label: 'Open Assignments',
+                filled: true,
+                onPressed: _openAssignments,
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: 5),
-        Text(
-          'Open an assignment, tap Edit and fill in what it is out of. '
-          'Once your score is back, its subject gets a card here.',
-          style: T.emptyBody.copyWith(color: C.ink),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 16),
-        GhostButton(
-          label: 'Open Assignments',
-          filled: true,
-          onPressed: _openAssignments,
-        ),
-      ],
-    ),
-  );
+      ),
+    );
+  }
 
   /// Exactly what the Assignments tab in the nav bar does: the pages sit in
   /// one [PageView], so this turns it to the first page the same way, and the

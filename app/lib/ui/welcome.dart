@@ -4,6 +4,7 @@ import '../bands.dart';
 import '../store.dart';
 import '../theme.dart';
 import 'atoms.dart';
+import 'band_colours.dart';
 import 'band_editor.dart';
 
 /// The one question asked on first run: does your institution grade in letters?
@@ -33,76 +34,73 @@ class _WelcomeState extends State<Welcome> {
     setState(() => _configuring = true);
   }
 
+  /// One column, title to answers, centred on the screen: the answers follow
+  /// straight on from what they decide, with no dead paper between the two.
+  /// It scrolls when the band editor makes it taller than the screen.
   @override
   Widget build(BuildContext context) => Scaffold(
     body: SafeArea(
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 620),
-          // The answers sit at the foot of the screen, under the thumb, with
-          // what they decide above them: the page reads top to bottom and
-          // ends on the choice rather than on empty paper.
-          child: Column(
-            children: [
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 44, 16, 16),
-                  children: [
-                    const Eyebrow('Coursework'),
-                    const SizedBox(height: 3),
-                    Text("What's due", style: T.h1),
-                    const SizedBox(height: 24),
-                    _question(),
-                    const SizedBox(height: 14),
-                    if (_configuring) _bands() else _ladder(),
-                  ],
-                ),
+      child: LayoutBuilder(
+        builder: (context, box) => ListView(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+          children: [
+            ConstrainedBox(
+              constraints: BoxConstraints(minHeight: box.maxHeight - 48),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Eyebrow('Coursework'),
+                  const SizedBox(height: 3),
+                  Text("What's due", style: T.h1),
+                  const SizedBox(height: 20),
+                  _question(),
+                  const SizedBox(height: 10),
+                  if (_configuring) _bands() else _ladder(),
+                  const SizedBox(height: 18),
+                  ..._actions(),
+                ],
               ),
-              Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  border: Border(top: BorderSide(color: C.rule)),
-                ),
-                padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-                child: Column(
-                  spacing: 8,
-                  children: [
-                    if (_configuring)
-                      GhostButton(
-                        label: 'Start tracking',
-                        filled: true,
-                        expand: true,
-                        onPressed: _done,
-                      )
-                    else ...[
-                      GhostButton(
-                        label: 'Yes, set them up',
-                        filled: true,
-                        expand: true,
-                        onPressed: _yes,
-                      ),
-                      GhostButton(
-                        label: 'No, percentages',
-                        expand: true,
-                        onPressed: _done,
-                      ),
-                    ],
-                    Text(
-                      'You can change this later in Settings.',
-                      style: T.body,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     ),
   );
 
+  /// The answers, or once yes is answered, the one way on.
+  List<Widget> _actions() => _configuring
+      ? [
+          GhostButton(
+            label: 'Start tracking',
+            filled: true,
+            expand: true,
+            onPressed: _done,
+          ),
+        ]
+      : [
+          GhostButton(
+            label: 'Yes, set them up',
+            filled: true,
+            expand: true,
+            onPressed: _yes,
+          ),
+          const SizedBox(height: 8),
+          GhostButton(
+            label: 'No, percentages',
+            expand: true,
+            onPressed: _done,
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'You can change this later in Settings.',
+            style: T.body,
+            textAlign: TextAlign.center,
+          ),
+        ];
+
   Widget _question() => Surface(
-    topBorder: C.mark,
+    topBorder: C.ink,
     padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -142,14 +140,27 @@ class _WelcomeState extends State<Welcome> {
 
   /// The difference the answer makes, on one example mark.
   Widget _preview() {
-    Widget line(String answer, String grade, Color colour) => Padding(
+    Widget line(String answer, String? band) => Padding(
       padding: const EdgeInsets.symmetric(vertical: 7),
       child: Row(
         spacing: 10,
         children: [
           SizedBox(width: 30, child: Text(answer, style: T.count(C.ink))),
           Expanded(child: Text('Lab report', style: T.body)),
-          Text(grade, style: T.count(colour)),
+          // The rule Grades follows: the band word in its colour, the
+          // percentage plain.
+          Text.rich(
+            TextSpan(
+              children: [
+                if (band != null)
+                  TextSpan(
+                    text: '${band.toUpperCase()} · ',
+                    style: T.count(bandColour(76, kDefaultBands)),
+                  ),
+                TextSpan(text: '76%', style: T.count(C.ink)),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -167,53 +178,33 @@ class _WelcomeState extends State<Welcome> {
             padding: const EdgeInsets.only(top: 4, bottom: 2),
             child: Text('HOW A MARK OF 38/50 SHOWS', style: T.count(C.ink)),
           ),
-          line('YES', 'DISTINCTION · 76%', C.ink),
+          line('YES', bandFor(76, kDefaultBands)?.name),
           Container(height: 1, color: C.rule),
-          line('NO', '76%', C.ink),
+          line('NO', null),
         ],
       ),
     );
   }
 
-  /// What was answered, once it has been: the two answers as a pair with
-  /// yes filled in. The other answer is a plain label, not a button; the
-  /// choice is changed later in Settings, as the footer says.
-  Widget _answer() => Row(
-    children: [
-      Expanded(
-        child: Semantics(
-          label: 'Letter grades, chosen',
-          excludeSemantics: true,
-          child: Container(
-            height: 38,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: C.ink,
-              border: Border.all(color: C.ink, width: 1.5),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              spacing: 6,
-              children: [
-                Icon(Icons.check, size: 15, color: C.onInk),
-                Text('LETTER GRADES', style: T.ghost(C.onInk)),
-              ],
-            ),
+  /// What was answered, once it has been: a statement, not a control. The
+  /// choice is changed later in Settings, which the same line says.
+  Widget _answer() => Semantics(
+    label: 'Letter grades, chosen. You can change this later in Settings.',
+    excludeSemantics: true,
+    child: Row(
+      spacing: 6,
+      children: [
+        Icon(Icons.check, size: 15, color: C.ink),
+        Text('LETTER GRADES', style: T.count(C.ink)),
+        Text('·', style: T.count(C.ink)),
+        Expanded(
+          child: Text(
+            'change later in Settings',
+            style: T.emptyBody.copyWith(color: C.ink),
           ),
         ),
-      ),
-      Expanded(
-        child: Semantics(
-          label: 'Percentages, not chosen',
-          excludeSemantics: true,
-          child: Container(
-            height: 38,
-            alignment: Alignment.center,
-            child: Text('PERCENTAGES', style: T.ghost(C.ink)),
-          ),
-        ),
-      ),
-    ],
+      ],
+    ),
   );
 
   /// The bands a yes starts from, so the choice is made knowing what it sets
@@ -238,19 +229,10 @@ class _WelcomeState extends State<Welcome> {
               child: Row(
                 spacing: 10,
                 children: [
-                  Container(
-                    width: 16,
-                    height: 10,
-                    color: gradeBarColour(bands[i].min, bands),
-                  ),
+                  // The same colour and the same floor Grades shows.
+                  BandSwatch(colourOfBand(bands[i], bands), height: 10),
                   Expanded(child: Text(bands[i].name, style: T.body)),
-                  Text(
-                    i + 1 < bands.length
-                        ? '${trimBound(bands[i].min)}–'
-                              '${trimBound(bands[i + 1].min - 1)}%'
-                        : '${trimBound(bands[i].min)}%+',
-                    style: T.count(C.ink),
-                  ),
+                  Text(bandFloor(bands[i]), style: T.count(C.ink)),
                 ],
               ),
             ),
@@ -259,3 +241,4 @@ class _WelcomeState extends State<Welcome> {
     );
   }
 }
+
