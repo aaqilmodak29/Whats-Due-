@@ -155,17 +155,24 @@ class AssignmentsPage extends StatelessWidget {
     final hasWork = store.items.isNotEmpty;
     final query = view.query.trim();
 
-    // The strip earns its height by charting what is coming. With nothing
-    // tracked, or a search that matched nothing, it would chart an empty
-    // fortnight above an empty list, so it steps aside until there is. It
-    // charts open work only, so the Submitted tab (which a tap on it would
-    // leave anyway) does not carry it either.
-    final showStrip =
-        hasWork && !_showSubmitted && !(query.isNotEmpty && shown.isEmpty);
+    // The strip is the page's fixed early warning, so once anything is
+    // tracked it holds its place on every tab and through every filter: the
+    // page no longer jumps by a chart's height when a tab or search changes.
+    // With nothing tracked at all it would chart an empty fortnight above the
+    // empty state, so it waits until there is something to chart.
+    final showStrip = hasWork;
 
     // A subject filter says how much of the whole it is showing, so the ALL
     // chip's larger count reads as the total rather than a contradiction.
     final narrowed = view.filter != filterAll;
+
+    // Any filter at all: the summary then says how much of the open work is
+    // showing rather than restating counts of a list that is not on screen.
+    final filtered =
+        narrowed ||
+        query.isNotEmpty ||
+        view.window != null ||
+        view.selectedDue != null;
 
     return PageBody(
       controller: controller,
@@ -174,29 +181,39 @@ class AssignmentsPage extends StatelessWidget {
       // so the line names what is. Both follow the filters, like the tabs.
       // Nothing tracked at all: a line of zeroes would only restate the
       // empty state below it.
+      // A zero says nothing the open count does not, so only counts that are
+      // there make the line.
       eyebrow: !hasWork
           ? null
           : _showSubmitted
           ? '${submitted.length} submitted · ${open.length} open'
           : [
               if (overdue > 0) '$overdue overdue',
-              '$thisWeek due within 7 days',
-              narrowed
-                  ? '${open.length} of ${openPool.length} open'
+              if (thisWeek > 0) '$thisWeek due within 7 days',
+              filtered
+                  ? '${open.length} of ${active.length} open'
                   : '${open.length} open',
             ].join(' · '),
       // Ink, not red or muted: both fail contrast as 10px mono on the paper
       // ground. Urgency is carried by the cards' rails and countdowns.
       eyebrowColor: C.ink,
-      action: IconSquare(
-        icon: view.showAdd ? Icons.close : Icons.add,
-        open: view.showAdd,
-        semanticLabel: view.showAdd ? 'Close the add panel' : 'Add assignment',
-        onPressed: () => onView(view.copyWith(showAdd: !view.showAdd)),
+      // A waiting update rides in the title row beside the +, rather than
+      // costing a full-width band above the filters.
+      action: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          UpdateBanner(updater: store.updater, onTap: onOpenSettings),
+          IconSquare(
+            icon: view.showAdd ? Icons.close : Icons.add,
+            open: view.showAdd,
+            semanticLabel: view.showAdd
+                ? 'Close the add panel'
+                : 'Add assignment',
+            onPressed: () => onView(view.copyWith(showAdd: !view.showAdd)),
+          ),
+        ],
       ),
       children: [
-        UpdateBanner(updater: store.updater, onTap: onOpenSettings),
-
         // Straight under the + that opened it, ahead of the strip and the
         // filters, so the form is the first thing on the page rather than
         // something found below a chart.
@@ -227,6 +244,9 @@ class AssignmentsPage extends StatelessWidget {
         if (showStrip) ...[
           HorizonStrip(
             active: active,
+            // Display only: every bar keeps its count and its tap, and the
+            // ones outside the chosen subject fade.
+            focus: narrowed ? (a) => _inSubject(a, view.filter) : null,
             selectedDue: view.selectedDue,
             onSelect: (due) => onView(
               view.copyWith(
@@ -247,7 +267,7 @@ class AssignmentsPage extends StatelessWidget {
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
-              spacing: 2,
+              spacing: 4,
               children: [
                 _Chip(
                   label: 'Any time',
@@ -274,41 +294,61 @@ class AssignmentsPage extends StatelessWidget {
             ),
           ),
         // Subjects wrap rather than scroll: a scrolling row always cut its
-        // last chip off mid-word at the screen edge. The way to edit them
-        // closes the run, beside the chips it changes.
+        // last chip off mid-word at the screen edge. A subject with nothing
+        // in the current tab steps out of the run (the selected one never
+        // does), so the row only offers choices that show something. While
+        // the subjects are being managed every one shows, so a subject just
+        // added appears at once. The way to edit them closes the run, beside
+        // the chips it changes.
         if (store.subjects.isNotEmpty) ...[
-          const SizedBox(height: 4),
-          Wrap(
-            spacing: 4,
-            runSpacing: 4,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              _Chip(
-                label: 'All',
-                count: inSubject(filterAll),
-                on: view.filter == filterAll,
-                onTap: () => _select(filterAll),
-              ),
-              for (final s in store.subjects)
-                _Chip(
-                  label: s.name,
-                  count: inSubject(s.id),
-                  dot: s.swatch,
-                  on: view.filter == s.id,
-                  onTap: () => _select(s.id),
-                ),
-              if (active.any((a) => a.subjectId == null))
-                _Chip(
-                  label: 'Unfiled',
-                  count: inSubject(filterUnfiled),
-                  on: view.filter == filterUnfiled,
-                  onTap: () => _select(filterUnfiled),
-                ),
-              Padding(
-                padding: const EdgeInsets.only(left: 6),
-                child: _manageButton(),
-              ),
-            ],
+          if (hasWork) const SizedBox(height: 4),
+          Builder(
+            builder: (context) {
+              bool offered(String filter) =>
+                  view.showManage ||
+                  view.filter == filter ||
+                  inSubject(filter) > 0;
+              final subjects = [
+                for (final s in store.subjects)
+                  if (offered(s.id))
+                    _Chip(
+                      label: s.name,
+                      count: inSubject(s.id),
+                      dot: s.swatch,
+                      on: view.filter == s.id,
+                      onTap: () => _select(s.id),
+                    ),
+                if (active.any((a) => a.subjectId == null) &&
+                    offered(filterUnfiled))
+                  _Chip(
+                    label: 'Unfiled',
+                    count: inSubject(filterUnfiled),
+                    on: view.filter == filterUnfiled,
+                    onTap: () => _select(filterUnfiled),
+                  ),
+              ];
+              return Wrap(
+                spacing: 4,
+                runSpacing: 4,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  // All is only a choice when there is something to choose
+                  // between, or a subject to get back out of.
+                  if (subjects.isNotEmpty || narrowed)
+                    _Chip(
+                      label: 'All',
+                      count: inSubject(filterAll),
+                      on: view.filter == filterAll,
+                      onTap: () => _select(filterAll),
+                    ),
+                  ...subjects,
+                  Padding(
+                    padding: const EdgeInsets.only(left: 4),
+                    child: _manageButton(),
+                  ),
+                ],
+              );
+            },
           ),
         ],
         if (view.showManage) ...[
@@ -396,7 +436,7 @@ class AssignmentsPage extends StatelessWidget {
         if (view.selectedDue != null) _dayFilterBar(),
 
         // ---- list ----
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         if (shown.isEmpty)
           _empty()
         else
@@ -421,13 +461,14 @@ class AssignmentsPage extends StatelessWidget {
         // A short list otherwise ends in bare paper, which reads as one that
         // failed to load. The line under it says what it is a part of, from
         // the same counts as the tabs and chips.
+        // Left-aligned with the cards above it, like every other hint on
+        // the page.
         if (shown.isNotEmpty && (_showSubmitted || narrowed)) ...[
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           Text(
-            _footer(shown.length, _showSubmitted ? submittedPool : openPool),
+            _footer(),
             // Ink, not muted: muted sans on the paper ground fails contrast.
             style: T.emptyBody.copyWith(color: C.ink),
-            textAlign: TextAlign.center,
           ),
         ],
 
@@ -449,22 +490,19 @@ class AssignmentsPage extends StatelessWidget {
     onPressed: () => onView(view.copyWith(showManage: !view.showManage)),
   );
 
-  /// What a filtered or submitted list is out of, and the way back to all of
-  /// it — the chip already on screen, named rather than duplicated.
-  String _footer(int count, List<Assignment> pool) {
-    final what = _showSubmitted ? 'submitted' : 'open';
+  /// What a filtered or submitted list is, and the way back to all of it —
+  /// the chip already on screen, named rather than duplicated. The counts
+  /// are on the summary line and the tabs, so this does not repeat them.
+  String _footer() {
     final subject = switch (view.filter) {
       filterAll => null,
       filterUnfiled => 'Unfiled',
       final id => store.subjects.where((s) => s.id == id).firstOrNull?.name,
     };
     if (subject == null) {
-      return _showSubmitted
-          ? 'Submitted work stays here. Tap a card to move it back to Open.'
-          : '$count $what.';
+      return 'Submitted work stays here. Tap a card to move it back to Open.';
     }
-    return '$count of ${pool.length} $what, $subject only. '
-        'Tap All above to see every subject.';
+    return '$subject only. Tap All above to see every subject.';
   }
 
   void _select(String filter) =>
@@ -593,24 +631,34 @@ class _Empty extends StatelessWidget {
   /// Lime, for the one case where this is the page's main call to action.
   final bool primary;
 
+  // Left-aligned with the list it stands in for, and with the hints under a
+  // short list, so the page keeps one edge whatever state it is in.
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(24, 56, 24, 24),
-    child: Column(
+    padding: const EdgeInsets.fromLTRB(4, 28, 4, 24),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      spacing: 14,
       children: [
-        Icon(icon, size: 40, color: C.ink),
-        const SizedBox(height: 14),
-        Text(head, style: T.emptyHead, textAlign: TextAlign.center),
-        const SizedBox(height: 5),
-        Text(
-          body,
-          style: T.emptyBody.copyWith(color: C.ink),
-          textAlign: TextAlign.center,
+        Icon(icon, size: 32, color: C.ink),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(head, style: T.emptyHead),
+              const SizedBox(height: 4),
+              Text(body, style: T.emptyBody.copyWith(color: C.ink)),
+              if (action != null) ...[
+                const SizedBox(height: 14),
+                GhostButton(
+                  label: action!,
+                  filled: primary,
+                  onPressed: onAction!,
+                ),
+              ],
+            ],
+          ),
         ),
-        if (action != null) ...[
-          const SizedBox(height: 16),
-          GhostButton(label: action!, filled: primary, onPressed: onAction!),
-        ],
       ],
     ),
   );
@@ -649,7 +697,7 @@ class _Chip extends StatelessWidget {
     semanticLabel: semanticLabel ?? 'Filter by $label, $count shown',
     child: Container(
       color: on ? C.ink : (plain ? null : C.card),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         spacing: 6,
@@ -732,7 +780,7 @@ class _SearchFieldState extends State<_SearchField> {
     decoration: fieldDecoration(hint: 'Search assignments').copyWith(
       // Compact, to sit on the tab rule beside the tabs rather than take a
       // full-width row of its own above them.
-      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       hintMaxLines: 1,
       prefixIcon: Icon(Icons.search, size: 17, color: C.ink),
       prefixIconConstraints: const BoxConstraints(minWidth: 30),

@@ -150,9 +150,9 @@ class _NavBar extends StatelessWidget {
                       const SizedBox(height: 3),
                       Text(
                         label.toUpperCase(),
-                        style: T
-                            .eyebrow(tab == current ? C.ink : C.muted)
-                            .copyWith(fontSize: 9),
+                        style: T.flabel.copyWith(
+                          color: tab == current ? C.ink : C.muted,
+                        ),
                         maxLines: 1,
                       ),
                     ],

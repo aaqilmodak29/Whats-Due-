@@ -12,8 +12,14 @@ import 'atoms.dart';
 /// due and whose colour comes from [urgency]. Empty days get a hairline. It
 /// exists so a crunch week is visible before it arrives.
 ///
-/// It deliberately always shows **all** subjects, whatever the active filter is:
-/// the filter narrows the list, not the early warning.
+/// It deliberately always charts **all** subjects, whatever the active filter
+/// is: the filter narrows the list, not the early warning. With a subject
+/// chosen, days with nothing in it fade ([focus]) but keep their bar, count
+/// and tap.
+///
+/// The legend (which fortnight, which dates) sits in a column to the left of
+/// the chart rather than on a row above it, so the strip costs one band of
+/// height instead of two.
 ///
 /// Bars alone answered "something is due" but not "when" — every column looked
 /// alike, so a block four along was somewhere in the fortnight and nowhere in
@@ -33,9 +39,16 @@ class HorizonStrip extends StatefulWidget {
     required this.active,
     required this.selectedDue,
     required this.onSelect,
+    this.focus,
   });
 
   final List<Assignment> active;
+
+  /// When the list is narrowed to one subject, which work belongs to it. A
+  /// day with deadlines but none in focus stays charted (and tappable, with
+  /// the same count), only faded, so the strip still warns about the whole
+  /// fortnight while showing which bars the list below is about.
+  final bool Function(Assignment)? focus;
 
   /// `YYYY-MM-DD` of the day being filtered on, or null.
   final String? selectedDue;
@@ -46,8 +59,11 @@ class HorizonStrip extends StatefulWidget {
   final ValueChanged<String?> onSelect;
 
   static const _days = 14;
-  static const _barsHeight = 24.0;
-  static const _labelHeight = 14.0;
+  static const _barsHeight = 20.0;
+  static const _labelHeight = 12.0;
+
+  /// The legend's column: room for `28 AUG → 10 SEP` on one line.
+  static const _legendWidth = 112.0;
 
   /// Pages either side of the current fortnight — about seven years each way.
   /// Unbounded in every sense that matters for coursework, without an infinite
@@ -80,75 +96,77 @@ class _HorizonStripState extends State<HorizonStrip> {
     final start = _startOf(_page);
     final end = start.add(const Duration(days: HorizonStrip._days - 1));
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Flexible on both: a long month pair on a narrow phone would
-        // otherwise overflow rather than shorten, and neither label is worth
-        // an overflow stripe.
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Flexible(
-              // The way back only appears once you have moved off the current
-              // fortnight, so the common case carries no control at all.
-              child: _onCurrent
-                  ? Text(
-                      'This fortnight'.toUpperCase(),
-                      style: T.eyebrow(),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    )
-                  : Tap(
-                      onTap: () => _pages.animateToPage(
-                        HorizonStrip.reach,
-                        duration: const Duration(milliseconds: 260),
-                        curve: Curves.easeOutCubic,
-                      ),
-                      semanticLabel: 'Back to this fortnight',
-                      child: Text(
-                        'Back to today'.toUpperCase(),
-                        style: T.eyebrow(C.ink),
-                        maxLines: 1,
-                      ),
-                    ),
-            ),
-            const SizedBox(width: 8),
-            // Real dates rather than "Today → +14", which named neither end.
-            Flexible(
-              child: Text(
-                _range(start, end),
-                style: T.eyebrow(),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.right,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        SizedBox(
-          height: HorizonStrip._barsHeight + 1 + HorizonStrip._labelHeight,
-          child: PageView.builder(
-            controller: _pages,
-            itemCount: HorizonStrip.reach * 2 + 1,
-            onPageChanged: (i) => setState(() => _page = i),
-            itemBuilder: (context, i) => Stack(
+    // The legend sits beside the chart rather than on a row above it: the
+    // same two facts, a line of height less, so the list starts sooner.
+    return SizedBox(
+      height: HorizonStrip._barsHeight + 1 + HorizonStrip._labelHeight,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          SizedBox(
+            width: HorizonStrip._legendWidth,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                Row(children: _columns(_startOf(i))),
-                // Drawn over the columns so the baseline is continuous rather
-                // than broken by the 3px gaps between them.
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  top: HorizonStrip._barsHeight,
-                  child: Container(height: 1, color: C.ink),
+                // The way back only appears once you have moved off the
+                // current fortnight, so the common case carries no control.
+                if (_onCurrent)
+                  Text(
+                    'This fortnight'.toUpperCase(),
+                    style: T.eyebrow(C.ink),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  )
+                else
+                  Tap(
+                    onTap: () => _pages.animateToPage(
+                      HorizonStrip.reach,
+                      duration: const Duration(milliseconds: 260),
+                      curve: Curves.easeOutCubic,
+                    ),
+                    semanticLabel: 'Back to this fortnight',
+                    child: Text(
+                      'Back to today'.toUpperCase(),
+                      style: T.eyebrow(C.ink).copyWith(
+                        decoration: TextDecoration.underline,
+                      ),
+                      maxLines: 1,
+                    ),
+                  ),
+                // Real dates rather than "Today → +14", which named neither
+                // end.
+                Text(
+                  _range(start, end),
+                  style: T.eyebrow(),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
           ),
-        ),
-      ],
+          Expanded(
+            child: PageView.builder(
+              controller: _pages,
+              itemCount: HorizonStrip.reach * 2 + 1,
+              onPageChanged: (i) => setState(() => _page = i),
+              itemBuilder: (context, i) => Stack(
+                children: [
+                  Row(children: _columns(_startOf(i))),
+                  // Drawn over the columns so the baseline is continuous
+                  // rather than broken by the 3px gaps between them.
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    top: HorizonStrip._barsHeight,
+                    child: Container(height: 1, color: C.ink),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -196,6 +214,8 @@ class _HorizonStripState extends State<HorizonStrip> {
             // that is today has to know it.
             daysAway: daysUntil(formatIsoDate(date)) ?? 0,
             bucket: _bucket(date),
+            faded: widget.focus != null &&
+                !_bucket(date).any(widget.focus!),
             selected: widget.selectedDue != null &&
                 widget.selectedDue == formatIsoDate(date),
             onSelect: widget.onSelect,
@@ -235,9 +255,13 @@ class _DayColumn extends StatelessWidget {
     required this.bucket,
     required this.selected,
     required this.onSelect,
+    this.faded = false,
   });
 
   final DateTime date;
+
+  /// Deadlines that day, none of them in the subject the list is showing.
+  final bool faded;
   final int daysAway;
   final List<Assignment> bucket;
   final bool selected;
@@ -267,7 +291,12 @@ class _DayColumn extends StatelessWidget {
               // reads as a tall bar, which is the one thing this strip must
               // never say by accident — the tint lives under the baseline
               // instead, with the labels.
-              if (hasWork) _bar() else _hairline(),
+              if (!hasWork)
+                _hairline()
+              else if (faded)
+                Opacity(opacity: .3, child: _bar())
+              else
+                _bar(),
             ],
           ),
         ),
@@ -285,15 +314,13 @@ class _DayColumn extends StatelessWidget {
                 : null,
             child: Text(
               _initials[date.weekday - 1],
-              style: T.eyebrow(
+              style: T.flabel.copyWith(
                 // A selected day's label sits on the highlighter.
-                selected
+                color: selected
                     ? C.onMark
                     : _isToday
                     ? C.ink
                     : C.muted,
-              ).copyWith(
-                fontSize: 9,
                 letterSpacing: 0,
                 fontWeight: _isToday ? FontWeight.w600 : FontWeight.w400,
               ),
@@ -319,10 +346,10 @@ class _DayColumn extends StatelessWidget {
   }
 
   Widget _bar() {
-    // 10px for the first, 6px per additional, capped so a brutal week does not
+    // 8px for the first, 5px per additional, capped so a brutal week does not
     // blow out the strip's height. Kept short: the strip is an early warning,
     // not the page, and every pixel here pushes the list down.
-    final height = math.min(22, 10 + (bucket.length - 1) * 6).toDouble();
+    final height = math.min(18, 8 + (bucket.length - 1) * 5).toDouble();
     final colour = urgency(daysAway);
 
     return Container(
@@ -345,8 +372,8 @@ class _DayColumn extends StatelessWidget {
       child: bucket.length > 1
           ? Text(
               '${bucket.length}',
-              style: T.eyebrow(C.onInk).copyWith(
-                fontSize: 9,
+              style: T.flabel.copyWith(
+                color: C.onInk,
                 letterSpacing: 0,
                 fontWeight: FontWeight.w600,
               ),

@@ -201,11 +201,13 @@ class UpdateSection extends StatelessWidget {
   );
 }
 
-/// A one-line nudge on the main screen when an update is waiting.
+/// The nudge on the main screen when an update is waiting.
 ///
-/// Quiet on purpose: a hairline row in ink, not a highlighter slab. An update
-/// is worth knowing about but never more urgent than work that is overdue, so
-/// it costs one short line and leaves the loud colours to the list.
+/// It sits in the title row beside the +, as an outlined button the size of
+/// that square: a full-width band of its own pushed the whole list down for a
+/// notice that is never more urgent than work that is overdue. Outlined ink,
+/// not lime, so the + stays the page's one filled call to action, and with
+/// the version under the verb so it still says which update it is.
 class UpdateBanner extends StatelessWidget {
   const UpdateBanner({super.key, required this.updater, required this.onTap});
 
@@ -219,38 +221,32 @@ class UpdateBanner extends StatelessWidget {
       final release = updater.release;
       if (release == null) return const SizedBox.shrink();
       return Padding(
-        padding: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.only(right: 8),
         child: Tap(
           onTap: onTap,
           semanticLabel:
               'Version ${release.version} is available, tap to install',
           child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            height: 40,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
             decoration: BoxDecoration(
-              color: C.card,
-              border: Border.all(color: C.rule),
+              border: Border.all(color: C.ink, width: 1.5),
             ),
             child: Row(
-              spacing: 8,
+              mainAxisSize: MainAxisSize.min,
+              spacing: 7,
               children: [
-                Icon(Icons.system_update_alt, size: 15, color: C.ink),
-                Expanded(
-                  child: Text(
-                    'Version ${release.version} available'.toUpperCase(),
-                    style: T.eyebrow(C.ink),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                // The one action, underlined in the highlighter that marks
-                // "do this" everywhere else, rather than painted with it.
-                Container(
-                  padding: const EdgeInsets.only(bottom: 1),
-                  decoration: BoxDecoration(
-                    border: Border(bottom: BorderSide(color: C.mark, width: 3)),
-                  ),
-                  child: Text('UPDATE', style: T.ghost(C.ink)),
+                Icon(Icons.system_update_alt, size: 17, color: C.ink),
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('UPDATE', style: T.ghost(C.ink)),
+                    Text(
+                      release.version,
+                      style: T.flabel.copyWith(color: C.ink),
+                    ),
+                  ],
                 ),
               ],
             ),
