@@ -171,7 +171,7 @@ class _GoalSheetState extends State<_GoalSheet> {
   /// The target field takes the last row, so the bands and the free figure
   /// read as one list of choices for the same number.
   Widget _grid() => Column(
-    spacing: 8,
+    spacing: 10,
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       for (final b in widget.bands.reversed) _chip(b),
@@ -224,7 +224,7 @@ class _GoalSheetState extends State<_GoalSheet> {
         decoration: BoxDecoration(
           border: Border(top: BorderSide(color: C.ink, width: 3)),
         ),
-        padding: const EdgeInsets.fromLTRB(16, 24, 16, 26),
+        padding: const EdgeInsets.fromLTRB(16, 28, 16, 26),
         // Scrolls rather than overflows on a short screen or over the
         // keyboard.
         child: SingleChildScrollView(

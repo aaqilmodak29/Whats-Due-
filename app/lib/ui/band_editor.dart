@@ -87,9 +87,13 @@ class _GradingSectionState extends State<GradingSection> {
 /// Distinction starts — so they have to be visible together while being
 /// changed.
 class BandEditor extends StatefulWidget {
-  const BandEditor({super.key, required this.store});
+  const BandEditor({super.key, required this.store, this.rowGap = 6});
 
   final AppStore store;
+
+  /// The space under each band's row. Settings stacks the editor among other
+  /// cards and keeps it tight; Welcome gives it the whole screen.
+  final double rowGap;
 
   @override
   State<BandEditor> createState() => _BandEditorState();
@@ -195,8 +199,8 @@ class _BandEditorState extends State<BandEditor> {
   /// The band's colour down the left of its row, plus the gap after it.
   static const _rule = 12.0;
 
-  /// The bound's field and its unit.
-  static const _from = 84.0;
+  /// The bound's field, its unit inside it.
+  static const _from = 76.0;
 
   /// The name is set in Inter, whose line runs about 2px taller than the
   /// mono the bound is typed in; this much less padding top and bottom puts
@@ -206,7 +210,7 @@ class _BandEditorState extends State<BandEditor> {
   Widget _row(int i, GradeBand b) {
     final removable = bands.length > kMinBands;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
+      padding: EdgeInsets.only(bottom: widget.rowGap),
       child: Row(
         spacing: 8,
         children: [
@@ -263,21 +267,28 @@ class _BandEditorState extends State<BandEditor> {
           ),
           SizedBox(
             width: _from,
-            child: Row(
-              spacing: 6,
+            // The unit inside the box, in ink, at its right edge: outside it
+            // floated loose of the field it belongs to; muted, it read as a
+            // placeholder. The bound is at most three figures and a decimal,
+            // which stops well short of it.
+            child: Stack(
+              alignment: Alignment.centerRight,
               children: [
-                Expanded(
-                  child: NumberField(
-                    controller: _min(i, b.min),
-                    hint: '50',
-                    dense: true,
-                    semanticLabel: 'Lowest percentage for ${b.name}',
-                    onChanged: (v) => _replace(i, b.copyWith(min: v ?? 0)),
+                NumberField(
+                  controller: _min(i, b.min),
+                  hint: '50',
+                  dense: true,
+                  semanticLabel: 'Lowest percentage for ${b.name}',
+                  onChanged: (v) => _replace(i, b.copyWith(min: v ?? 0)),
+                ),
+                IgnorePointer(
+                  child: ExcludeSemantics(
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 10),
+                      child: Text('%', style: T.monoInput),
+                    ),
                   ),
                 ),
-                // The unit outside the box, in ink: inside it, it was a
-                // faint grey that read as a placeholder.
-                ExcludeSemantics(child: Text('%', style: T.monoInput)),
               ],
             ),
           ),

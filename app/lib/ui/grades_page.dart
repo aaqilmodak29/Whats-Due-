@@ -66,7 +66,7 @@ class _GradesPageState extends State<GradesPage> {
             _subjectCard(g),
             const SizedBox(height: 12),
           ],
-          const SizedBox(height: 18),
+          const SizedBox(height: 14),
           _key(grades),
           // Room to scroll the last band clear of the bottom nav.
           const SizedBox(height: 72),
@@ -117,7 +117,7 @@ class _GradesPageState extends State<GradesPage> {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(color: C.card),
-      padding: const EdgeInsets.fromLTRB(16, 15, 16, 14),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -163,12 +163,12 @@ class _GradesPageState extends State<GradesPage> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
                 _bar(g, goal),
               ],
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Row(
             spacing: 8,
             children: [
@@ -369,7 +369,7 @@ class _GradesPageState extends State<GradesPage> {
             boxed: false,
           ),
         if (lettered) ...[
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           _keyHeading('Bands, and where each subject sits'),
           for (final b in ordered) _bandKeyRow(b, grades),
         ],
@@ -396,7 +396,7 @@ class _GradesPageState extends State<GradesPage> {
     String meaning, {
     bool boxed = true,
   }) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 5),
+    padding: const EdgeInsets.symmetric(vertical: 3),
     child: Row(
       spacing: 12,
       children: [
@@ -423,8 +423,8 @@ class _GradesPageState extends State<GradesPage> {
         if (g.average != null && bandFor(g.average! * 100, bands) == b) g,
     ];
     return Container(
-      margin: const EdgeInsets.only(top: 4),
-      padding: const EdgeInsets.fromLTRB(10, 7, 0, 7),
+      margin: const EdgeInsets.only(top: 2),
+      padding: const EdgeInsets.fromLTRB(10, 4, 0, 4),
       decoration: BoxDecoration(
         border: Border(
           left: BorderSide(color: colourOfBand(b, bands), width: 4),
@@ -489,7 +489,7 @@ class _GradesPageState extends State<GradesPage> {
   }
 
   Widget _heading(String text) => Padding(
-    padding: const EdgeInsets.only(top: 18, bottom: 4),
+    padding: const EdgeInsets.only(top: 14, bottom: 2),
     child: Row(
       spacing: 8,
       children: [
@@ -644,7 +644,7 @@ class _GradesPageState extends State<GradesPage> {
     Widget? note,
     Color? metaColour,
   }) => Container(
-    padding: const EdgeInsets.symmetric(vertical: 9),
+    padding: const EdgeInsets.symmetric(vertical: 7),
     decoration: BoxDecoration(
       border: first
           ? null
@@ -703,12 +703,15 @@ class _GradesPageState extends State<GradesPage> {
         : '${trimNumber(need)} of ${trimNumber(g.remainingOutOf)}';
     final colour = !secured && reachable ? C.ink : C.muted;
 
+    // Drawn like the bands in the key under the cards: the name as a word in
+    // sans, the floor and the figure as data in mono, so the block reads as
+    // a list of bands rather than a wall of capitals.
     return Container(
       margin: const EdgeInsets.only(top: 2),
-      padding: const EdgeInsets.fromLTRB(8, 6, 0, 6),
+      padding: const EdgeInsets.fromLTRB(10, 4, 0, 4),
       decoration: BoxDecoration(
         border: Border(
-          left: BorderSide(color: colourOfBand(b, bands), width: 3),
+          left: BorderSide(color: colourOfBand(b, bands), width: 4),
         ),
       ),
       child: Row(
@@ -716,13 +719,28 @@ class _GradesPageState extends State<GradesPage> {
         children: [
           Expanded(
             child: Text(
-              '${b.name} · ${bandFloor(b)}'.toUpperCase(),
-              style: T.count(colour),
+              b.name,
+              style: _meta.copyWith(color: colour),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          Text(text.toUpperCase(), style: T.count(colour)),
+          SizedBox(
+            width: 44,
+            child: Text(
+              bandFloor(b),
+              style: T.count(colour),
+              textAlign: TextAlign.right,
+            ),
+          ),
+          SizedBox(
+            width: 96,
+            child: Text(
+              text.toUpperCase(),
+              style: T.count(colour),
+              textAlign: TextAlign.right,
+            ),
+          ),
         ],
       ),
     );
@@ -736,20 +754,33 @@ class _GradesPageState extends State<GradesPage> {
     // PageBody's own chrome above and below the list: its padding, the
     // "Coursework" eyebrow, the title and the gap under it.
     const chrome = 20 + 14 + 3 + 33.6 + 18 + 32;
-    // The Assignments page spends about this much more on its tab strip, so
-    // leaving it out of the centring puts the block at the same height as
-    // that page's empty state.
-    const tabs = 80;
     final free = height - MediaQuery.paddingOf(context).vertical - chrome;
-    return EmptyState(
-      icon: Icons.insights_outlined,
-      head: 'Nothing to total yet',
-      body: 'Each subject gets a card here. To start, open an assignment, '
-          'tap Edit and fill in what it is out of.',
-      action: 'Open Assignments',
-      primary: true,
-      onAction: _openAssignments,
-      minHeight: free - tabs < 0 ? 0 : free - tabs,
+
+    // The colours and marks the cards will use are already known, so the
+    // foot of the page carries the same key the cards have over it, rather
+    // than leaving it blank. The empty state centres in the room left above.
+    return ConstrainedBox(
+      constraints: BoxConstraints(minHeight: free < 24 ? 0 : free - 24),
+      child: IntrinsicHeight(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: EmptyState(
+                icon: Icons.insights_outlined,
+                head: 'Nothing to total yet',
+                body: 'Each subject gets a card here. To start, open an '
+                    'assignment, tap Edit and fill in what it is out of.',
+                action: 'Open Assignments',
+                primary: true,
+                onAction: _openAssignments,
+              ),
+            ),
+            const SizedBox(height: 16),
+            _key(const []),
+          ],
+        ),
+      ),
     );
   }
 

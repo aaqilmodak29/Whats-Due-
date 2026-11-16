@@ -63,14 +63,14 @@ class _WelcomeState extends State<Welcome> {
                         'Every deadline, mark and grade, subject by subject.',
                         style: T.body,
                       ),
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 22),
                       _question(),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 16),
                       if (_configuring) _bands() else _ladder(),
                     ],
                   ),
                   Padding(
-                    padding: const EdgeInsets.only(top: 20),
+                    padding: const EdgeInsets.only(top: 24),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: _actions(),
@@ -124,7 +124,7 @@ class _WelcomeState extends State<Welcome> {
 
   Widget _question() => Surface(
     topBorder: C.ink,
-    padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
+    padding: const EdgeInsets.fromLTRB(16, 18, 16, 20),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -161,7 +161,7 @@ class _WelcomeState extends State<Welcome> {
           style: T.body,
         ),
         const SizedBox(height: 12),
-        BandEditor(store: store),
+        BandEditor(store: store, rowGap: 10),
       ],
     ),
   );
@@ -172,7 +172,7 @@ class _WelcomeState extends State<Welcome> {
   Widget _preview() {
     Widget line(String? answer, GradeBand? band, List<GradeBand> bands) =>
         Padding(
-          padding: const EdgeInsets.symmetric(vertical: 7),
+          padding: const EdgeInsets.symmetric(vertical: 9),
           child: Row(
             spacing: 10,
             children: [
@@ -259,7 +259,7 @@ class _WelcomeState extends State<Welcome> {
           for (var i = bands.length - 1; i >= 0; i--)
             Container(
               margin: const EdgeInsets.only(top: 8),
-              padding: const EdgeInsets.fromLTRB(10, 9, 0, 9),
+              padding: const EdgeInsets.fromLTRB(10, 12, 0, 12),
               decoration: BoxDecoration(
                 border: Border(
                   left: BorderSide(

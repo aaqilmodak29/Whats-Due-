@@ -15,10 +15,12 @@ import '../theme.dart';
 ///    for it.
 ///  * Credit: a light sea-green, half slate and half green, lifted towards
 ///    the card.
-///  * Distinction: a deep green, the green half way to the app's fixed
-///    navy ([C.onMark]). That navy is the same in both modes, so Distinction
-///    is the deep green under High Distinction's bright one by day and by
-///    night alike, rather than turning pale after dark.
+///  * Distinction: the green mixed six tenths of the way to ink. By day ink
+///    is navy, so this is a deep bottle green, clearly darker than High
+///    Distinction's bright one even as a thin rail. After dark ink is near
+///    white, so it becomes a pale mint, lighter than the bright green and
+///    legible as text on the dark card (the navy mix it replaced sank into
+///    the card, which is that same navy).
 ///  * High Distinction: the green itself, at full strength.
 ///
 /// Every stop is mixed from the palette's own tokens, so after dark the same
@@ -51,7 +53,7 @@ Color colourOfBand(GradeBand band, List<GradeBand> bands) =>
 List<Color> get _stops => [
   C.muted,
   Color.lerp(Color.lerp(C.muted, C.green, .5), C.card, .15)!,
-  Color.lerp(C.green, C.onMark, .5)!,
+  Color.lerp(C.green, C.ink, .6)!,
   C.green,
 ];
 
