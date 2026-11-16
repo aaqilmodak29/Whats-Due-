@@ -152,7 +152,7 @@ class _GoalSheetState extends State<_GoalSheet> {
         : 'Current goal: ${trimNumber(now)}%.';
   }
 
-  static const _cell = 46.0;
+  static const _cell = 52.0;
 
   /// Any percentage, typed: the last cell of the grid, so the bands and the
   /// free figure read as one set of choices for the same number.
@@ -171,7 +171,7 @@ class _GoalSheetState extends State<_GoalSheet> {
   /// The target field takes the last row, so the bands and the free figure
   /// read as one list of choices for the same number.
   Widget _grid() => Column(
-    spacing: 6,
+    spacing: 8,
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
       for (final b in widget.bands.reversed) _chip(b),
@@ -224,7 +224,7 @@ class _GoalSheetState extends State<_GoalSheet> {
         decoration: BoxDecoration(
           border: Border(top: BorderSide(color: C.ink, width: 3)),
         ),
-        padding: const EdgeInsets.fromLTRB(16, 18, 16, 18),
+        padding: const EdgeInsets.fromLTRB(16, 24, 16, 26),
         // Scrolls rather than overflows on a short screen or over the
         // keyboard.
         child: SingleChildScrollView(
@@ -237,7 +237,7 @@ class _GoalSheetState extends State<_GoalSheet> {
                 const SizedBox(height: 6),
                 standing,
               ],
-              const SizedBox(height: 14),
+              const SizedBox(height: 20),
               Text(_currentLine, style: T.body),
               Text(
                 widget.bands.isEmpty
@@ -246,10 +246,10 @@ class _GoalSheetState extends State<_GoalSheet> {
                 style: T.body,
               ),
 
-              const SizedBox(height: 14),
+              const SizedBox(height: 20),
               _grid(),
 
-              const SizedBox(height: 20),
+              const SizedBox(height: 24),
               Row(
                 spacing: 8,
                 children: [
