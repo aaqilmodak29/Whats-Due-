@@ -68,6 +68,8 @@ class _GradesPageState extends State<GradesPage> {
           ],
           const SizedBox(height: 18),
           _key(grades),
+          // Room to scroll the last band clear of the bottom nav.
+          const SizedBox(height: 72),
         ],
       ],
     );
@@ -337,7 +339,7 @@ class _GradesPageState extends State<GradesPage> {
           bankedSwatch,
           'Banked',
           lettered
-              ? 'Marks earned, in the colour of the band you are in'
+              ? 'Marks earned, in the colour of your band'
               : 'Marks earned so far',
         ),
         _barKeyRow(
@@ -367,7 +369,7 @@ class _GradesPageState extends State<GradesPage> {
             boxed: false,
           ),
         if (lettered) ...[
-          const SizedBox(height: 22),
+          const SizedBox(height: 16),
           _keyHeading('Bands, and where each subject sits'),
           for (final b in ordered) _bandKeyRow(b, grades),
         ],
@@ -394,7 +396,7 @@ class _GradesPageState extends State<GradesPage> {
     String meaning, {
     bool boxed = true,
   }) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 6),
+    padding: const EdgeInsets.symmetric(vertical: 5),
     child: Row(
       spacing: 12,
       children: [
@@ -432,12 +434,14 @@ class _GradesPageState extends State<GradesPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         spacing: 10,
         children: [
-          Expanded(
-            flex: 5,
+          // Three columns on one grid: name, floor (right-aligned so the
+          // figures line up), then the subjects, all starting at one x.
+          SizedBox(
+            width: 186,
             child: Row(
               spacing: 8,
               children: [
-                Flexible(
+                Expanded(
                   child: Text(
                     b.name,
                     style: _meta,
@@ -445,12 +449,18 @@ class _GradesPageState extends State<GradesPage> {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                Text(bandFloor(b), style: T.count(C.ink)),
+                SizedBox(
+                  width: 44,
+                  child: Text(
+                    bandFloor(b),
+                    style: T.count(C.ink),
+                    textAlign: TextAlign.right,
+                  ),
+                ),
               ],
             ),
           ),
           Expanded(
-            flex: 6,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               spacing: 4,
@@ -718,104 +728,28 @@ class _GradesPageState extends State<GradesPage> {
     );
   }
 
-  /// No marks anywhere yet. The app's one empty-state shape: an icon, what
-  /// happened, one sentence and the one place to go about it, centred both
-  /// ways in the space left under the page title. Marks belong to an
-  /// assignment, so that place is the Assignments tab.
+  /// No marks anywhere yet. The app's one empty-state shape, the same
+  /// [EmptyState] the Assignments list uses: an icon on the page, what
+  /// happened, one sentence and the one place to go about it. Marks belong to
+  /// an assignment, so that place is the Assignments tab.
   Widget _empty(double height) {
     // PageBody's own chrome above and below the list: its padding, the
     // "Coursework" eyebrow, the title and the gap under it.
     const chrome = 20 + 14 + 3 + 33.6 + 18 + 32;
+    // The Assignments page spends about this much more on its tab strip, so
+    // leaving it out of the centring puts the block at the same height as
+    // that page's empty state.
+    const tabs = 80;
     final free = height - MediaQuery.paddingOf(context).vertical - chrome;
-    return ConstrainedBox(
-      constraints: BoxConstraints(minHeight: free < 0 ? 0 : free),
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 76,
-                height: 76,
-                alignment: Alignment.center,
-                color: C.card,
-                child: Icon(Icons.insights_outlined, size: 40, color: C.ink),
-              ),
-              const SizedBox(height: 18),
-              Text(
-                'Nothing to total yet',
-                style: T.emptyHead,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Each subject gets a card like this one. To start, open an '
-                'assignment, tap Edit and fill in what it is out of.',
-                style: _meta,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 18),
-              _example(),
-              const SizedBox(height: 20),
-              GhostButton(
-                label: 'Open Assignments',
-                filled: true,
-                onPressed: _openAssignments,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// What a subject card will look like, drawn small and marked as an
-  /// example: the header line and the bar, nothing that reads as a mark of
-  /// the user's own.
-  Widget _example() {
-    const average = .68;
-    return ExcludeSemantics(
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 300),
-        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-        decoration: BoxDecoration(
-          border: Border.all(color: C.rule),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          spacing: 10,
-          children: [
-            Row(
-              spacing: 6,
-              children: [
-                Dot(C.muted),
-                Expanded(child: Eyebrow('Example subject', color: C.ink)),
-                if (_band(average).isNotEmpty)
-                  Text(_band(average), style: T.count(_colour(average))),
-                Text(
-                  formatPercent(average),
-                  style: T.monoInput.copyWith(color: _percentColour(average)),
-                ),
-              ],
-            ),
-            SizedBox(
-              height: _barBox,
-              child: LayoutBuilder(
-                builder: (context, box) => Stack(
-                  children: _segments(
-                    box.maxWidth,
-                    .34,
-                    .5,
-                    _colour(average),
-                  ),
-                ),
-              ),
-            ),
-            Text('34 of 50 marked · 50 still to come', style: _meta),
-          ],
-        ),
-      ),
+    return EmptyState(
+      icon: Icons.insights_outlined,
+      head: 'Nothing to total yet',
+      body: 'Each subject gets a card here. To start, open an assignment, '
+          'tap Edit and fill in what it is out of.',
+      action: 'Open Assignments',
+      primary: true,
+      onAction: _openAssignments,
+      minHeight: free - tabs < 0 ? 0 : free - tabs,
     );
   }
 

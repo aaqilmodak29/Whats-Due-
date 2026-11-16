@@ -36,8 +36,9 @@ class _WelcomeState extends State<Welcome> {
 
   /// A page like every other: the title at the top where the other pages
   /// put theirs, the question and what it sets up straight under it, and
-  /// the answers anchored to the foot of the screen, where a thumb is. On a
-  /// screen too short for both, it simply scrolls.
+  /// the answers right after what they answer, so no void opens between the
+  /// question and its buttons. On a screen too short for all of it, it
+  /// simply scrolls.
   @override
   Widget build(BuildContext context) => Scaffold(
     body: SafeArea(
@@ -48,7 +49,7 @@ class _WelcomeState extends State<Welcome> {
             ConstrainedBox(
               constraints: BoxConstraints(minHeight: box.maxHeight - 40),
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                mainAxisAlignment: MainAxisAlignment.start,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Column(

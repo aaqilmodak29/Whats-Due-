@@ -225,9 +225,20 @@ class _BandEditorState extends State<BandEditor> {
                 // Remove sits inside the name, so every row keeps the same
                 // two columns. The bottom band is the floor everything else
                 // stands on: it catches every mark beneath the next one up, so
-                // it has no remove button.
+                // it has no remove button, and a muted lock in that slot says
+                // so rather than leaving a gap.
                 suffixIcon: i == 0
-                    ? null
+                    ? Semantics(
+                        label: 'The ${b.name} band is always kept',
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: Icon(
+                            Icons.lock_outline,
+                            size: 16,
+                            color: C.muted,
+                          ),
+                        ),
+                      )
                     : Opacity(
                         opacity: removable ? 1 : .3,
                         child: Tap(
