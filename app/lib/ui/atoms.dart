@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../bands.dart';
 import '../models.dart';
 import '../theme.dart';
 
@@ -117,28 +118,55 @@ class GhostButton extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.filled = false,
+    this.color,
+    this.icon,
+    this.expand = false,
   });
 
   final String label;
   final VoidCallback onPressed;
   final bool filled;
 
+  /// Outline (and [icon]) colour for an unfilled button — [C.red] for the one
+  /// destructive action. Ink when null. The label stays ink either way, since
+  /// small red type on white fails contrast.
+  final Color? color;
+
+  /// An optional leading glyph, drawn in [color].
+  final IconData? icon;
+
+  /// Fill the available width with the label centred, for a stacked pair of
+  /// full-width choices.
+  final bool expand;
+
   @override
-  Widget build(BuildContext context) => Tap(
-    onTap: onPressed,
-    semanticLabel: label,
-    child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
-      decoration: BoxDecoration(
-        color: filled ? C.mark : Colors.transparent,
-        border: Border.all(color: C.ink, width: 1.5),
+  Widget build(BuildContext context) {
+    final line = color ?? C.ink;
+    final text = Text(
+      label.toUpperCase(),
+      style: T.ghost(filled ? C.onMark : C.ink),
+    );
+    return Tap(
+      onTap: onPressed,
+      semanticLabel: label,
+      child: Container(
+        width: expand ? double.infinity : null,
+        alignment: expand ? Alignment.center : null,
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+        decoration: BoxDecoration(
+          color: filled ? C.mark : Colors.transparent,
+          border: Border.all(color: filled ? C.ink : line, width: 1.5),
+        ),
+        child: icon == null
+            ? text
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                spacing: 6,
+                children: [Icon(icon, size: 15, color: line), text],
+              ),
       ),
-      child: Text(
-        label.toUpperCase(),
-        style: T.ghost(filled ? C.onMark : C.ink),
-      ),
-    ),
-  );
+    );
+  }
 }
 
 /// The 40px square in the header. CSS `.iconbtn`.
@@ -219,14 +247,20 @@ class EyebrowButton extends StatelessWidget {
 }
 
 /// CSS `input` — square, hairline-bordered, on the near-white field surface.
-InputDecoration fieldDecoration({String? hint, bool mono = false}) =>
-    InputDecoration(
+InputDecoration fieldDecoration({
+  String? hint,
+  bool mono = false,
+  bool dense = false,
+}) => InputDecoration(
       hintText: hint,
       hintStyle: (mono ? T.monoInput : T.input).copyWith(color: C.muted),
       filled: true,
       fillColor: C.field,
       isDense: true,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
+      contentPadding: EdgeInsets.symmetric(
+        horizontal: 10,
+        vertical: dense ? 8 : 11,
+      ),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.zero,
         borderSide: BorderSide(color: C.rule),
@@ -339,6 +373,7 @@ class NumberField extends StatelessWidget {
     required this.semanticLabel,
     this.hint,
     this.suffix,
+    this.dense = false,
   });
 
   final TextEditingController controller;
@@ -348,6 +383,9 @@ class NumberField extends StatelessWidget {
 
   /// A trailing unit, e.g. `%`.
   final String? suffix;
+
+  /// Tighter vertical padding, for a stack of rows such as the band editor.
+  final bool dense;
 
   @override
   Widget build(BuildContext context) => Semantics(
@@ -359,7 +397,11 @@ class NumberField extends StatelessWidget {
         style: T.monoInput,
         // A decimal weight is real (12.5% of a unit); a negative one is not.
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        decoration: fieldDecoration(hint: hint, mono: true).copyWith(
+        decoration: fieldDecoration(
+          hint: hint,
+          mono: true,
+          dense: dense,
+        ).copyWith(
           suffixText: suffix,
           suffixStyle: T.monoInput.copyWith(color: C.muted),
         ),
@@ -423,12 +465,23 @@ class DateField extends StatelessWidget {
       // Wide enough for a whole degree either side of today.
       firstDate: DateTime(now.year - 2),
       lastDate: DateTime(now.year + 6),
-      builder: (context, child) => Theme(
-        data: Theme.of(context).copyWith(
-          datePickerTheme: buildDatePickerTheme(),
-        ),
-        child: child!,
-      ),
+      // Upper-case labels, as on every other button in the app: a ButtonStyle
+      // can colour a label but cannot change its case.
+      helpText: 'DUE DATE',
+      cancelText: 'CANCEL',
+      confirmText: 'SET DATE',
+      builder: (context, child) {
+        final theme = Theme.of(context);
+        return Theme(
+          data: theme.copyWith(
+            datePickerTheme: buildDatePickerTheme(),
+            // The month heading ("August 2026") is drawn in titleSmall; mono,
+            // like every other label that names a date.
+            textTheme: theme.textTheme.copyWith(titleSmall: T.tab(C.ink)),
+          ),
+          child: child!,
+        );
+      },
     );
     if (picked == null) return;
     onChanged(
@@ -602,4 +655,50 @@ class SubjectDropdown<TValue> extends StatelessWidget {
       decoration: fieldDecoration(),
     ),
   );
+}
+
+/// A [Switch] with its label on the same semantics node.
+///
+/// A [Semantics] wrapper on its own leaves the switch's tap target as a
+/// separate node with no label of its own, which a screen reader announces as
+/// just "switch". Merging puts the label, the toggled state and the tap on one
+/// node.
+class LabelledSwitch extends StatelessWidget {
+  const LabelledSwitch({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String label;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) => MergeSemantics(
+    child: Semantics(
+      label: label,
+      child: Switch(value: value, onChanged: onChanged),
+    ),
+  );
+}
+
+/// The colour of a grade bar — status, so every band gets one.
+///
+/// Below the pass mark is red. At or above it is green, stronger the higher
+/// the band, so the top band is the full green and a bare pass a pale one.
+/// Text keeps [gradeColour]'s three steps (red, ink, green); a bar has no
+/// label to carry the band, so it needs the extra steps.
+Color gradeBarColour(double percent, List<GradeBand> bands) {
+  if (bands.length < 2) {
+    final c = gradeColour(percent, bands);
+    return c == C.ink ? C.green.withValues(alpha: .6) : c;
+  }
+  if (percent + 1e-9 < bands[1].min) return C.red;
+  final passing = bands.length - 1;
+  final band = bandFor(percent, bands);
+  final rank = band == null ? 0 : bands.indexOf(band) - 1;
+  final t = passing <= 1 ? 1.0 : rank / (passing - 1);
+  return C.green.withValues(alpha: .4 + .6 * t);
 }

@@ -61,23 +61,60 @@ class _GoalSheetState extends State<_GoalSheet> {
     });
   }
 
+  /// Nothing to save: no target yet, or the one already set.
+  bool get _unchanged => _value == null || _value == widget.current;
+
+  Widget _chip(GradeBand b) {
+    // Display only: a chip is lit when the field holds exactly its bound,
+    // whether it got there by a tap or by typing.
+    final on = _value != null && (_value! - b.min).abs() < 1e-9;
+    return Tap(
+      onTap: () => _pick(b.min),
+      semanticLabel: 'Aim for ${b.name}, ${trimBound(b.min)} percent',
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        decoration: BoxDecoration(
+          color: on ? C.ink : Colors.transparent,
+          border: Border.all(color: on ? C.ink : C.rule, width: 1.5),
+        ),
+        child: Text(
+          '${b.name} ${trimBound(b.min)}%'.toUpperCase(),
+          style: T.chip(on ? C.onInk : C.ink),
+        ),
+      ),
+    );
+  }
+
+  /// Anchored to the bottom edge, full width, like the edit sheet — not a
+  /// box floating over the middle of the page. A [Dialog] rather than a modal
+  /// bottom sheet so it keeps the dialog's keyboard handling: it rides up with
+  /// the keyboard while the target is typed.
   @override
   Widget build(BuildContext context) => Dialog(
+    alignment: Alignment.bottomCenter,
+    insetPadding: EdgeInsets.zero,
     backgroundColor: C.card,
     shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-    insetPadding: const EdgeInsets.all(20),
-    child: ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 460),
+    child: SafeArea(
+      top: false,
       child: Container(
+        width: double.infinity,
         decoration: BoxDecoration(
-          border: Border(top: BorderSide(color: C.mark, width: 3)),
+          border: Border(top: BorderSide(color: C.ink, width: 3)),
         ),
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Eyebrow('Goal for ${widget.subjectName}'),
+            Eyebrow('Goal for ${widget.subjectName}', color: C.ink),
+            const SizedBox(height: 4),
+            Text(
+              widget.bands.isEmpty
+                  ? 'The percentage you are aiming for across the subject.'
+                  : 'Pick a band, or type any percentage.',
+              style: T.emptyBody,
+            ),
 
             if (widget.bands.isNotEmpty) ...[
               const SizedBox(height: 12),
@@ -86,34 +123,12 @@ class _GoalSheetState extends State<_GoalSheet> {
                 runSpacing: 6,
                 children: [
                   // Highest first: a goal is something to reach up to.
-                  for (final b in widget.bands.reversed)
-                    Tap(
-                      onTap: () => _pick(b.min),
-                      semanticLabel:
-                          'Aim for ${b.name}, '
-                          '${trimBound(b.min)} percent',
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 7,
-                        ),
-                        decoration: BoxDecoration(
-                          color: _value == b.min ? C.mark : Colors.transparent,
-                          border: Border.all(
-                            color: _value == b.min ? C.ink : C.rule,
-                          ),
-                        ),
-                        child: Text(
-                          '${b.name} ${trimBound(b.min)}%'.toUpperCase(),
-                          style: T.chip(_value == b.min ? C.onMark : C.muted),
-                        ),
-                      ),
-                    ),
+                  for (final b in widget.bands.reversed) _chip(b),
                 ],
               ),
             ],
 
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             SizedBox(
               width: 120,
               child: LabelledField(
@@ -121,18 +136,25 @@ class _GoalSheetState extends State<_GoalSheet> {
                 child: NumberField(
                   controller: _field,
                   suffix: '%',
-                  hint: '75',
                   semanticLabel: 'Target percentage',
                   onChanged: (v) => setState(() => _value = v),
                 ),
               ),
             ),
 
-            const SizedBox(height: 16),
+            const SizedBox(height: 18),
             Row(
-              mainAxisAlignment: MainAxisAlignment.end,
               spacing: 8,
               children: [
+                // Says why Save is greyed, in place of a silent dead button.
+                Expanded(
+                  child: _unchanged
+                      ? Text(
+                          _value == null ? 'NO TARGET YET' : 'NOTHING CHANGED',
+                          style: T.count(C.muted),
+                        )
+                      : const SizedBox.shrink(),
+                ),
                 if (widget.current != null)
                   GhostButton(
                     label: 'Clear',
@@ -143,20 +165,20 @@ class _GoalSheetState extends State<_GoalSheet> {
                   label: 'Cancel',
                   onPressed: () => Navigator.of(context).pop(),
                 ),
-                Opacity(
-                  opacity: _value == null ? .4 : 1,
-                  child: Tap(
-                    onTap: _value == null
-                        ? null
-                        : () => Navigator.of(context).pop(GoalChoice(_value)),
-                    semanticLabel: 'Save the goal',
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 11,
-                        vertical: 9,
-                      ),
-                      color: C.ink,
-                      child: Text('SAVE', style: T.ghost(C.onInk)),
+                Tap(
+                  onTap: _unchanged
+                      ? null
+                      : () => Navigator.of(context).pop(GoalChoice(_value)),
+                  semanticLabel: 'Save the goal',
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 11,
+                      vertical: 9.5,
+                    ),
+                    color: _unchanged ? C.rule : C.ink,
+                    child: Text(
+                      'SAVE',
+                      style: T.ghost(_unchanged ? C.muted : C.onInk),
                     ),
                   ),
                 ),
