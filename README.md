@@ -283,8 +283,9 @@ up once a degree.
 ### Colour on Grades
 
 Three states, not a gradient: **red** in the lowest band, **green** in the
-highest, ink everywhere between. It colours the percentage, the letter and the
-bar together.
+highest, ink everywhere between. The band word carries it, and the bar with it.
+The percentage beside the word stays ink, so the colour is read once; with no
+bands set there is no word, and the percentage carries it instead.
 
 A five-shade scale would make the colour the thing being read instead of the
 number, and the design carries two signal colours in the first place. Without
@@ -314,10 +315,11 @@ onto the same field.
 
 A subject goal is worth setting because of what it back-solves. Three
 assignments worth 30, 30 and 40 make a subject out of 100. Aim for 85, score 20
-on the first, and what you need is **65 from the remaining 70** — which is the
-sentence the goal row prints. Once a goal cannot be lost it says *already
-there*; once it cannot be reached it says so rather than printing a number you
-cannot get.
+on the first, and the goal row reads **Goal not reached, 65 of 70 left**. Once
+the goal cannot be lost it reads *Goal reached*; once it cannot be reached,
+*Goal out of reach* with the same two figures, which then speak for themselves
+(80 of 40 left). Which grade is being aimed at is the tick on the bar above the
+row, so the line does not name it again.
 
 Open a subject and **MARKS NEEDED** does the same for every band at once, in
 marks rather than percentages, because marks are what you can go and earn.
@@ -484,6 +486,10 @@ different weekday, and the weekend tints never landed in the same place twice.
 Each page is two whole weeks now, Monday to Sunday twice; a swipe moves a full
 fortnight, and a BACK TO TODAY appears once you have moved off the current one.
 It reaches about seven years either way.
+
+Beside the chart are the dates of the page being shown, and nothing else. The
+bars are the current fortnight unless you have moved off it, so a label saying
+so was a line to read every time that only ever said the obvious.
 
 Days are coloured against *today*, not against the page, so a column in a
 fortnight already gone still reads as overdue.

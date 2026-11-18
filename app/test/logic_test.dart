@@ -32,8 +32,13 @@ void main() {
     test('daysUntil rounds, so a DST boundary cannot cost a day', () {
       // Melbourne switches at 2am on the first Sunday in October: that day is
       // 23 hours long, and truncating the difference would report 0 days.
+      //
+      // Counted on the calendar, not with Duration(days:). Adding 139 exact
+      // days to a date in daylight time lands at 23:00 the evening before,
+      // which made this fail every November once the window reached April.
+      final today = midnight();
       for (var offset = 1; offset <= 400; offset++) {
-        final target = midnight().add(Duration(days: offset));
+        final target = DateTime(today.year, today.month, today.day + offset);
         expect(
           daysUntil(formatIsoDate(target)),
           offset,

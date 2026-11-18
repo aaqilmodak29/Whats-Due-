@@ -67,9 +67,7 @@ class _GradesPageState extends State<GradesPage> {
             _subjectCard(g),
             const SizedBox(height: 12),
           ],
-          const SizedBox(height: 14),
-          _key(grades),
-          // Room to scroll the last band clear of the bottom nav.
+          // Room to scroll the last card clear of the bottom nav.
           const SizedBox(height: 72),
         ],
       ],
@@ -175,9 +173,7 @@ class _GradesPageState extends State<GradesPage> {
             children: [
               // Already part of the header's label, so not announced twice.
               Expanded(
-                child: ExcludeSemantics(
-                  child: Text(_summary(g), style: _meta),
-                ),
+                child: ExcludeSemantics(child: Text(_summary(g), style: _meta)),
               ),
               if (subject != null && goal == null) _setGoal(subject),
             ],
@@ -222,9 +218,7 @@ class _GradesPageState extends State<GradesPage> {
   Widget _bar(SubjectGrade g, double? goal) {
     final total = g.totalOutOf;
     final banked = total <= 0 ? 0.0 : g.securedFraction.clamp(0.0, 1.0);
-    final marked = total <= 0
-        ? 0.0
-        : (g.markedOutOf / total).clamp(0.0, 1.0);
+    final marked = total <= 0 ? 0.0 : (g.markedOutOf / total).clamp(0.0, 1.0);
     final at = goal == null ? null : (goal / 100).clamp(0.0, 1.0);
     // Coloured by the average, not by how much is banked — a subject one
     // assignment in has banked very little of itself and would read as a
@@ -260,9 +254,7 @@ class _GradesPageState extends State<GradesPage> {
         // bar: the tick rises into the gap to meet it.
         Align(
           alignment: Alignment(at * 2 - 1, 0),
-          child: ExcludeSemantics(
-            child: Text('GOAL', style: T.chip(C.ink)),
-          ),
+          child: ExcludeSemantics(child: Text('GOAL', style: T.chip(C.ink))),
         ),
         const SizedBox(height: 3),
         bar,
@@ -308,194 +300,17 @@ class _GradesPageState extends State<GradesPage> {
     return out;
   }
 
-  /// The colours and marks every card uses, explained once under the last
-  /// card, at a size meant to be read: first the bar's parts, each drawn the
-  /// way the bar draws it with a plain sentence beside it, then the bands
-  /// high to low with every subject placed in the band it sits in now.
-  Widget _key(List<SubjectGrade> grades) {
-    final toCome = grades.any((g) => g.remainingOutOf > 0);
-    final goals = grades.any(
-      (g) => _subjectOf(g.subjectId)?.goalPercent != null,
-    );
-    final ordered = bands.reversed.toList();
-    final lettered = ordered.length >= 2;
-
-    // Banked takes whichever band colour the subject is in, so its swatch
-    // shows the scale, high to low.
-    final bankedSwatch = lettered
-        ? Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              for (final b in ordered)
-                Expanded(child: ColoredBox(color: colourOfBand(b, bands))),
-            ],
-          )
-        : ColoredBox(color: C.ink);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _keyHeading('Reading the bar'),
-        _barKeyRow(
-          bankedSwatch,
-          'Banked',
-          lettered
-              ? 'Marks earned, in the colour of your band'
-              : 'Marks earned so far',
-        ),
-        _barKeyRow(
-          ColoredBox(color: C.rule),
-          'Dropped',
-          'Marks lost on work already marked',
-        ),
-        if (toCome)
-          _barKeyRow(
-            DecoratedBox(
-              decoration: BoxDecoration(border: Border.all(color: C.muted)),
-            ),
-            'To come',
-            'Work with a total but no score yet',
-          ),
-        if (goals)
-          _barKeyRow(
-            Center(
-              child: SizedBox(
-                width: 2,
-                height: _barBox,
-                child: ColoredBox(color: C.ink),
-              ),
-            ),
-            'Goal',
-            'The grade you are aiming for',
-            boxed: false,
-          ),
-        if (lettered) ...[
-          const SizedBox(height: 12),
-          _keyHeading('Bands, and where each subject sits'),
-          for (final b in ordered) _bandKeyRow(b, grades),
-        ],
-      ],
-    );
-  }
-
-  Widget _keyHeading(String text) => Padding(
-    padding: const EdgeInsets.only(bottom: 8),
-    child: Row(
-      spacing: 8,
-      children: [
-        Text(text.toUpperCase(), style: T.eyebrow(C.ink)),
-        Expanded(child: Container(height: 1, color: C.rule)),
-      ],
-    ),
-  );
-
-  /// One part of the bar: drawn at the bar's own height, named in mono,
-  /// explained in a sentence.
-  Widget _barKeyRow(
-    Widget swatch,
-    String name,
-    String meaning, {
-    bool boxed = true,
-  }) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 3),
-    child: Row(
-      spacing: 12,
-      children: [
-        SizedBox(
-          width: 36,
-          height: boxed ? _barHeight : _barBox,
-          child: swatch,
-        ),
-        SizedBox(
-          width: 64,
-          child: Text(name.toUpperCase(), style: T.count(C.ink)),
-        ),
-        Expanded(child: Text(meaning, style: _meta)),
-      ],
-    ),
-  );
-
-  /// A band, high to low: its colour as the rule the marks-needed rows and
-  /// the goal sheet use, its name and floor, then the subjects whose average
-  /// lands in it. An empty band is just left empty.
-  Widget _bandKeyRow(GradeBand b, List<SubjectGrade> grades) {
-    final here = [
-      for (final g in grades)
-        if (g.average != null && bandFor(g.average! * 100, bands) == b) g,
-    ];
-    return Container(
-      margin: const EdgeInsets.only(top: 2),
-      padding: const EdgeInsets.fromLTRB(10, 4, 0, 4),
-      decoration: BoxDecoration(
-        border: Border(
-          left: BorderSide(color: colourOfBand(b, bands), width: 4),
-        ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        spacing: 10,
-        children: [
-          // Three columns on one grid: name, floor (right-aligned so the
-          // figures line up), then the subjects, all starting at one x.
-          SizedBox(
-            width: 186,
-            child: Row(
-              spacing: 8,
-              children: [
-                Expanded(
-                  child: Text(
-                    b.name,
-                    style: _meta,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                SizedBox(
-                  width: 44,
-                  child: Text(
-                    bandFloor(b),
-                    style: T.count(C.ink),
-                    textAlign: TextAlign.right,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              spacing: 4,
-              children: [
-                for (final g in here)
-                  Row(
-                    spacing: 6,
-                    children: [
-                      Dot(_swatch(g.subjectId)),
-                      Expanded(
-                        child: Text(
-                          _name(g.subjectId),
-                          style: _meta,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
+  /// Splits the open card into its sections. A full-width ink rule above the
+  /// name, not a grey hairline trailing off it: with three lists of rows under
+  /// one another, the break between them has to be the strongest line there.
   Widget _heading(String text) => Padding(
-    padding: const EdgeInsets.only(top: 14, bottom: 2),
-    child: Row(
-      spacing: 8,
+    padding: const EdgeInsets.only(top: 16, bottom: 4),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(text.toUpperCase(), style: T.eyebrow(C.ink)),
-        Expanded(child: Container(height: 1, color: C.rule)),
+        Container(height: 1, color: C.ink),
+        const SizedBox(height: 8),
+        Text(text.toUpperCase(), style: T.count(C.ink)),
       ],
     ),
   );
@@ -571,21 +386,17 @@ class _GradesPageState extends State<GradesPage> {
     ),
   );
 
-  /// The one sentence the goal exists to produce.
+  /// The one sentence the goal exists to produce. Reached or not first, then
+  /// what it would still take. Which grade is being aimed at is the tick on
+  /// the bar above it, so the line does not name it again.
   String _goalLine(SubjectGrade g, double goal) {
-    final band = bandFor(goal, bands);
-    final target = band == null
-        ? 'Goal ${trimNumber(goal)}%'
-        : 'Goal ${band.name}';
-
-    if (g.secured(goal)) return '$target — already there';
-    final need = g.neededFor(goal);
-    if (!g.reachable(goal)) {
-      return '$target — out of reach, ${trimNumber(need)} needed from '
-          '${trimNumber(g.remainingOutOf)}';
-    }
-    return '$target — ${trimNumber(need)} more of the '
+    if (g.secured(goal)) return 'Goal reached';
+    final need =
+        '${trimNumber(g.neededFor(goal))} of '
         '${trimNumber(g.remainingOutOf)} left';
+    return g.reachable(goal)
+        ? 'Goal not reached, $need'
+        : 'Goal out of reach, $need';
   }
 
   // ----------------------------------------------------------------- detail
@@ -611,10 +422,7 @@ class _GradesPageState extends State<GradesPage> {
         TextSpan(
           children: [
             if (band.isNotEmpty)
-              TextSpan(
-                text: '$band · ',
-                style: T.count(_colour(a.scored!)),
-              ),
+              TextSpan(text: '$band · ', style: T.count(_colour(a.scored!))),
             TextSpan(
               text: formatPercent(a.scored!),
               style: T.count(_percentColour(a.scored!)),
@@ -626,15 +434,16 @@ class _GradesPageState extends State<GradesPage> {
   }
 
   /// Still to come, laid out like a result so the two lists line up: the
-  /// title in ink, what it is out of where the mark will go.
+  /// title in ink, and in the mark's place the same `-/5` the cards use for a
+  /// mark not back yet, muted so the real marks above it come first.
   Widget _pendingRow(Assignment a, {required bool first}) => _detailRow(
     first: first,
     title: a.title,
     meta: a.due.isEmpty ? '' : longDate(a.due),
-    value: Text('OUT OF ${trimNumber(a.outOf!)}', style: T.count(C.ink)),
+    value: Text(a.markLabel, style: T.count(C.muted)),
     note: a.goal == null
         ? null
-        : Text('GOAL ${trimNumber(a.goal!)}', style: T.count(C.muted)),
+        : Text('GOAL ${trimNumber(a.goal!)}', style: T.chip(C.muted)),
   );
 
   Widget _detailRow({
@@ -667,8 +476,10 @@ class _GradesPageState extends State<GradesPage> {
               ),
               if (meta.isNotEmpty) ...[
                 const SizedBox(height: 3),
-                // Dates read the app's one way: upper-case mono.
-                Text(meta.toUpperCase(), style: T.count(metaColour ?? C.ink)),
+                // Dates read the app's one way: upper-case mono. A size down
+                // and muted here, where eight rows of them sit under one
+                // another and the titles are what you read first.
+                Text(meta.toUpperCase(), style: T.chip(metaColour ?? C.muted)),
               ],
             ],
           ),
@@ -763,7 +574,8 @@ class _GradesPageState extends State<GradesPage> {
     return EmptyState(
       icon: Icons.insights_outlined,
       head: 'Nothing to total yet',
-      body: 'Each subject gets a card here. To start, open an assignment, '
+      body:
+          'Each subject gets a card here. To start, open an assignment, '
           'tap Edit and fill in what it is out of.',
       action: 'Open Assignments',
       primary: true,

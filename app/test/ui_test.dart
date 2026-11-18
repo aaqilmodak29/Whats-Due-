@@ -307,8 +307,8 @@ void main() {
                 '${end.day} ${months[end.month - 1]}';
 
       expect(find.text(expected), findsOne);
-      expect(find.text('THIS FORTNIGHT'), findsOne);
-      // The way back is only offered once you have moved off it.
+      // The dates alone on the current fortnight: the way back is only
+      // offered once you have moved off it.
       expect(find.text('BACK TO TODAY'), findsNothing);
     }, seed: _seed());
 
@@ -327,7 +327,6 @@ void main() {
 
       // Two weeks on, still a Monday.
       final next = start.add(const Duration(days: 14));
-      expect(find.text('THIS FORTNIGHT'), findsNothing);
       expect(find.text('BACK TO TODAY'), findsOne);
 
       // And two back from there lands on the fortnight before this one.
@@ -339,7 +338,7 @@ void main() {
 
       await tester.tap(find.bySemanticsLabel('Back to this fortnight'));
       await tester.pumpAndSettle();
-      expect(find.text('THIS FORTNIGHT'), findsOne);
+      expect(find.text('BACK TO TODAY'), findsNothing);
       expect(next.weekday, DateTime.monday);
     }, seed: _seed());
 
@@ -1505,7 +1504,9 @@ void main() {
       (tester, store) async {
         // a1 is overdue, a2 is tomorrow, a3 and a4 are four days out. The
         // windows are a menu behind one control.
-        await tester.tap(find.bySemanticsLabel(RegExp('change the due window')));
+        await tester.tap(
+          find.bySemanticsLabel(RegExp('change the due window')),
+        );
         await tester.pumpAndSettle();
         await tester.tap(find.bySemanticsLabel('Show work due within 7 days'));
         await tester.pumpAndSettle();
@@ -1971,9 +1972,7 @@ void main() {
         store.setSubjectGoal(s, 85);
         await tester.pumpAndSettle();
 
-        expect(find.textContaining('65 more of the 70 left'), findsOne);
-        // Named as the band it is, since bands are configured.
-        expect(find.textContaining('Goal High Distinction'), findsOne);
+        expect(find.text('Goal not reached, 65 of 70 left'), findsOne);
       },
       seed: _seed(),
       bands: kDefaultBands,
@@ -1992,7 +1991,7 @@ void main() {
         store.setSubjectGoal(s, 50);
         await tester.pumpAndSettle();
 
-        expect(find.textContaining('Goal 50% — already there'), findsOne);
+        expect(find.text('Goal reached'), findsOne);
       },
       seed: _seed(),
       tab: 'Grades',
@@ -2010,7 +2009,8 @@ void main() {
         store.setSubjectGoal(s, 85);
         await tester.pumpAndSettle();
 
-        expect(find.textContaining('out of reach'), findsOne);
+        // 85 of 100 wanted, 5 banked and only 40 left to play for.
+        expect(find.text('Goal out of reach, 80 of 40 left'), findsOne);
       },
       seed: _seed(),
       tab: 'Grades',
@@ -2226,7 +2226,7 @@ void main() {
       size: const Size(430, 2400),
       tab: 'Assignments',
     );
-  
+
     appTest(
       'a subject is assigned a semester from its row in the manage panel',
       (tester, store) async {
@@ -2234,7 +2234,9 @@ void main() {
         await tester.tap(find.text('MANAGE SUBJECTS'));
         await tester.pumpAndSettle();
 
-        await tester.tap(find.bySemanticsLabel(RegExp('^Semester for Statistics')));
+        await tester.tap(
+          find.bySemanticsLabel(RegExp('^Semester for Statistics')),
+        );
         await tester.pumpAndSettle();
         await tester.tap(find.text('Semester 2, 2026').last);
         await tester.pumpAndSettle();
@@ -2254,7 +2256,9 @@ void main() {
         await tester.tap(find.text('MANAGE SUBJECTS'));
         await tester.pumpAndSettle();
 
-        await tester.tap(find.bySemanticsLabel(RegExp('^Semester for the new subject')));
+        await tester.tap(
+          find.bySemanticsLabel(RegExp('^Semester for the new subject')),
+        );
         await tester.pumpAndSettle();
         await tester.tap(find.text('Sem 1').last);
         await tester.pumpAndSettle();

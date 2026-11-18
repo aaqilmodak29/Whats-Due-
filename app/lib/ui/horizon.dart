@@ -85,9 +85,9 @@ class _HorizonStripState extends State<HorizonStrip> {
   }
 
   /// The Monday page [i] starts on.
-  DateTime _startOf(int i) => mondayOf(midnight()).add(
-    Duration(days: (i - HorizonStrip.reach) * HorizonStrip._days),
-  );
+  DateTime _startOf(int i) => mondayOf(
+    midnight(),
+  ).add(Duration(days: (i - HorizonStrip.reach) * HorizonStrip._days));
 
   bool get _onCurrent => _page == HorizonStrip.reach;
 
@@ -109,16 +109,11 @@ class _HorizonStripState extends State<HorizonStrip> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                // The way back only appears once you have moved off the
-                // current fortnight, so the common case carries no control.
-                if (_onCurrent)
-                  Text(
-                    'This fortnight'.toUpperCase(),
-                    style: T.eyebrow(C.ink),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  )
-                else
+                // Nothing above the dates on the current fortnight: the bars
+                // are today's by default, so a label saying so is one more
+                // line to read every time. The way back appears only once you
+                // have moved off it.
+                if (!_onCurrent)
                   Tap(
                     onTap: () => _pages.animateToPage(
                       HorizonStrip.reach,
@@ -128,9 +123,9 @@ class _HorizonStripState extends State<HorizonStrip> {
                     semanticLabel: 'Back to this fortnight',
                     child: Text(
                       'Back to today'.toUpperCase(),
-                      style: T.eyebrow(C.ink).copyWith(
-                        decoration: TextDecoration.underline,
-                      ),
+                      style: T
+                          .eyebrow(C.ink)
+                          .copyWith(decoration: TextDecoration.underline),
                       maxLines: 1,
                     ),
                   ),
@@ -215,9 +210,9 @@ class _HorizonStripState extends State<HorizonStrip> {
             // that is today has to know it.
             daysAway: daysUntil(formatIsoDate(date)) ?? 0,
             bucket: _bucket(date),
-            faded: widget.focus != null &&
-                !_bucket(date).any(widget.focus!),
-            selected: widget.selectedDue != null &&
+            faded: widget.focus != null && !_bucket(date).any(widget.focus!),
+            selected:
+                widget.selectedDue != null &&
                 widget.selectedDue == formatIsoDate(date),
             onSelect: widget.onSelect,
           ),
@@ -233,8 +228,18 @@ class _HorizonStripState extends State<HorizonStrip> {
   }
 
   static const _months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
 
   /// `8 → 21 AUG` within one month, `28 AUG → 10 SEP` across two. Naming the
@@ -317,10 +322,12 @@ class _DayColumn extends StatelessWidget {
               _initials[date.weekday - 1],
               // Ink on every day: the muted grey failed contrast at this size
               // on the paper and on the weekend tint. Today is the bold one.
-              style: T.chip(selected ? C.onMark : C.ink).copyWith(
-                letterSpacing: 0,
-                fontWeight: _isToday ? FontWeight.w700 : FontWeight.w400,
-              ),
+              style: T
+                  .chip(selected ? C.onMark : C.ink)
+                  .copyWith(
+                    letterSpacing: 0,
+                    fontWeight: _isToday ? FontWeight.w700 : FontWeight.w400,
+                  ),
             ),
           ),
         ),
@@ -335,7 +342,8 @@ class _DayColumn extends StatelessWidget {
           ? 'Clear the filter on ${longDate(iso)}'
           : '${bucket.length} due ${longDate(iso)}, tap to show only these',
       child: Tooltip(
-        message: '${bucket.length} due ${longDate(iso)}\n'
+        message:
+            '${bucket.length} due ${longDate(iso)}\n'
             '${bucket.map((a) => '· ${a.title}').join('\n')}',
         child: column,
       ),
